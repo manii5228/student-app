@@ -1,0 +1,225 @@
+"""
+Attendance API
+===============
+Endpoints for attendance sessions, bulk marking, QR attendance,
+offline sync, and Bunk-O-Meter.
+"""
+
+from datetime import date
+
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
+
+from ..services.attendance_service import AttendanceService
+from ..middleware.auth_middleware import role_required
+
+attendance_bp = Blueprint("attendance", __name__)
+attendance_service = AttendanceService()
+
+
+# ── Create Session (Faculty Only) ──────────────────────────────────
+
+@attendance_bp.route("/session", methods=["POST"])
+@jwt_required()
+@role_required("faculty", "admin")
+def create_session():
+    """
+    Create a new attendance session.
+    
+    Body: {
+        "subject_code": "CS301",
+        "subject_name": "Data Structures",
+        "department": "CSE",
+        "semester": 3,
+        "section": "A",
+        "period_number": 1,
+        "session_date": "2026-05-09"  (optional, defaults to today)
+    }
+    """
+    data = request.get_json()
+    faculty_id = get_jwt_identity()
+
+    required = ["subject_code", "subject_name", "department", "semester",
+                "section", "period_number"]
+    missing = [f for f in required if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing: {', '.join(missing)}"}), 400
+
+    # Parse date if provided
+    if "session_date" in data and isinstance(data["session_date"], str):
+        data["session_date"] = date.fromisoformat(data["session_date"])
+
+    result, error = attendance_service.create_session(faculty_id, data)
+    if error:
+        return jsonify({"error": error}), 400
+
+    return jsonify({"message": "Session created", "session": result}), 201
+
+
+# ── Bulk Mark Attendance (Faculty) ─────────────────────────────────
+
+@attendance_bp.route("/session/<session_id>/bulk", methods=["POST"])
+@jwt_required()
+@role_required("faculty", "admin")
+def bulk_mark(session_id):
+    """
+    Bulk mark attendance — faculty marks all present, then toggles absentees.
+    
+    Body: {
+        "records": [
+            {"student_id": "uuid1", "status": "present"},
+            {"student_id": "uuid2", "status": "absent"},
+            {"student_id": "uuid3", "status": "late"}
+        ]
+    }
+    """
+    data = request.get_json()
+    faculty_id = get_jwt_identity()
+
+    if "records" not in data or not isinstance(data["records"], list):
+        return jsonify({"error": "records list required"}), 400
+
+    result, error = attendance_service.bulk_mark_attendance(
+        session_id, faculty_id, data["records"],
+    )
+
+    if error:
+        return jsonify({"error": error}), 400
+
+    return jsonify({"message": "Attendance marked", "result": result}), 200
+
+
+# ── Generate QR (Faculty) ─────────────────────────────────────────
+
+@attendance_bp.route("/session/<session_id>/qr", methods=["POST"])
+@jwt_required()
+@role_required("faculty", "admin")
+def generate_qr(session_id):
+    """
+    Generate a time-locked QR token for student check-in.
+    Body: {"latitude": 13.123, "longitude": 80.123}
+    """
+    faculty_id = get_jwt_identity()
+    data = request.get_json() or {}
+    lat = data.get("latitude")
+    lng = data.get("longitude")
+
+    result, error = attendance_service.generate_qr_token(session_id, faculty_id, lat, lng)
+    if error:
+        return jsonify({"error": error}), 400
+
+    return jsonify(result), 200
+
+
+# ── Scan QR (Student) ─────────────────────────────────────────────
+
+@attendance_bp.route("/scan-qr", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def scan_qr():
+    """
+    Student scans QR code to mark attendance.
+    Body: {"qr_token": "...", "latitude": 13.123, "longitude": 80.123}
+    """
+    data = request.get_json()
+    student_id = get_jwt_identity()
+    qr_token = data.get("qr_token")
+    lat = data.get("latitude")
+    lng = data.get("longitude")
+
+    if not qr_token:
+        return jsonify({"error": "QR token required"}), 400
+
+    result, error = attendance_service.scan_qr_attendance(qr_token, student_id, lat, lng)
+    if error:
+        return jsonify({"error": error}), 400
+
+    return jsonify({"message": "Attendance marked via QR", "result": result}), 200
+
+
+# ── Offline Sync ───────────────────────────────────────────────────
+
+@attendance_bp.route("/sync", methods=["POST"])
+@jwt_required()
+def sync_offline():
+    """
+    Sync attendance records captured offline.
+    Body: {
+        "records": [
+            {"session_id": "...", "student_id": "...", "status": "present",
+             "client_timestamp": "..."}
+        ]
+    }
+    """
+    data = request.get_json()
+    records = data.get("records", [])
+
+    if not records:
+        return jsonify({"error": "No records to sync"}), 400
+
+    result = attendance_service.sync_offline_attendance(records)
+    return jsonify({"message": "Sync complete", "result": result}), 200
+
+
+# ── Bunk-O-Meter (Student) ────────────────────────────────────────
+
+@attendance_bp.route("/bunk-o-meter", methods=["GET"])
+@jwt_required()
+@role_required("student")
+def bunk_o_meter():
+    """
+    Get attendance summary and bunkable classes.
+    Query params: ?subject_code=CS301 (optional)
+    """
+    student_id = get_jwt_identity()
+    subject_code = request.args.get("subject_code")
+
+    result = attendance_service.get_bunk_o_meter(student_id, subject_code)
+    return jsonify(result), 200
+
+
+# ── Faculty Sessions ──────────────────────────────────────────────
+
+@attendance_bp.route("/my-sessions", methods=["GET"])
+@jwt_required()
+@role_required("faculty", "admin")
+def my_sessions():
+    """
+    Get all attendance sessions for the logged-in faculty.
+    Query params: ?date=2026-05-09 (optional)
+    """
+    faculty_id = get_jwt_identity()
+    session_date = request.args.get("date")
+
+    if session_date:
+        session_date = date.fromisoformat(session_date)
+
+    sessions = attendance_service.get_faculty_sessions(faculty_id, session_date)
+    return jsonify({"sessions": sessions}), 200
+
+
+# ── Get Students for Attendance ────────────────────────────────────
+
+@attendance_bp.route("/students", methods=["GET"])
+@jwt_required()
+@role_required("faculty", "admin")
+def get_class_students():
+    """
+    Get all students in a class for attendance marking.
+    Query params: ?department=CSE&semester=3&section=A
+    """
+    from ..repositories.user_repo import UserRepository
+    user_repo = UserRepository()
+
+    department = request.args.get("department")
+    semester = request.args.get("semester", type=int)
+    section = request.args.get("section")
+
+    if not all([department, semester, section]):
+        return jsonify({"error": "department, semester, section required"}), 400
+
+    students = user_repo.get_students_by_class(department, semester, section)
+    return jsonify({
+        "students": [s.to_dict() for s in students],
+        "total": len(students),
+    }), 200

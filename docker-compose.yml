@@ -1,0 +1,78 @@
+# ═══════════════════════════════════════════════════════════════════
+#  VelTech Super-App — Docker Compose
+#  Services: Flask API + PostgreSQL + Redis
+# ═══════════════════════════════════════════════════════════════════
+
+version: "3.9"
+
+services:
+  # ── Flask API Server ─────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: superapp-api
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://superapp:superapp_pass@db:5432/superapp_dev
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=docker-dev-secret-key
+      - JWT_SECRET_KEY=docker-jwt-secret-key
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - superapp-network
+
+  # ── PostgreSQL Database ──────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: superapp-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: superapp
+      POSTGRES_PASSWORD: superapp_pass
+      POSTGRES_DB: superapp_dev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U superapp -d superapp_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - superapp-network
+
+  # ── Redis Cache ──────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: superapp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - superapp-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  superapp-network:
+    driver: bridge

@@ -1,0 +1,342 @@
+"""
+Campus API — Canteen, Bus Tracking, Library, Events, Notices, Clubs, Feedback, Marketplace
+"""
+
+import json
+import secrets
+from datetime import datetime, timezone, date
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from ..extensions import db
+from ..middleware.auth_middleware import role_required
+from ..models.campus import (
+    CanteenItem, CanteenOrder, Bus, LibraryBook, LibraryIssue,
+    Event, EventRegistration, Notice, Club, ClubMembership,
+    Feedback, MarketListing,
+)
+
+campus_bp = Blueprint("campus", __name__)
+
+
+# ── Digital Canteen ────────────────────────────────────────────────
+
+@campus_bp.route("/canteen/menu", methods=["GET"])
+@jwt_required()
+def canteen_menu():
+    """Browse canteen menu with category filter."""
+    cat = request.args.get("category")
+    query = CanteenItem.query.filter_by(is_available=True)
+    if cat:
+        query = query.filter_by(category=cat)
+    items = query.order_by(CanteenItem.category, CanteenItem.name).all()
+    return jsonify({"menu": [i.to_dict() for i in items]}), 200
+
+
+@campus_bp.route("/canteen/order", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def place_order():
+    """Pre-order food to skip lines."""
+    data = request.get_json()
+    order = CanteenOrder(
+        student_id=get_jwt_identity(),
+        items_json=json.dumps(data["items"]),
+        total_amount=data["total_amount"],
+        order_number=f"ORD{secrets.randbelow(9999):04d}",
+    )
+    db.session.add(order)
+    db.session.commit()
+    return jsonify({"message": "Order placed", "order": order.to_dict()}), 201
+
+
+@campus_bp.route("/canteen/orders", methods=["GET"])
+@jwt_required()
+def my_orders():
+    """Get student's canteen orders."""
+    orders = CanteenOrder.query.filter_by(student_id=get_jwt_identity())\
+        .order_by(CanteenOrder.created_at.desc()).limit(20).all()
+    return jsonify({"orders": [o.to_dict() for o in orders]}), 200
+
+
+@campus_bp.route("/canteen/order/<oid>/status", methods=["PUT"])
+@jwt_required()
+@role_required("admin", "faculty")
+def update_order_status(oid):
+    """Update order status (admin/canteen staff)."""
+    order = db.session.get(CanteenOrder, oid)
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+    order.status = request.get_json().get("status", order.status)
+    db.session.commit()
+    return jsonify({"order": order.to_dict()}), 200
+
+
+# ── Bus Tracking ───────────────────────────────────────────────────
+
+@campus_bp.route("/buses", methods=["GET"])
+@jwt_required()
+def list_buses():
+    """Get all active buses with live GPS."""
+    buses = Bus.query.filter_by(is_active=True).all()
+    return jsonify({"buses": [b.to_dict() for b in buses]}), 200
+
+
+@campus_bp.route("/buses/<bid>/location", methods=["PUT"])
+@jwt_required()
+@role_required("admin")
+def update_bus_location(bid):
+    """Update bus GPS coordinates."""
+    bus = db.session.get(Bus, bid)
+    if not bus:
+        return jsonify({"error": "Bus not found"}), 404
+    data = request.get_json()
+    bus.current_lat = data.get("lat")
+    bus.current_lng = data.get("lng")
+    bus.last_updated = datetime.now(timezone.utc)
+    db.session.commit()
+    return jsonify({"bus": bus.to_dict()}), 200
+
+
+# ── Library ────────────────────────────────────────────────────────
+
+@campus_bp.route("/library/books", methods=["GET"])
+@jwt_required()
+def search_books():
+    """Search library books."""
+    q = request.args.get("q", "")
+    cat = request.args.get("category")
+    query = LibraryBook.query
+    if q:
+        s = f"%{q}%"
+        query = query.filter(LibraryBook.title.ilike(s) | LibraryBook.author.ilike(s))
+    if cat:
+        query = query.filter_by(category=cat)
+    books = query.limit(50).all()
+    return jsonify({"books": [b.to_dict() for b in books]}), 200
+
+
+@campus_bp.route("/library/my-issues", methods=["GET"])
+@jwt_required()
+@role_required("student")
+def my_library_issues():
+    """Get current book issues for student."""
+    issues = LibraryIssue.query.filter_by(
+        student_id=get_jwt_identity(), returned_date=None).all()
+    return jsonify({"issues": [i.to_dict() for i in issues]}), 200
+
+
+@campus_bp.route("/library/renew/<issue_id>", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def renew_book(issue_id):
+    """Renew a library book (QR renewal)."""
+    issue = db.session.get(LibraryIssue, issue_id)
+    if not issue or issue.student_id != get_jwt_identity():
+        return jsonify({"error": "Issue not found"}), 404
+    if issue.renewed_count >= 2:
+        return jsonify({"error": "Max renewals reached"}), 400
+    from datetime import timedelta
+    issue.due_date = issue.due_date + timedelta(days=14)
+    issue.renewed_count += 1
+    db.session.commit()
+    return jsonify({"message": "Renewed", "issue": issue.to_dict()}), 200
+
+
+# ── Events ─────────────────────────────────────────────────────────
+
+@campus_bp.route("/events", methods=["GET"])
+@jwt_required()
+def list_events():
+    """Discovery feed for fests and events."""
+    etype = request.args.get("type")
+    query = Event.query.filter_by(is_approved=True)
+    if etype:
+        query = query.filter_by(event_type=etype)
+    events = query.order_by(Event.start_date.desc()).limit(50).all()
+    return jsonify({"events": [e.to_dict() for e in events]}), 200
+
+
+@campus_bp.route("/events", methods=["POST"])
+@jwt_required()
+def create_event():
+    """Create an event (requires admin approval)."""
+    data = request.get_json()
+    e = Event(
+        title=data["title"], description=data.get("description"),
+        event_type=data.get("event_type", "fest"),
+        organizer_id=get_jwt_identity(), venue=data.get("venue"),
+        start_date=datetime.fromisoformat(data["start_date"]),
+        end_date=datetime.fromisoformat(data["end_date"]) if data.get("end_date") else None,
+        max_participants=data.get("max_participants"),
+    )
+    db.session.add(e)
+    db.session.commit()
+    return jsonify({"message": "Event submitted for approval", "event": e.to_dict()}), 201
+
+
+@campus_bp.route("/events/<eid>/register", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def register_event(eid):
+    """Register for an event."""
+    data = request.get_json() or {}
+    reg = EventRegistration(
+        event_id=eid, student_id=get_jwt_identity(),
+        role=data.get("role", "participant"),
+    )
+    db.session.add(reg)
+    event = db.session.get(Event, eid)
+    if event:
+        event.registration_count = (event.registration_count or 0) + 1
+    db.session.commit()
+    return jsonify({"message": "Registered"}), 201
+
+
+@campus_bp.route("/events/<eid>/approve", methods=["POST"])
+@jwt_required()
+@role_required("admin")
+def approve_event(eid):
+    """Admin approves an event."""
+    event = db.session.get(Event, eid)
+    if not event:
+        return jsonify({"error": "Event not found"}), 404
+    event.is_approved = True
+    db.session.commit()
+    return jsonify({"message": "Event approved"}), 200
+
+
+# ── Notice Board ───────────────────────────────────────────────────
+
+@campus_bp.route("/notices", methods=["GET"])
+@jwt_required()
+def list_notices():
+    """Get notice board with pinned items first."""
+    notices = Notice.query.order_by(
+        Notice.is_pinned.desc(), Notice.created_at.desc()).limit(50).all()
+    return jsonify({"notices": [n.to_dict() for n in notices]}), 200
+
+
+@campus_bp.route("/notices", methods=["POST"])
+@jwt_required()
+@role_required("faculty", "admin")
+def create_notice():
+    """Post a notice/announcement."""
+    data = request.get_json()
+    n = Notice(
+        title=data["title"], content=data["content"],
+        author_id=get_jwt_identity(),
+        priority=data.get("priority", "normal"),
+        target_audience=data.get("target_audience", "all"),
+        is_pinned=data.get("is_pinned", False),
+    )
+    db.session.add(n)
+    db.session.commit()
+    return jsonify({"message": "Notice posted", "notice": n.to_dict()}), 201
+
+
+# ── Clubs & Societies ─────────────────────────────────────────────
+
+@campus_bp.route("/clubs", methods=["GET"])
+@jwt_required()
+def list_clubs():
+    """List all active clubs."""
+    clubs = Club.query.filter_by(is_active=True).all()
+    return jsonify({"clubs": [c.to_dict() for c in clubs]}), 200
+
+
+@campus_bp.route("/clubs/<cid>/join", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def join_club(cid):
+    """Join a club."""
+    mem = ClubMembership(club_id=cid, student_id=get_jwt_identity())
+    db.session.add(mem)
+    club = db.session.get(Club, cid)
+    if club:
+        club.member_count = (club.member_count or 0) + 1
+    db.session.commit()
+    return jsonify({"message": "Joined club"}), 201
+
+
+@campus_bp.route("/clubs/my-clubs", methods=["GET"])
+@jwt_required()
+@role_required("student")
+def my_clubs():
+    """Get clubs the student has joined."""
+    mems = ClubMembership.query.filter_by(student_id=get_jwt_identity()).all()
+    club_ids = [m.club_id for m in mems]
+    clubs = Club.query.filter(Club.id.in_(club_ids)).all() if club_ids else []
+    return jsonify({"clubs": [c.to_dict() for c in clubs]}), 200
+
+
+# ── Anonymous Feedback ─────────────────────────────────────────────
+
+@campus_bp.route("/feedback", methods=["GET"])
+@jwt_required()
+def list_feedback():
+    """List feedback (public)."""
+    feedbacks = Feedback.query.order_by(
+        Feedback.upvotes.desc(), Feedback.created_at.desc()).limit(50).all()
+    return jsonify({"feedbacks": [f.to_dict() for f in feedbacks]}), 200
+
+
+@campus_bp.route("/feedback", methods=["POST"])
+@jwt_required()
+def submit_feedback():
+    """Submit anonymous or named feedback."""
+    data = request.get_json()
+    fb = Feedback(
+        content=data["content"], category=data.get("category", "general"),
+        is_anonymous=data.get("is_anonymous", True),
+        author_id=get_jwt_identity() if not data.get("is_anonymous") else None,
+    )
+    db.session.add(fb)
+    db.session.commit()
+    return jsonify({"message": "Feedback submitted"}), 201
+
+
+@campus_bp.route("/feedback/<fid>/respond", methods=["POST"])
+@jwt_required()
+@role_required("admin")
+def respond_feedback(fid):
+    """Admin responds to feedback."""
+    fb = db.session.get(Feedback, fid)
+    if not fb:
+        return jsonify({"error": "Not found"}), 404
+    data = request.get_json()
+    fb.admin_response = data["response"]
+    fb.status = "reviewed"
+    db.session.commit()
+    return jsonify({"message": "Response posted"}), 200
+
+
+# ── Buy & Sell Marketplace ────────────────────────────────────────
+
+@campus_bp.route("/marketplace", methods=["GET"])
+@jwt_required()
+def marketplace_listings():
+    """Browse marketplace items."""
+    cat = request.args.get("category")
+    query = MarketListing.query.filter_by(is_sold=False)
+    if cat:
+        query = query.filter_by(category=cat)
+    items = query.order_by(MarketListing.created_at.desc()).limit(50).all()
+    return jsonify({"listings": [i.to_dict() for i in items]}), 200
+
+
+@campus_bp.route("/marketplace", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def create_listing():
+    """Post an item for sale."""
+    data = request.get_json()
+    listing = MarketListing(
+        seller_id=get_jwt_identity(), title=data["title"],
+        description=data.get("description"), price=data["price"],
+        category=data.get("category", "books"),
+        condition=data.get("condition", "good"),
+    )
+    db.session.add(listing)
+    db.session.commit()
+    return jsonify({"message": "Listed", "listing": listing.to_dict()}), 201

@@ -1,0 +1,174 @@
+1. Authentication & Security (6 Features)
+SSO Login: Single Sign-On using college email.
+
+Biometric Auth: Fingerprint or FaceID for fast access.
+
+QR Entry: Dynamic QR code for gate entry/exit.
+
+Session Manager: See and log out of other devices.
+
+Two-Factor Auth (2FA): For sensitive actions like seeing results.
+
+Guest Mode: Limited view for parents or visitors.
+
+2. Academic Core (10 Features)
+Smart Timetable: Daily/Weekly view with "Next Class" alerts.
+
+Attendance Tracker: Subject-wise percentage with "Bunk" calculators.
+
+Credit Dashboard: Visual map of earned vs. required credits.
+
+Assignment Submission: Secure portal for PDF/Image uploads.
+
+Results/Gradebook: Semester-wise SGPA and CGPA tracking.
+
+Syllabus Viewer: Offline-ready subject-wise curriculum.
+
+Faculty Directory: Searchable list of professors with "Email/Chat" buttons.
+
+Internal Marks: View marks for mid-terms and lab assessments.
+
+Exam Schedule: Personalised calendar for end-semester exams.
+
+Hall Ticket: Digital version with photo for exam entry.
+
+3. Project & Skill Management (8 Features)
+Project Reminders: Milestone tracking with push notifications.
+
+GitHub Integration: Link repos directly to project profiles.
+
+Team Finder: "Tinder-style" swiping to find partners for hackathons.
+
+Skill Badges: Earn digital badges for completing college workshops.
+
+Portfolio Builder: Automatically generates a CV from app data.
+
+Lab Booking: Real-time availability for CS/Mechanical labs.
+
+Digital Twin/Simulation: Portal for technical project demos.
+
+Smart Agriculture Hub: Specific tracker for campus-based research projects.
+
+4. Campus Operations & Finance (9 Features)
+Digital Canteen: Browse menu and pre-order food to skip lines.
+
+Bus Tracking: Live GPS location of college buses.
+
+Fee Payment: Integration for tuition and exam fees.
+
+Hostel Management: Room maintenance requests and leave passes.
+
+Library Portal: Check book availability and renew via QR.
+
+Lost & Found: Post images of found items on a campus board.
+
+Campus Map: Indoor navigation to find specific classrooms.
+
+WiFi Manager: Register devices for campus-wide internet.
+
+Stationery Store: Order lab coats or drafting tools for pickup.
+
+5. Communication & Events (9 Features)
+Notice Board: Urgent, pinned announcements from the Principal.
+
+Event Hub: Discovery feed for fests like LAVAZA.
+
+Live Event Schedule: Real-time updates on stage performances.
+
+Volunteer Portal: Apply for organizing committees.
+
+In-app Chat: Peer-to-peer and group study chats.
+
+Clubs & Societies: Join and track activities for technical clubs.
+
+Alumni Connect: Directory to message graduated seniors.
+
+Anonymous Feedback: Suggestion box for college improvements.
+
+Photo Gallery: High-res photos from college events.
+
+6. Career & Placements (7 Features)
+Job Portal: Feed of companies visiting for placements.
+
+Eligibility Check: Automatic "Yes/No" based on current CGPA.
+
+Interview Scheduler: Calendar for upcoming placement rounds.
+
+Company Prep: Access to previous years' interview questions.
+
+Internship Tracker: Record summer internship certificates.
+
+Referral Hub: Ask alumni for referrals at top companies.
+
+Mock Test Portal: Practice MCQ tests for technical rounds.
+
+7. Utility & Health (7 Features)
+Health Center: Appointment booking for the campus clinic.
+
+Emergency Button: One-tap alert to campus security/ambulance.
+
+Buy & Sell: Marketplace for used books and project materials.
+
+Polls & Surveys: Quick voting for student council or fest themes.
+
+Dark Mode: Battery-saving UI for long study sessions.
+
+Offline Mode: Local cache for all academic data.
+
+Sync Status: Indicator showing when data was last updated.
+
+8. Advanced / AI Features (4 Features)
+AI Study Assistant: Chatbot for syllabus-related queries.
+
+GPA Predictor: ML-tool to calculate required grades for a target CGPA.
+
+Document Scanner: In-app tool to convert paper notes to PDF.
+
+Usage Analytics: Shows students how much time they spend on study vs. social.
+
+
+Faculty Module (Focus: Efficiency & Data Entry)
+Efficiency is key here—professors need to update records for 60+ students at once.
+
+Bulk Attendance Marker: A "one-tap" list where all are marked present by default, and the faculty only taps the absentees.
+
+QR Attendance Generator: Faculty displays a dynamic QR code on the classroom projector that students scan to check-in (stops proxy attendance).
+
+Marks Entry Portal: Spreadsheet-style UI for entering internal/lab marks with auto-save.
+
+Assignment Grader: Interface to view student uploads, add comments, and assign marks.
+
+Broadcast to Class: Send instant push notifications specifically to students of a particular subject/batch.
+
+Leave Approval System: Dashboard to review and approve/reject student leave applications.
+
+Syllabus Progress Tracker: A checklist where faculty marks how much of the curriculum they have completed.
+
+Automated Report Generator: One-click export of attendance/marks to PDF or Excel for department meetings.
+
+Meeting Scheduler: Set "Office Hours" so students can book 5-minute slots for project discussions.
+
+Resource Uploader: Fast upload for lecture notes, ppts, and lab manuals.
+
+Admin Module (Focus: Control & Analytics)
+This is the "Command Center" with full CRUD (Create, Read, Update, Delete) access.
+
+User Management: Create, suspend, or delete Student and Faculty accounts.
+
+Master Timetable Editor: Drag-and-drop interface to resolve room or faculty scheduling conflicts.
+
+Global Announcement Center: Send emergency alerts to the entire 15k user base at once.
+
+Role-Based Access Control (RBAC): Define who can see what (e.g., preventing a Lab Assistant from seeing the Finance data).
+
+System Health Monitor: Real-time dashboard showing server load, active users, and API response times.
+
+Fee Management: Track pending payments and send automated reminders to students.
+
+Event Management (Fest Control): Approve student-led events like LAVAZA and monitor ticket sales/registrations.
+
+Audit Logs: A "black box" that records every change made to marks or attendance to prevent tampering/fraud.
+
+Database Backup/Restore: Automated tools to ensure student data is never lost.
+
+Placement Analytics: View stats on how many students are placed vs. eligible to generate college reports.
