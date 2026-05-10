@@ -21,7 +21,13 @@ import IndoorMap from './pages/IndoorMap';
 import JobPortal from './pages/JobPortal';
 import ReferralHub from './pages/ReferralHub';
 import TimetableEditor from './pages/TimetableEditor';
+import TeamFinder from './pages/TeamFinder';
+import PortfolioBuilder from './pages/PortfolioBuilder';
+import CreditDashboard from './pages/CreditDashboard';
 import SystemHealth from './pages/SystemHealth';
+import HostelPass from './pages/HostelPass';
+import NoticeBoard from './pages/NoticeBoard';
+import Results from './pages/Results';
 
 // Check if the user has a valid token in localStorage
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -54,15 +60,21 @@ function App() {
             <Route path="/academic/attendance" element={<ProtectedRoute><BunkOMeter /></ProtectedRoute>} />
             <Route path="/academic/assignments" element={<ProtectedRoute><Assignments /></ProtectedRoute>} />
             <Route path="/academic/question-papers" element={<ProtectedRoute><QuestionPapers /></ProtectedRoute>} />
+            <Route path="/academic/credits" element={<ProtectedRoute><CreditDashboard /></ProtectedRoute>} />
+            <Route path="/academic/results" element={<ProtectedRoute><Results /></ProtectedRoute>} />
 
-            {/* Campus Operations */}
+            {/* Campus Operations & Comm */}
             <Route path="/campus/canteen" element={<ProtectedRoute><DigitalCanteen /></ProtectedRoute>} />
             <Route path="/campus/bus" element={<ProtectedRoute><LiveBusTracking /></ProtectedRoute>} />
             <Route path="/campus/map" element={<ProtectedRoute><IndoorMap /></ProtectedRoute>} />
+            <Route path="/campus/hostel-pass" element={<ProtectedRoute><HostelPass /></ProtectedRoute>} />
+            <Route path="/campus/notices" element={<ProtectedRoute><NoticeBoard /></ProtectedRoute>} />
 
             {/* Career & Placements */}
             <Route path="/career/jobs" element={<ProtectedRoute><JobPortal /></ProtectedRoute>} />
             <Route path="/career/referrals" element={<ProtectedRoute><ReferralHub /></ProtectedRoute>} />
+            <Route path="/career/team-finder" element={<ProtectedRoute><TeamFinder /></ProtectedRoute>} />
+            <Route path="/career/portfolio" element={<ProtectedRoute><PortfolioBuilder /></ProtectedRoute>} />
 
             {/* Faculty Management Layer */}
             <Route path="/faculty" element={<ProtectedRoute><FacultyHub /></ProtectedRoute>} />

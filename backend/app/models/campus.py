@@ -219,3 +219,26 @@ class MarketListing(db.Model):
     def to_dict(self):
         return {"id": self.id, "seller_id": self.seller_id, "title": self.title,
                 "price": self.price, "category": self.category, "condition": self.condition, "is_sold": self.is_sold}
+
+class HostelPass(db.Model):
+    __tablename__ = "hostel_passes"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    reason = db.Column(db.String(500), nullable=False)
+    from_date = db.Column(db.DateTime, nullable=False)
+    to_date = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), default="pending") # pending, approved, rejected
+    qr_code_url = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id, 
+            "student_id": self.student_id, 
+            "reason": self.reason,
+            "from_date": self.from_date.isoformat(), 
+            "to_date": self.to_date.isoformat(), 
+            "status": self.status, 
+            "qr_code_url": self.qr_code_url,
+            "created_at": self.created_at.isoformat()
+        }

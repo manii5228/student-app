@@ -6,32 +6,33 @@
 - [ ] **Session Manager:** See and log out of other devices.
 - [ ] **Guest Mode:** Limited view for parents or visitors.
 
-## 2. Academic Core (4/10 Completed)
+## 2. Academic Core (5/10 Completed)
 - [x] **Smart Timetable:** Daily/Weekly view with "Next Class" alerts.
 - [x] **Attendance Tracker:** Subject-wise percentage with "Bunk" calculators.
-- [ ] **Credit Dashboard:** Visual map of earned vs. required credits.
+- [x] **Credit Dashboard:** Visual map of earned vs. required credits.
 - [x] **Assignment Submission:** Secure portal for PDF/Image uploads.
-- [ ] **Results/Gradebook:** Semester-wise SGPA and CGPA tracking.
+- [x] **Results/Gradebook:** Semester-wise SGPA and CGPA tracking.
 - [ ] **Syllabus Viewer:** Offline-ready subject-wise curriculum.
 - [ ] **Faculty Directory:** Searchable list of professors with "Email/Chat" buttons.
 - [ ] **Internal Marks:** View marks for mid-terms and lab assessments.
 - [ ] **Exam Schedule:** Personalised calendar for end-semester exams.
 - [x] **Question Papers:** (Added) Previous Year Question Papers.
 
-## 3. Project & Skill Management (0/4 Completed)
+## 3. Project & Skill Management (2/4 Completed)
 - [ ] **Project Reminders:** Milestone tracking with push notifications.
-- [ ] **Team Finder:** "Tinder-style" swiping to find partners.
+- [x] **Team Finder:** "Tinder-style" swiping to find partners.
 - [ ] **Skill Badges:** Earn digital badges for completing college workshops.
-- [ ] **Portfolio Builder:** Automatically generates a CV from app data.
+- [x] **Portfolio Builder:** Automatically generates a CV from app data.
 
-## 4. Campus Operations & Finance (3/4 Completed)
+## 4. Campus Operations & Finance (4/5 Completed)
 - [x] **Digital Canteen:** Browse menu and pre-order food to skip lines.
 - [x] **Bus Tracking:** Live GPS location of college buses.
+- [x] **Hostel Pass:** QR-based out-pass system for boarding students.
 - [ ] **Library Portal:** Check book availability and renew via QR.
 - [x] **Campus Map:** Indoor navigation to find specific classrooms.
 
-## 5. Communication & Events (1/7 Completed)
-- [ ] **Notice Board:** Urgent, pinned announcements from the Principal.
+## 5. Communication & Events (2/7 Completed)
+- [x] **Notice Board:** Urgent, pinned announcements from the Principal.
 - [ ] **Event Hub:** Discovery feed for fests like LAVAZA.
 - [ ] **Live Event Schedule:** Real-time updates on stage performances.
 - [ ] **Volunteer Portal:** Apply for organizing committees.

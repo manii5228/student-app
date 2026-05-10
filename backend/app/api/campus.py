@@ -13,7 +13,7 @@ from ..middleware.auth_middleware import role_required
 from ..models.campus import (
     CanteenItem, CanteenOrder, Bus, LibraryBook, LibraryIssue,
     Event, EventRegistration, Notice, Club, ClubMembership,
-    Feedback, MarketListing,
+    Feedback, MarketListing, HostelPass
 )
 
 campus_bp = Blueprint("campus", __name__)
@@ -166,8 +166,8 @@ def create_event():
         title=data["title"], description=data.get("description"),
         event_type=data.get("event_type", "fest"),
         organizer_id=get_jwt_identity(), venue=data.get("venue"),
-        start_date=datetime.fromisoformat(data["start_date"]),
-        end_date=datetime.fromisoformat(data["end_date"]) if data.get("end_date") else None,
+        start_date=datetime.fromisoformat(data["start_date"].replace("Z", "+00:00")),
+        end_date=datetime.fromisoformat(data["end_date"].replace("Z", "+00:00")) if data.get("end_date") else None,
         max_participants=data.get("max_participants"),
     )
     db.session.add(e)
@@ -340,3 +340,49 @@ def create_listing():
     db.session.add(listing)
     db.session.commit()
     return jsonify({"message": "Listed", "listing": listing.to_dict()}), 201
+
+
+# ── Hostel Pass ────────────────────────────────────────────────
+@campus_bp.route("/hostel-pass", methods=["GET"])
+@jwt_required()
+@role_required("student")
+def my_hostel_passes():
+    """Get all hostel passes for the logged in student."""
+    passes = HostelPass.query.filter_by(student_id=get_jwt_identity()).order_by(HostelPass.created_at.desc()).all()
+    return jsonify({"passes": [p.to_dict() for p in passes]}), 200
+
+@campus_bp.route("/hostel-pass", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def request_hostel_pass():
+    """Request a new hostel pass."""
+    data = request.get_json()
+    new_pass = HostelPass(
+        student_id=get_jwt_identity(),
+        reason=data["reason"],
+        from_date=datetime.fromisoformat(data["from_date"].replace("Z", "+00:00")),
+        to_date=datetime.fromisoformat(data["to_date"].replace("Z", "+00:00"))
+    )
+    db.session.add(new_pass)
+    db.session.commit()
+    return jsonify({"message": "Hostel pass requested successfully", "pass": new_pass.to_dict()}), 201
+
+@campus_bp.route("/hostel-pass/<pid>/status", methods=["PUT"])
+@jwt_required()
+@role_required("admin", "faculty")
+def update_hostel_pass_status(pid):
+    """Update status of a hostel pass (approve/reject)."""
+    h_pass = db.session.get(HostelPass, pid)
+    if not h_pass:
+        return jsonify({"error": "Hostel pass not found"}), 404
+    
+    data = request.get_json()
+    status = data.get("status")
+    if status in ["approved", "rejected"]:
+        h_pass.status = status
+        # If approved, generate a mock QR code URL
+        if status == "approved":
+            h_pass.qr_code_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-{h_pass.id}"
+        db.session.commit()
+        return jsonify({"message": f"Hostel pass {status}", "pass": h_pass.to_dict()}), 200
+    return jsonify({"error": "Invalid status"}), 400

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Briefcase, Target, MapPin, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronLeft, Briefcase, Target, MapPin, CheckCircle, XCircle, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 

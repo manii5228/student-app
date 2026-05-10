@@ -11,11 +11,11 @@ const Career = () => {
 
   const features = [
     { name: 'Job Portal', icon: <Briefcase className="w-6 h-6 text-emerald-600" />, color: 'bg-emerald-100', text: 'View & apply for placements.', path: '/career/jobs' },
+    { name: 'Portfolio Builder', icon: <BookOpen className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Auto-generate your ATS CV.', path: '/career/portfolio' },
+    { name: 'Team Finder', icon: <Users className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Tinder-style match making.', path: '/career/team-finder' },
+    { name: 'Referral Hub', icon: <Share2 className="w-6 h-6 text-pink-600" />, color: 'bg-pink-100', text: 'Ask alumni for referrals.', path: '/career/referrals' },
     { name: 'Eligibility Check', icon: <CheckSquare className="w-6 h-6 text-blue-600" />, color: 'bg-blue-100', text: 'Auto CGPA verifier.', path: '/career/jobs' },
     { name: 'Interviews', icon: <Clock className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Upcoming schedules.', path: null },
-    { name: 'Company Prep', icon: <BookOpen className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Previous years\' questions.', path: null },
-    { name: 'Alumni Network', icon: <Users className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Search and connect.', path: null },
-    { name: 'Referral Hub', icon: <Share2 className="w-6 h-6 text-pink-600" />, color: 'bg-pink-100', text: 'Ask alumni for referrals.', path: '/career/referrals' },
   ];
 
   return (

@@ -11,13 +11,14 @@ const Campus = () => {
   
   const features = [
     { name: 'Canteen Pre-order', icon: <Coffee className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Skip the line, order now.', path: '/campus/canteen' },
+    { name: 'Hostel Out-Pass', icon: <Calendar className="w-6 h-6 text-teal-600" />, color: 'bg-teal-100', text: 'QR-based exit pass system.', path: '/campus/hostel-pass' },
     { name: 'Bus Tracker', icon: <Bus className="w-6 h-6 text-blue-600" />, color: 'bg-blue-100', text: 'Live GPS of college buses.', path: '/campus/bus' },
     { name: 'Indoor Map', icon: <MapIcon className="w-6 h-6 text-emerald-600" />, color: 'bg-emerald-100', text: 'Navigate labs and POIs.', path: '/campus/map' },
     { name: 'Events & Fests', icon: <Calendar className="w-6 h-6 text-pink-600" />, color: 'bg-pink-100', text: 'Register for campus events.', path: null },
-    { name: 'Notice Board', icon: <Bell className="w-6 h-6 text-red-600" />, color: 'bg-red-100', text: 'Important announcements.', path: null },
+    { name: 'Notice Board', icon: <Bell className="w-6 h-6 text-red-600" />, color: 'bg-red-100', text: 'Important announcements.', path: '/campus/notices' },
     { name: 'Clubs Hub', icon: <Users className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Join technical/cultural clubs.', path: null },
     { name: 'Anon Feedback', icon: <MessageSquare className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Voice your concerns safely.', path: null },
-    { name: 'Marketplace', icon: <ShoppingBag className="w-6 h-6 text-teal-600" />, color: 'bg-teal-100', text: 'Buy/sell used materials.', path: null },
+    { name: 'Marketplace', icon: <ShoppingBag className="w-6 h-6 text-amber-600" />, color: 'bg-amber-100', text: 'Buy/sell used materials.', path: null },
   ];
 
   return (

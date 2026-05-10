@@ -3,11 +3,17 @@ Application entry point.
 Run with: python run.py
 """
 
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from app import create_app
 from app.extensions import db
 
 app = create_app()
 
+with app.app_context():
+    db.create_all()
 
 @app.cli.command("seed")
 def seed_db():
@@ -15,7 +21,8 @@ def seed_db():
     from app.models.user import User, UserRole
     from datetime import datetime, timezone
 
-    print("🌱 Seeding database...")
+    print("Seeding database...")
+    db.create_all()
 
     # Admin
     admin = User(
@@ -62,11 +69,16 @@ def seed_db():
         db.session.add(student)
 
     db.session.commit()
-    print("✅ Database seeded successfully!")
+    print("Database seeded successfully!")
     print("   Admin:   admin@veltech.edu.in / admin123!")
     print("   Faculty: faculty@veltech.edu.in / faculty123!")
     print("   Student: student1@veltech.edu.in / student123!")
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "seed":
+        with app.app_context():
+            seed_db()
+    else:
+        app.run(host="0.0.0.0", port=5000, debug=True)

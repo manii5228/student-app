@@ -39,7 +39,7 @@ Use the following accounts to explore the different Role-Based Access Control (R
 |------|-------|----------|
 | **Admin** | `admin@veltech.edu.in` | `admin123!` |
 | **Faculty** | `faculty@veltech.edu.in` | `faculty123!` |
-| **Student** | `student1@veltech.edu.in` | `student123!` |
+| **Student** | student1@veltech.edu.in | `student123!` |
 
 ---
 
