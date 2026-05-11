@@ -20,9 +20,9 @@
 - [x] **Question Papers:** (Added) Previous Year Question Papers.
 
 ## 3. Project & Skill Management (2/4 Completed)
-- [ ] **Project Reminders:** Milestone tracking with push notifications.
+- [X] **Project Reminders:** Milestone tracking with push notifications.
 - [x] **Team Finder:** "Tinder-style" swiping to find partners.
-- [ ] **Skill Badges:** Earn digital badges for completing college workshops.
+- [X] **Skill Badges:** Earn digital badges for completing college workshops.
 - [x] **Portfolio Builder:** Automatically generates a CV from app data.
 
 ## 4. Campus Operations & Finance (4/5 Completed)
@@ -32,14 +32,14 @@
 - [ ] **Library Portal:** Check book availability and renew via QR.
 - [x] **Campus Map:** Indoor navigation to find specific classrooms.
 
-## 5. Communication & Events (2/7 Completed)
+## 5. Communication & Events (7/7 ✅ COMPLETE)
 - [x] **Notice Board:** Urgent, pinned announcements from the Principal.
-- [ ] **Event Hub:** Discovery feed for fests like LAVAZA.
-- [ ] **Live Event Schedule:** Real-time updates on stage performances.
-- [ ] **Volunteer Portal:** Apply for organizing committees.
-- [ ] **Clubs & Societies:** Join and track activities for technical clubs.
+- [x] **Event Hub:** Discovery feed for fests like LAVAZA.
+- [x] **Live Event Schedule:** Real-time updates on stage performances.
+- [x] **Volunteer Portal:** Apply for organizing committees.
+- [x] **Clubs & Societies:** Join and track activities for technical clubs.
 - [x] **Alumni Connect:** Directory to message graduated seniors (Referral Hub).
-- [ ] **Anonymous Feedback:** Suggestion box for college improvements.
+- [x] **Anonymous Feedback:** Suggestion box for college improvements.
 
 ## 6. Career & Placements (2/7 Completed)
 - [x] **Job Portal:** Feed of companies visiting for placements.
@@ -89,4 +89,4 @@
 - [ ] **Placement Analytics:** View stats on how many students are placed vs. eligible.
 
 ---
-**Summary:** Currently, 26 core features have been fully implemented across the Frontend and Backend. Sections 1 (Auth) and 2 (Academic Core) are fully complete. The remaining features are scaffolded in the UI Hubs and require individual logic implementation.
+**Summary:** Currently, 31 core features have been fully implemented across the Frontend and Backend. Sections 1 (Auth), 2 (Academic Core), and 5 (Communication & Events) are fully complete. The remaining features are scaffolded in the UI Hubs and require individual logic implementation.

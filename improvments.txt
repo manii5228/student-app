@@ -1,0 +1,6 @@
+bus tracking to bus timings
+live tracking of the indoor map
+pyqs need to uploaded by the cc not by admin
+
+#a91f23  #22346c    #0080c7    #c9503d   #27bcd1
+no yellow,black,dark blue
