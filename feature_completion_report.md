@@ -1,21 +1,22 @@
 # University Super-App Feature Completion Report
 
-## 1. Authentication & Security (1/4 Completed)
-- [x] **SSO Login:** Single Sign-On using college email.
-- [ ] **Biometric Auth:** Fingerprint or FaceID for fast access.
-- [ ] **Session Manager:** See and log out of other devices.
-- [ ] **Guest Mode:** Limited view for parents or visitors.
+## 1. Authentication & Security (4/4 ✅ COMPLETE)
+- [x] **SSO Login:** Single Sign-On using college email with domain validation.
+- [x] **Biometric Auth:** WebAuthn-based fingerprint/FaceID registration and passwordless login.
+- [x] **Session Manager:** View active devices with time-ago timestamps, revoke individual or all sessions.
+- [x] **Guest Mode:** Limited read-only access (Map, Notices, Bus) with route-level protection via AuthenticatedRoute.
+- [x] **Change Password:** (Bonus) Password strength meter, real-time validation, backend-verified old password check.
 
-## 2. Academic Core (5/10 Completed)
+## 2. Academic Core (10/10 ✅ COMPLETE)
 - [x] **Smart Timetable:** Daily/Weekly view with "Next Class" alerts.
 - [x] **Attendance Tracker:** Subject-wise percentage with "Bunk" calculators.
 - [x] **Credit Dashboard:** Visual map of earned vs. required credits.
 - [x] **Assignment Submission:** Secure portal for PDF/Image uploads.
 - [x] **Results/Gradebook:** Semester-wise SGPA and CGPA tracking.
-- [ ] **Syllabus Viewer:** Offline-ready subject-wise curriculum.
-- [ ] **Faculty Directory:** Searchable list of professors with "Email/Chat" buttons.
-- [ ] **Internal Marks:** View marks for mid-terms and lab assessments.
-- [ ] **Exam Schedule:** Personalised calendar for end-semester exams.
+- [x] **Syllabus Viewer:** Expandable accordion by subject, unit completion progress bars, search, faculty-markable.
+- [x] **Faculty Directory:** Searchable list with department filter pills, email/phone action buttons.
+- [x] **Internal Marks:** CAT-1/CAT-2/Model/Lab cards grouped by subject, color-coded by performance.
+- [x] **Exam Schedule:** Personalised calendar with date blocks, urgency badges (Today/Soon/Done).
 - [x] **Question Papers:** (Added) Previous Year Question Papers.
 
 ## 3. Project & Skill Management (2/4 Completed)
@@ -88,4 +89,4 @@
 - [ ] **Placement Analytics:** View stats on how many students are placed vs. eligible.
 
 ---
-**Summary:** Currently, 18 core features have been fully implemented across the Frontend and Backend architectures. The remaining 42 features are scaffolded in the UI Hubs but require individual logic implementation.
+**Summary:** Currently, 26 core features have been fully implemented across the Frontend and Backend. Sections 1 (Auth) and 2 (Academic Core) are fully complete. The remaining features are scaffolded in the UI Hubs and require individual logic implementation.

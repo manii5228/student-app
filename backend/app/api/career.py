@@ -1,8 +1,9 @@
 """
-Career API — Job Portal, Eligibility Check, Interviews, Company Prep, Alumni, Referrals
+Career API — Job Portal, Eligibility Check, Interviews, Company Prep, Alumni, Referrals,
+              Project Reminders, Skill Badges
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date as dt_date
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -11,6 +12,7 @@ from ..middleware.auth_middleware import role_required
 from ..models.career import (
     JobPosting, JobApplication, InterviewSchedule,
     CompanyPrepQuestion, AlumniProfile,
+    Project, Milestone, SkillBadge, EarnedBadge,
 )
 from ..models.user import User
 
@@ -150,3 +152,178 @@ def referral_hub():
     alumni = AlumniProfile.query.filter_by(is_open_to_referral=True)\
         .order_by(AlumniProfile.company).all()
     return jsonify({"referral_alumni": [a.to_dict() for a in alumni]}), 200
+
+
+# ── Project Reminders ─────────────────────────────────────────────
+
+@career_bp.route("/projects", methods=["GET"])
+@jwt_required()
+def my_projects():
+    """Get all projects for the logged-in student."""
+    projects = Project.query.filter_by(student_id=get_jwt_identity())\
+        .order_by(Project.created_at.desc()).all()
+    return jsonify({"projects": [p.to_dict() for p in projects]}), 200
+
+
+@career_bp.route("/projects", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def create_project():
+    """Create a new project with milestones."""
+    data = request.get_json()
+    p = Project(
+        student_id=get_jwt_identity(),
+        title=data["title"],
+        description=data.get("description"),
+        subject_code=data.get("subject_code"),
+        team_members=data.get("team_members"),
+    )
+    if data.get("deadline"):
+        p.deadline = dt_date.fromisoformat(data["deadline"].replace("Z", "").split("T")[0])
+
+    # Add milestones if provided
+    milestones = data.get("milestones", [])
+    for m in milestones:
+        ms = Milestone(
+            title=m["title"],
+            due_date=dt_date.fromisoformat(m["due_date"].replace("Z", "").split("T")[0]) if m.get("due_date") else None,
+        )
+        p.milestones.append(ms)
+
+    db.session.add(p)
+    db.session.commit()
+
+    # Auto-calculate progress
+    _update_project_progress(p)
+    return jsonify({"message": "Project created", "project": p.to_dict()}), 201
+
+
+@career_bp.route("/projects/<pid>", methods=["PUT"])
+@jwt_required()
+def update_project(pid):
+    """Update project details."""
+    p = db.session.get(Project, pid)
+    if not p or p.student_id != get_jwt_identity():
+        return jsonify({"error": "Not found"}), 404
+    data = request.get_json()
+    if "title" in data: p.title = data["title"]
+    if "description" in data: p.description = data["description"]
+    if "status" in data: p.status = data["status"]
+    if "deadline" in data and data["deadline"]:
+        p.deadline = dt_date.fromisoformat(data["deadline"].replace("Z", "").split("T")[0])
+    db.session.commit()
+    return jsonify({"project": p.to_dict()}), 200
+
+
+@career_bp.route("/projects/<pid>", methods=["DELETE"])
+@jwt_required()
+def delete_project(pid):
+    """Delete a project."""
+    p = db.session.get(Project, pid)
+    if not p or p.student_id != get_jwt_identity():
+        return jsonify({"error": "Not found"}), 404
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({"message": "Deleted"}), 200
+
+
+@career_bp.route("/projects/<pid>/milestones", methods=["POST"])
+@jwt_required()
+def add_milestone(pid):
+    """Add a milestone to a project."""
+    p = db.session.get(Project, pid)
+    if not p or p.student_id != get_jwt_identity():
+        return jsonify({"error": "Not found"}), 404
+    data = request.get_json()
+    ms = Milestone(
+        project_id=pid,
+        title=data["title"],
+        due_date=dt_date.fromisoformat(data["due_date"].replace("Z", "").split("T")[0]) if data.get("due_date") else None,
+    )
+    db.session.add(ms)
+    db.session.commit()
+    _update_project_progress(p)
+    return jsonify({"message": "Milestone added", "project": p.to_dict()}), 201
+
+
+@career_bp.route("/milestones/<mid>/toggle", methods=["POST"])
+@jwt_required()
+def toggle_milestone(mid):
+    """Toggle a milestone's completion status."""
+    ms = db.session.get(Milestone, mid)
+    if not ms:
+        return jsonify({"error": "Not found"}), 404
+    ms.is_completed = not ms.is_completed
+    ms.completed_at = datetime.now(timezone.utc) if ms.is_completed else None
+    db.session.commit()
+    _update_project_progress(ms.project)
+    return jsonify({"milestone": ms.to_dict(), "project": ms.project.to_dict()}), 200
+
+
+def _update_project_progress(project):
+    """Recalculate project progress based on milestone completion."""
+    milestones = list(project.milestones)
+    if milestones:
+        completed = sum(1 for m in milestones if m.is_completed)
+        project.progress_pct = round((completed / len(milestones)) * 100)
+        if project.progress_pct == 100:
+            project.status = "completed"
+        elif project.deadline and project.deadline < dt_date.today():
+            project.status = "overdue"
+        else:
+            project.status = "in_progress"
+    db.session.commit()
+
+
+# ── Skill Badges ──────────────────────────────────────────────────
+
+@career_bp.route("/badges", methods=["GET"])
+@jwt_required()
+def list_badges():
+    """List all available badges."""
+    badges = SkillBadge.query.filter_by(is_active=True).all()
+    return jsonify({"badges": [b.to_dict() for b in badges]}), 200
+
+
+@career_bp.route("/badges/my-badges", methods=["GET"])
+@jwt_required()
+def my_badges():
+    """Get badges earned by the logged-in student."""
+    earned = EarnedBadge.query.filter_by(student_id=get_jwt_identity())\
+        .order_by(EarnedBadge.earned_at.desc()).all()
+    return jsonify({"earned_badges": [e.to_dict() for e in earned]}), 200
+
+
+@career_bp.route("/badges", methods=["POST"])
+@jwt_required()
+@role_required("admin", "faculty")
+def create_badge():
+    """Create a new badge template."""
+    data = request.get_json()
+    b = SkillBadge(
+        name=data["name"], description=data.get("description"),
+        category=data.get("category", "technical"),
+        icon=data.get("icon", "award"), color=data.get("color", "#6366f1"),
+        criteria=data.get("criteria"), points=data.get("points", 10),
+    )
+    db.session.add(b)
+    db.session.commit()
+    return jsonify({"message": "Badge created", "badge": b.to_dict()}), 201
+
+
+@career_bp.route("/badges/<bid>/award", methods=["POST"])
+@jwt_required()
+@role_required("admin", "faculty")
+def award_badge(bid):
+    """Award a badge to a student."""
+    data = request.get_json()
+    earned = EarnedBadge(
+        student_id=data["student_id"],
+        badge_id=bid,
+        awarded_by=get_jwt_identity(),
+        note=data.get("note"),
+    )
+    db.session.add(earned)
+    db.session.commit()
+    return jsonify({"message": "Badge awarded", "earned": earned.to_dict()}), 201
+

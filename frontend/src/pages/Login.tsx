@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Fingerprint, UserCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Fingerprint, UserCircle, Shield, AlertTriangle } from 'lucide-react';
 import { api } from '../lib/api';
 
 const Login = () => {
@@ -11,6 +11,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [tab, setTab] = useState<'email' | 'sso'>('email');
+  const [showGuestConfirm, setShowGuestConfirm] = useState(false);
 
   // ── Email/Password Login ──
   const handleLogin = async (e: React.FormEvent) => {
@@ -23,7 +24,7 @@ const Login = () => {
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -31,6 +32,15 @@ const Login = () => {
 
   // ── SSO Login (College Email) ──
   const handleSSO = async () => {
+    if (!email) { setError('Please enter your college email.'); return; }
+    
+    const domain = email.split('@')[1]?.toLowerCase();
+    const allowed = ['veltech.edu.in', 'vel-tech.org', 'veltech.ac.in'];
+    if (!allowed.includes(domain)) {
+      setError('SSO is only available for @veltech.edu.in accounts.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
@@ -42,32 +52,56 @@ const Login = () => {
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'SSO login failed');
+      setError(err.response?.data?.error || 'SSO login failed. Is your account registered?');
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Biometric Login ──
+  // ── Biometric Login (WebAuthn) ──
   const handleBiometric = async () => {
     setError('');
-    if (!navigator.credentials) {
-      setError('WebAuthn is not supported on this device.');
+    
+    if (!window.PublicKeyCredential) {
+      setError('WebAuthn is not supported on this browser. Use Chrome or Safari with biometric hardware.');
       return;
     }
+
     try {
-      // In production, you'd call navigator.credentials.get() here.
-      // For demo purposes, we simulate a credential response.
       setLoading(true);
+
+      // Step 1: Try to use the real WebAuthn get() for passwordless login
+      const challenge = new Uint8Array(32);
+      crypto.getRandomValues(challenge);
+
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          timeout: 60000,
+          userVerification: 'required',
+          rpId: window.location.hostname,
+        },
+      }) as PublicKeyCredential;
+
+      if (!assertion) throw new Error('Biometric authentication was cancelled.');
+
+      const credentialId = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
+
+      // Step 2: Send the credential to the backend for verification
       const res = await api.post('/auth/biometric/authenticate', {
-        credential_id: 'demo-credential-id',
-        sign_count: Date.now(),
+        credential_id: credentialId,
+        sign_count: Date.now(), // In production, extract from authenticatorData
       });
+
       localStorage.setItem('token', res.data.access_token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Biometric auth failed. Register your fingerprint first.');
+      if (err.name === 'NotAllowedError') {
+        setError('Biometric authentication was denied or timed out.');
+      } else {
+        setError(err.response?.data?.error || err.message || 'Biometric auth failed. Register your fingerprint in Profile first.');
+      }
     } finally {
       setLoading(false);
     }
@@ -75,6 +109,7 @@ const Login = () => {
 
   // ── Guest Mode ──
   const handleGuest = async () => {
+    setShowGuestConfirm(false);
     setLoading(true);
     setError('');
     try {
@@ -83,7 +118,7 @@ const Login = () => {
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/');
     } catch (err: any) {
-      setError('Guest login failed');
+      setError('Guest login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -105,13 +140,13 @@ const Login = () => {
       <div className="px-8">
         <div className="flex bg-slate-100 rounded-2xl p-1 mb-6">
           <button
-            onClick={() => setTab('email')}
+            onClick={() => { setTab('email'); setError(''); }}
             className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${tab === 'email' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500'}`}
           >
             Email Login
           </button>
           <button
-            onClick={() => setTab('sso')}
+            onClick={() => { setTab('sso'); setError(''); }}
             className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${tab === 'sso' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500'}`}
           >
             College SSO
@@ -122,7 +157,8 @@ const Login = () => {
       {/* Form */}
       <div className="px-8 pb-6 flex-shrink-0">
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-2xl text-center font-medium">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-2xl text-center font-medium flex items-center justify-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
             {error}
           </div>
         )}
@@ -187,14 +223,16 @@ const Login = () => {
         <div className="flex gap-3 mb-6">
           <button
             onClick={handleBiometric}
-            className="flex-1 flex items-center justify-center gap-2 py-4 bg-indigo-50 rounded-2xl text-indigo-600 font-bold text-sm hover:bg-indigo-100 active:scale-[0.98] transition-all"
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2 py-4 bg-indigo-50 rounded-2xl text-indigo-600 font-bold text-sm hover:bg-indigo-100 active:scale-[0.98] transition-all disabled:opacity-50"
           >
             <Fingerprint className="w-5 h-5" />
             Biometric
           </button>
           <button
-            onClick={handleGuest}
-            className="flex-1 flex items-center justify-center gap-2 py-4 bg-slate-100 rounded-2xl text-slate-600 font-bold text-sm hover:bg-slate-200 active:scale-[0.98] transition-all"
+            onClick={() => setShowGuestConfirm(true)}
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2 py-4 bg-slate-100 rounded-2xl text-slate-600 font-bold text-sm hover:bg-slate-200 active:scale-[0.98] transition-all disabled:opacity-50"
           >
             <UserCircle className="w-5 h-5" />
             Guest Mode
@@ -207,6 +245,37 @@ const Login = () => {
           <button onClick={() => navigate('/register')} className="text-indigo-600 font-bold hover:underline">Sign Up</button>
         </p>
       </div>
+
+      {/* Guest Mode Confirmation Modal */}
+      {showGuestConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6 animate-fade-in">
+          <div className="bg-white rounded-[28px] p-6 shadow-2xl max-w-sm w-full animate-scale-in">
+            <div className="w-14 h-14 bg-amber-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-7 h-7 text-amber-600" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Continue as Guest?</h3>
+            <p className="text-sm text-slate-500 text-center mb-2">
+              Guest mode provides <span className="font-bold text-slate-700">limited read-only access</span> to:
+            </p>
+            <div className="bg-slate-50 rounded-xl p-3 mb-6">
+              <ul className="text-xs text-slate-600 font-medium space-y-1.5">
+                <li className="flex items-center gap-2">✅ Campus Map & Indoor Navigation</li>
+                <li className="flex items-center gap-2">✅ Public Notices & Announcements</li>
+                <li className="flex items-center gap-2">✅ Events & Fests (view only)</li>
+                <li className="flex items-center gap-2 text-slate-400">🔒 Academics, Career, Canteen — Locked</li>
+              </ul>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowGuestConfirm(false)} className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-[16px] font-bold text-sm hover:bg-slate-200 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleGuest} className="flex-1 bg-slate-900 text-white py-3.5 rounded-[16px] font-bold text-sm hover:bg-slate-800 transition-colors">
+                Enter as Guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

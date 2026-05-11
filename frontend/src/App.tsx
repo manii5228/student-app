@@ -7,6 +7,7 @@ import Career from './pages/Career';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
+import ChangePassword from './pages/ChangePassword';
 import SmartTimetable from './pages/SmartTimetable';
 import BunkOMeter from './pages/BunkOMeter';
 import Assignments from './pages/Assignments';
@@ -28,12 +29,35 @@ import SystemHealth from './pages/SystemHealth';
 import HostelPass from './pages/HostelPass';
 import NoticeBoard from './pages/NoticeBoard';
 import Results from './pages/Results';
+import SyllabusViewer from './pages/SyllabusViewer';
+import FacultyDirectory from './pages/FacultyDirectory';
+import InternalMarks from './pages/InternalMarks';
+import ExamSchedule from './pages/ExamSchedule';
+import ProjectReminders from './pages/ProjectReminders';
+import SkillBadges from './pages/SkillBadges';
 
-// Check if the user has a valid token in localStorage
+// ── Route Guards ─────────────────────────────────────────────────
+// Requires any valid JWT token (student, faculty, admin, or guest)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem('token');
   if (!token) {
     return <Navigate to="/login" />;
+  }
+  return <>{children}</>;
+};
+
+// Requires a REAL account — blocks guest users
+const AuthenticatedRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem('token');
+  if (!token) return <Navigate to="/login" />;
+
+  const userStr = localStorage.getItem('user');
+  if (userStr) {
+    const user = JSON.parse(userStr);
+    if (user.is_guest || user.role === 'guest') {
+      // Redirect guests to their profile which shows the "limited access" banner
+      return <Navigate to="/profile" />;
+    }
   }
   return <>{children}</>;
 };
@@ -50,41 +74,48 @@ function App() {
 
             {/* Main Hubs */}
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/academic" element={<ProtectedRoute><Academic /></ProtectedRoute>} />
+            <Route path="/academic" element={<AuthenticatedRoute><Academic /></AuthenticatedRoute>} />
             <Route path="/campus" element={<ProtectedRoute><Campus /></ProtectedRoute>} />
-            <Route path="/career" element={<ProtectedRoute><Career /></ProtectedRoute>} />
+            <Route path="/career" element={<AuthenticatedRoute><Career /></AuthenticatedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/change-password" element={<AuthenticatedRoute><ChangePassword /></AuthenticatedRoute>} />
 
-            {/* Academic Core Features */}
-            <Route path="/academic/timetable" element={<ProtectedRoute><SmartTimetable /></ProtectedRoute>} />
-            <Route path="/academic/attendance" element={<ProtectedRoute><BunkOMeter /></ProtectedRoute>} />
-            <Route path="/academic/assignments" element={<ProtectedRoute><Assignments /></ProtectedRoute>} />
-            <Route path="/academic/question-papers" element={<ProtectedRoute><QuestionPapers /></ProtectedRoute>} />
-            <Route path="/academic/credits" element={<ProtectedRoute><CreditDashboard /></ProtectedRoute>} />
-            <Route path="/academic/results" element={<ProtectedRoute><Results /></ProtectedRoute>} />
+            {/* Academic Core Features — Authenticated only (no guests) */}
+            <Route path="/academic/timetable" element={<AuthenticatedRoute><SmartTimetable /></AuthenticatedRoute>} />
+            <Route path="/academic/attendance" element={<AuthenticatedRoute><BunkOMeter /></AuthenticatedRoute>} />
+            <Route path="/academic/assignments" element={<AuthenticatedRoute><Assignments /></AuthenticatedRoute>} />
+            <Route path="/academic/question-papers" element={<AuthenticatedRoute><QuestionPapers /></AuthenticatedRoute>} />
+            <Route path="/academic/credits" element={<AuthenticatedRoute><CreditDashboard /></AuthenticatedRoute>} />
+            <Route path="/academic/results" element={<AuthenticatedRoute><Results /></AuthenticatedRoute>} />
+            <Route path="/academic/syllabus" element={<AuthenticatedRoute><SyllabusViewer /></AuthenticatedRoute>} />
+            <Route path="/academic/faculty" element={<AuthenticatedRoute><FacultyDirectory /></AuthenticatedRoute>} />
+            <Route path="/academic/internal-marks" element={<AuthenticatedRoute><InternalMarks /></AuthenticatedRoute>} />
+            <Route path="/academic/exams" element={<AuthenticatedRoute><ExamSchedule /></AuthenticatedRoute>} />
 
-            {/* Campus Operations & Comm */}
-            <Route path="/campus/canteen" element={<ProtectedRoute><DigitalCanteen /></ProtectedRoute>} />
+            {/* Campus Operations — Map & Notices are guest-accessible */}
+            <Route path="/campus/canteen" element={<AuthenticatedRoute><DigitalCanteen /></AuthenticatedRoute>} />
             <Route path="/campus/bus" element={<ProtectedRoute><LiveBusTracking /></ProtectedRoute>} />
             <Route path="/campus/map" element={<ProtectedRoute><IndoorMap /></ProtectedRoute>} />
-            <Route path="/campus/hostel-pass" element={<ProtectedRoute><HostelPass /></ProtectedRoute>} />
+            <Route path="/campus/hostel-pass" element={<AuthenticatedRoute><HostelPass /></AuthenticatedRoute>} />
             <Route path="/campus/notices" element={<ProtectedRoute><NoticeBoard /></ProtectedRoute>} />
 
-            {/* Career & Placements */}
-            <Route path="/career/jobs" element={<ProtectedRoute><JobPortal /></ProtectedRoute>} />
-            <Route path="/career/referrals" element={<ProtectedRoute><ReferralHub /></ProtectedRoute>} />
-            <Route path="/career/team-finder" element={<ProtectedRoute><TeamFinder /></ProtectedRoute>} />
-            <Route path="/career/portfolio" element={<ProtectedRoute><PortfolioBuilder /></ProtectedRoute>} />
+            {/* Career & Placements — Authenticated only */}
+            <Route path="/career/jobs" element={<AuthenticatedRoute><JobPortal /></AuthenticatedRoute>} />
+            <Route path="/career/referrals" element={<AuthenticatedRoute><ReferralHub /></AuthenticatedRoute>} />
+            <Route path="/career/team-finder" element={<AuthenticatedRoute><TeamFinder /></AuthenticatedRoute>} />
+            <Route path="/career/portfolio" element={<AuthenticatedRoute><PortfolioBuilder /></AuthenticatedRoute>} />
+            <Route path="/career/projects" element={<AuthenticatedRoute><ProjectReminders /></AuthenticatedRoute>} />
+            <Route path="/career/badges" element={<AuthenticatedRoute><SkillBadges /></AuthenticatedRoute>} />
 
             {/* Faculty Management Layer */}
-            <Route path="/faculty" element={<ProtectedRoute><FacultyHub /></ProtectedRoute>} />
-            <Route path="/faculty/bulk-attendance" element={<ProtectedRoute><FacultyBulkAttendance /></ProtectedRoute>} />
-            <Route path="/faculty/qr" element={<ProtectedRoute><FacultyQRAttendance /></ProtectedRoute>} />
-            <Route path="/faculty/marks" element={<ProtectedRoute><FacultyMarksEntry /></ProtectedRoute>} />
+            <Route path="/faculty" element={<AuthenticatedRoute><FacultyHub /></AuthenticatedRoute>} />
+            <Route path="/faculty/bulk-attendance" element={<AuthenticatedRoute><FacultyBulkAttendance /></AuthenticatedRoute>} />
+            <Route path="/faculty/qr" element={<AuthenticatedRoute><FacultyQRAttendance /></AuthenticatedRoute>} />
+            <Route path="/faculty/marks" element={<AuthenticatedRoute><FacultyMarksEntry /></AuthenticatedRoute>} />
 
             {/* Admin & Infrastructure Layer */}
-            <Route path="/admin/timetable" element={<ProtectedRoute><TimetableEditor /></ProtectedRoute>} />
-            <Route path="/admin/health" element={<ProtectedRoute><SystemHealth /></ProtectedRoute>} />
+            <Route path="/admin/timetable" element={<AuthenticatedRoute><TimetableEditor /></AuthenticatedRoute>} />
+            <Route path="/admin/health" element={<AuthenticatedRoute><SystemHealth /></AuthenticatedRoute>} />
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/login" />} />
