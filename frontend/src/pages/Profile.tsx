@@ -3,10 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, Smartphone, Monitor, Tablet, Wifi, 
   Trash2, LogOut, Fingerprint, Shield, Key,
-  Plus, X
+  Plus, X, CheckCircle, Clock, AlertTriangle, ChevronRight
 } from 'lucide-react';
 import { api } from '../lib/api';
 import BottomNav from '../components/BottomNav';
+
+// Utility: time ago
+const timeAgo = (dateStr: string): string => {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+};
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -15,6 +28,10 @@ const Profile = () => {
   const [biometrics, setBiometrics] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'sessions' | 'biometric' | 'security'>('sessions');
   const [loading, setLoading] = useState(true);
+  const [sessionLoading, setSessionLoading] = useState<string | null>(null);
+  const [confirmLogoutAll, setConfirmLogoutAll] = useState(false);
+  const [biometricRegistering, setBiometricRegistering] = useState(false);
+  const [biometricMsg, setBiometricMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('user');
@@ -27,12 +44,9 @@ const Profile = () => {
     try {
       const res = await api.get('/auth/sessions');
       setSessions(res.data.sessions || []);
-    } catch {
-      // Mock data for display
-      setSessions([
-        { id: '1', device_info: 'Chrome on Windows', device_type: 'desktop', ip_address: '192.168.1.5', is_active: true, created_at: new Date().toISOString() },
-        { id: '2', device_info: 'Safari on iPhone', device_type: 'mobile', ip_address: '10.0.0.42', is_active: true, created_at: new Date(Date.now() - 86400000).toISOString() },
-      ]);
+    } catch (err) {
+      console.error('Failed to fetch sessions:', err);
+      setSessions([]);
     }
     setLoading(false);
   };
@@ -47,35 +61,96 @@ const Profile = () => {
   };
 
   const revokeSession = async (sessionId: string) => {
+    setSessionLoading(sessionId);
     try {
       await api.delete(`/auth/sessions/${sessionId}`);
-      setSessions(sessions.filter(s => s.id !== sessionId));
-    } catch {}
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+    } catch (err) {
+      console.error('Failed to revoke session:', err);
+    }
+    setSessionLoading(null);
   };
 
   const revokeAllSessions = async () => {
+    setConfirmLogoutAll(false);
     try {
       await api.post('/auth/sessions/revoke-all');
       setSessions([]);
-    } catch {}
+      // Log out the current device too
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      navigate('/login');
+    } catch (err) {
+      console.error('Failed to revoke all sessions:', err);
+    }
   };
 
   const registerBiometric = async () => {
+    setBiometricRegistering(true);
+    setBiometricMsg(null);
+
     try {
-      // In production, this would invoke navigator.credentials.create()
+      // Step 1: Check if WebAuthn is available
+      if (!window.PublicKeyCredential) {
+        throw new Error('WebAuthn is not supported on this browser. Try Chrome or Safari on a device with biometrics.');
+      }
+
+      // Step 2: Create a credential using the browser's WebAuthn API
+      // In a full production system, the challenge & user info would come from the server.
+      const challenge = new Uint8Array(32);
+      crypto.getRandomValues(challenge);
+
+      const userId = new TextEncoder().encode(user?.id || 'user');
+
+      const credential = await navigator.credentials.create({
+        publicKey: {
+          challenge,
+          rp: { name: 'VelTech Super-App', id: window.location.hostname },
+          user: {
+            id: userId,
+            name: user?.email || 'user@veltech.edu.in',
+            displayName: user?.full_name || 'User',
+          },
+          pubKeyCredParams: [
+            { alg: -7, type: 'public-key' },   // ES256
+            { alg: -257, type: 'public-key' },  // RS256
+          ],
+          authenticatorSelection: {
+            authenticatorAttachment: 'platform', // Use built-in biometric
+            userVerification: 'required',
+          },
+          timeout: 60000,
+        },
+      }) as PublicKeyCredential;
+
+      if (!credential) throw new Error('Credential creation was cancelled.');
+
+      // Step 3: Encode the credential for server storage
+      const rawId = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+      const response = credential.response as AuthenticatorAttestationResponse;
+      const publicKey = btoa(String.fromCharCode(...new Uint8Array(response.attestationObject)));
+
+      // Step 4: Send to backend
       await api.post('/auth/biometric/register', {
-        credential_id: `cred_${Date.now()}`,
-        public_key: 'demo-public-key-base64',
+        credential_id: rawId,
+        public_key: publicKey,
         device_name: navigator.userAgent.includes('Mobile') ? 'Mobile Device' : 'Desktop Browser',
       });
+
+      setBiometricMsg({ type: 'success', text: 'Biometric credential registered successfully!' });
       fetchBiometrics();
-    } catch {}
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || 'Failed to register biometric.';
+      setBiometricMsg({ type: 'error', text: msg });
+    } finally {
+      setBiometricRegistering(false);
+    }
   };
 
   const revokeBiometric = async (credId: string) => {
     try {
       await api.delete(`/auth/biometric/credentials/${credId}`);
-      setBiometrics(biometrics.filter(b => b.id !== credId));
+      setBiometrics(prev => prev.filter(b => b.id !== credId));
     } catch {}
   };
 
@@ -101,7 +176,7 @@ const Profile = () => {
       {/* Header */}
       <div className="bg-slate-900 rounded-b-[40px] p-8 pt-12">
         <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
           <h1 className="text-xl font-bold text-white">Profile & Security</h1>
@@ -115,9 +190,16 @@ const Profile = () => {
           <div className="flex-1 text-white">
             <h2 className="text-lg font-bold">{isGuest ? 'Guest Visitor' : user?.full_name || 'User'}</h2>
             <p className="text-sm text-slate-300">{isGuest ? 'Limited access mode' : user?.email || ''}</p>
-            <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 bg-white/20 rounded-full uppercase tracking-wider">
-              {user?.role || 'student'}
-            </span>
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className="text-[10px] font-bold px-2 py-0.5 bg-white/20 rounded-full uppercase tracking-wider">
+                {user?.role || 'student'}
+              </span>
+              {user?.department && (
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-500/40 rounded-full uppercase tracking-wider">
+                  {user.department}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -128,7 +210,10 @@ const Profile = () => {
           <Shield className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
           <div>
             <p className="text-sm font-bold text-amber-800">Guest Mode Active</p>
-            <p className="text-xs text-amber-700 mt-1">You can view Campus Map, Events (read-only), and Public Notices. <button onClick={() => navigate('/login')} className="text-indigo-600 font-bold underline">Sign in</button> for full access.</p>
+            <p className="text-xs text-amber-700 mt-1">
+              Access is limited to Campus Map, Events (read-only), and Public Notices. 
+              <button onClick={() => navigate('/login')} className="text-indigo-600 font-bold underline ml-1">Sign in</button> for full access.
+            </p>
           </div>
         </div>
       )}
@@ -156,59 +241,111 @@ const Profile = () => {
       {/* Content */}
       <div className="px-6 mt-6 flex-1 overflow-y-auto">
 
-        {/* Sessions Tab */}
+        {/* ═══════════ Sessions Tab ═══════════ */}
         {activeTab === 'sessions' && !isGuest && (
           <div className="animate-fade-in">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-slate-900">Active Devices</h3>
-              <button onClick={revokeAllSessions} className="text-xs font-bold text-red-500 flex items-center gap-1 hover:text-red-600">
-                <LogOut className="w-4 h-4" /> Logout All
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              {sessions.map(session => (
-                <div key={session.id} className="bg-slate-50 rounded-[20px] p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-indigo-600 shadow-sm">
-                    {getDeviceIcon(session.device_type)}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-800">{session.device_info?.split(' ').slice(0, 4).join(' ') || 'Unknown Device'}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      IP: {session.ip_address} &middot; {session.device_type || 'desktop'}
-                    </p>
-                  </div>
-                  <button onClick={() => revokeSession(session.id)}
-                    className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-              {sessions.length === 0 && (
-                <p className="text-center text-slate-500 text-sm py-8">No active sessions.</p>
+              {sessions.length > 0 && (
+                <button onClick={() => setConfirmLogoutAll(true)} className="text-xs font-bold text-red-500 flex items-center gap-1 hover:text-red-600 transition-colors">
+                  <LogOut className="w-4 h-4" /> Logout All
+                </button>
               )}
             </div>
+
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {sessions.map((session, idx) => (
+                  <div key={session.id} className={`rounded-[20px] p-4 flex items-center gap-4 transition-all ${idx === 0 ? 'bg-indigo-50 border border-indigo-200' : 'bg-slate-50'}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${idx === 0 ? 'bg-indigo-100 text-indigo-600' : 'bg-white text-slate-500'}`}>
+                      {getDeviceIcon(session.device_type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-slate-800 truncate">
+                          {session.device_info?.split(' ').slice(0, 3).join(' ') || 'Unknown Device'}
+                        </p>
+                        {idx === 0 && (
+                          <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded-md uppercase">This</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-slate-500">{session.ip_address || '—'}</span>
+                        <span className="text-slate-300">·</span>
+                        <span className="text-xs text-slate-400 flex items-center gap-0.5">
+                          <Clock className="w-3 h-3" />
+                          {session.created_at ? timeAgo(session.created_at) : '—'}
+                        </span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => revokeSession(session.id)}
+                      disabled={sessionLoading === session.id}
+                      className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
+                    >
+                      {sessionLoading === session.id ? (
+                        <span className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin"></span>
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                ))}
+                {sessions.length === 0 && (
+                  <div className="text-center py-12">
+                    <Wifi className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                    <p className="text-slate-500 text-sm font-bold">No active sessions found.</p>
+                    <p className="text-slate-400 text-xs mt-1">Sessions appear after you log in.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Biometric Tab */}
+        {/* ═══════════ Biometric Tab ═══════════ */}
         {activeTab === 'biometric' && !isGuest && (
           <div className="animate-fade-in">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-slate-900">Registered Devices</h3>
-              <button onClick={registerBiometric} className="text-xs font-bold text-indigo-600 flex items-center gap-1">
-                <Plus className="w-4 h-4" /> Add Device
+              <h3 className="text-lg font-bold text-slate-900">Biometric Auth</h3>
+              <button 
+                onClick={registerBiometric} 
+                disabled={biometricRegistering}
+                className="text-xs font-bold text-indigo-600 flex items-center gap-1 hover:text-indigo-700 disabled:opacity-50"
+              >
+                {biometricRegistering ? (
+                  <span className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></span>
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+                {biometricRegistering ? 'Registering...' : 'Add Device'}
               </button>
             </div>
 
-            {/* Info Card */}
+            {/* Explainer Card */}
             <div className="bg-indigo-50 rounded-[20px] p-4 mb-4 flex items-start gap-3">
               <Fingerprint className="w-6 h-6 text-indigo-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-bold text-indigo-800">Passwordless Login</p>
-                <p className="text-xs text-indigo-700 mt-1">Use your device's fingerprint or Face ID for instant access in the Canteen, Exam Portal, and more.</p>
+                <p className="text-xs text-indigo-700 mt-1">
+                  Register your device's fingerprint sensor or Face ID. Once registered, you can tap "Biometric" on the login screen to sign in instantly without typing a password.
+                </p>
               </div>
             </div>
+
+            {/* Feedback Message */}
+            {biometricMsg && (
+              <div className={`mb-4 p-4 rounded-[16px] flex items-center gap-2 text-sm font-medium animate-fade-in ${
+                biometricMsg.type === 'success' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'
+              }`}>
+                {biometricMsg.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
+                {biometricMsg.text}
+              </div>
+            )}
 
             <div className="flex flex-col gap-3">
               {biometrics.map(cred => (
@@ -218,9 +355,17 @@ const Profile = () => {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-bold text-slate-800">{cred.device_name || 'Device'}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Registered: {new Date(cred.created_at).toLocaleDateString()}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-slate-500">
+                        Registered: {cred.created_at ? new Date(cred.created_at).toLocaleDateString() : '—'}
+                      </span>
+                      {cred.last_used && (
+                        <>
+                          <span className="text-slate-300">·</span>
+                          <span className="text-xs text-slate-400">Last used: {timeAgo(cred.last_used)}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <button onClick={() => revokeBiometric(cred.id)}
                     className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors">
@@ -229,39 +374,105 @@ const Profile = () => {
                 </div>
               ))}
               {biometrics.length === 0 && (
-                <p className="text-center text-slate-500 text-sm py-8">No biometric credentials registered yet.</p>
+                <div className="text-center py-12">
+                  <Fingerprint className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500 text-sm font-bold">No biometric credentials yet.</p>
+                  <p className="text-slate-400 text-xs mt-1">Tap "Add Device" to register your fingerprint or Face ID.</p>
+                </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Security Tab */}
+        {/* ═══════════ Security Tab ═══════════ */}
         {activeTab === 'security' && !isGuest && (
           <div className="animate-fade-in flex flex-col gap-4">
-            <button onClick={() => navigate('/change-password')} className="bg-slate-50 rounded-[20px] p-4 flex items-center gap-4 text-left w-full hover:bg-slate-100 transition-colors">
+            {/* Change Password */}
+            <button onClick={() => navigate('/change-password')} className="bg-slate-50 rounded-[20px] p-4 flex items-center gap-4 text-left w-full hover:bg-slate-100 transition-colors group">
               <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-amber-600 shadow-sm">
                 <Key className="w-5 h-5" />
               </div>
               <div className="flex-1">
                 <p className="text-sm font-bold text-slate-800">Change Password</p>
-                <p className="text-xs text-slate-500 mt-0.5">Update your login password.</p>
+                <p className="text-xs text-slate-500 mt-0.5">Update your login credentials with strength validation.</p>
               </div>
+              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
             </button>
 
-            <button onClick={handleLogout} className="bg-red-50 rounded-[20px] p-4 flex items-center gap-4 text-left w-full hover:bg-red-100 transition-colors">
-              <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-red-600 shadow-sm">
-                <LogOut className="w-5 h-5" />
+            {/* Account Info */}
+            <div className="bg-slate-50 rounded-[20px] p-4">
+              <h4 className="text-sm font-bold text-slate-800 mb-3">Account Details</h4>
+              <div className="flex flex-col gap-2.5">
+                <div className="flex justify-between">
+                  <span className="text-xs text-slate-500 font-medium">Email</span>
+                  <span className="text-xs text-slate-800 font-bold">{user?.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-xs text-slate-500 font-medium">Role</span>
+                  <span className="text-xs text-slate-800 font-bold capitalize">{user?.role}</span>
+                </div>
+                {user?.roll_number && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-slate-500 font-medium">Roll Number</span>
+                    <span className="text-xs text-slate-800 font-bold">{user.roll_number}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-xs text-slate-500 font-medium">Verified</span>
+                  <span className={`text-xs font-bold flex items-center gap-1 ${user?.is_verified ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {user?.is_verified ? <><CheckCircle className="w-3 h-3" /> Yes</> : <><AlertTriangle className="w-3 h-3" /> Pending</>}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-xs text-slate-500 font-medium">Joined</span>
+                  <span className="text-xs text-slate-800 font-bold">
+                    {user?.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
+                  </span>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-red-700">Sign Out</p>
-                <p className="text-xs text-red-600 mt-0.5">Log out from this device.</p>
-              </div>
-            </button>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="mt-2">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">Danger Zone</p>
+              <button onClick={handleLogout} className="bg-red-50 rounded-[20px] p-4 flex items-center gap-4 text-left w-full hover:bg-red-100 transition-colors">
+                <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-red-600 shadow-sm">
+                  <LogOut className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-red-700">Sign Out</p>
+                  <p className="text-xs text-red-600 mt-0.5">Log out from this device only.</p>
+                </div>
+              </button>
+            </div>
           </div>
         )}
       </div>
 
       <BottomNav />
+
+      {/* Confirm Logout All Modal */}
+      {confirmLogoutAll && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-6">
+          <div className="bg-white rounded-[28px] p-6 shadow-2xl max-w-sm w-full animate-scale-in">
+            <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-7 h-7 text-red-600" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Logout All Devices?</h3>
+            <p className="text-sm text-slate-500 text-center mb-6">
+              This will sign you out from every device, including this one. You'll need to log in again.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmLogoutAll(false)} className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-[16px] font-bold text-sm hover:bg-slate-200 transition-colors">
+                Cancel
+              </button>
+              <button onClick={revokeAllSessions} className="flex-1 bg-red-600 text-white py-3.5 rounded-[16px] font-bold text-sm hover:bg-red-700 transition-colors">
+                Logout All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,10 +1,11 @@
 # University Super-App Feature Completion Report
 
-## 1. Authentication & Security (1/4 Completed)
-- [x] **SSO Login:** Single Sign-On using college email.
-- [ ] **Biometric Auth:** Fingerprint or FaceID for fast access.
-- [ ] **Session Manager:** See and log out of other devices.
-- [ ] **Guest Mode:** Limited view for parents or visitors.
+## 1. Authentication & Security (4/4 ✅ COMPLETE)
+- [x] **SSO Login:** Single Sign-On using college email with domain validation.
+- [x] **Biometric Auth:** WebAuthn-based fingerprint/FaceID registration and passwordless login.
+- [x] **Session Manager:** View active devices with time-ago timestamps, revoke individual or all sessions.
+- [x] **Guest Mode:** Limited read-only access (Map, Notices, Bus) with route-level protection via AuthenticatedRoute.
+- [x] **Change Password:** (Bonus) Password strength meter, real-time validation, backend-verified old password check.
 
 ## 2. Academic Core (5/10 Completed)
 - [x] **Smart Timetable:** Daily/Weekly view with "Next Class" alerts.
@@ -88,4 +89,4 @@
 - [ ] **Placement Analytics:** View stats on how many students are placed vs. eligible.
 
 ---
-**Summary:** Currently, 18 core features have been fully implemented across the Frontend and Backend architectures. The remaining 42 features are scaffolded in the UI Hubs but require individual logic implementation.
+**Summary:** Currently, 22 core features have been fully implemented across the Frontend and Backend architectures. Section 1 (Authentication & Security) is fully complete. The remaining features are scaffolded in the UI Hubs and require individual logic implementation.
