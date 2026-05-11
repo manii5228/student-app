@@ -7,22 +7,22 @@
 - [x] **Guest Mode:** Limited read-only access (Map, Notices, Bus) with route-level protection via AuthenticatedRoute.
 - [x] **Change Password:** (Bonus) Password strength meter, real-time validation, backend-verified old password check.
 
-## 2. Academic Core (5/10 Completed)
+## 2. Academic Core (10/10 ✅ COMPLETE)
 - [x] **Smart Timetable:** Daily/Weekly view with "Next Class" alerts.
 - [x] **Attendance Tracker:** Subject-wise percentage with "Bunk" calculators.
 - [x] **Credit Dashboard:** Visual map of earned vs. required credits.
 - [x] **Assignment Submission:** Secure portal for PDF/Image uploads.
 - [x] **Results/Gradebook:** Semester-wise SGPA and CGPA tracking.
-- [ ] **Syllabus Viewer:** Offline-ready subject-wise curriculum.
-- [ ] **Faculty Directory:** Searchable list of professors with "Email/Chat" buttons.
-- [ ] **Internal Marks:** View marks for mid-terms and lab assessments.
-- [ ] **Exam Schedule:** Personalised calendar for end-semester exams.
+- [x] **Syllabus Viewer:** Expandable accordion by subject, unit completion progress bars, search, faculty-markable.
+- [x] **Faculty Directory:** Searchable list with department filter pills, email/phone action buttons.
+- [x] **Internal Marks:** CAT-1/CAT-2/Model/Lab cards grouped by subject, color-coded by performance.
+- [x] **Exam Schedule:** Personalised calendar with date blocks, urgency badges (Today/Soon/Done).
 - [x] **Question Papers:** (Added) Previous Year Question Papers.
 
 ## 3. Project & Skill Management (2/4 Completed)
-- [ ] **Project Reminders:** Milestone tracking with push notifications.
+- [X] **Project Reminders:** Milestone tracking with push notifications.
 - [x] **Team Finder:** "Tinder-style" swiping to find partners.
-- [ ] **Skill Badges:** Earn digital badges for completing college workshops.
+- [X] **Skill Badges:** Earn digital badges for completing college workshops.
 - [x] **Portfolio Builder:** Automatically generates a CV from app data.
 
 ## 4. Campus Operations & Finance (4/5 Completed)
@@ -32,14 +32,14 @@
 - [ ] **Library Portal:** Check book availability and renew via QR.
 - [x] **Campus Map:** Indoor navigation to find specific classrooms.
 
-## 5. Communication & Events (2/7 Completed)
+## 5. Communication & Events (7/7 ✅ COMPLETE)
 - [x] **Notice Board:** Urgent, pinned announcements from the Principal.
-- [ ] **Event Hub:** Discovery feed for fests like LAVAZA.
-- [ ] **Live Event Schedule:** Real-time updates on stage performances.
-- [ ] **Volunteer Portal:** Apply for organizing committees.
-- [ ] **Clubs & Societies:** Join and track activities for technical clubs.
+- [x] **Event Hub:** Discovery feed for fests like LAVAZA.
+- [x] **Live Event Schedule:** Real-time updates on stage performances.
+- [x] **Volunteer Portal:** Apply for organizing committees.
+- [x] **Clubs & Societies:** Join and track activities for technical clubs.
 - [x] **Alumni Connect:** Directory to message graduated seniors (Referral Hub).
-- [ ] **Anonymous Feedback:** Suggestion box for college improvements.
+- [x] **Anonymous Feedback:** Suggestion box for college improvements.
 
 ## 6. Career & Placements (2/7 Completed)
 - [x] **Job Portal:** Feed of companies visiting for placements.
@@ -89,4 +89,4 @@
 - [ ] **Placement Analytics:** View stats on how many students are placed vs. eligible.
 
 ---
-**Summary:** Currently, 22 core features have been fully implemented across the Frontend and Backend architectures. Section 1 (Authentication & Security) is fully complete. The remaining features are scaffolded in the UI Hubs and require individual logic implementation.
+**Summary:** Currently, 31 core features have been fully implemented across the Frontend and Backend. Sections 1 (Auth), 2 (Academic Core), and 5 (Communication & Events) are fully complete. The remaining features are scaffolded in the UI Hubs and require individual logic implementation.

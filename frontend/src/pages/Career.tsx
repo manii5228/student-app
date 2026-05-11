@@ -14,6 +14,8 @@ const Career = () => {
     { name: 'Portfolio Builder', icon: <BookOpen className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Auto-generate your ATS CV.', path: '/career/portfolio' },
     { name: 'Team Finder', icon: <Users className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Tinder-style match making.', path: '/career/team-finder' },
     { name: 'Referral Hub', icon: <Share2 className="w-6 h-6 text-pink-600" />, color: 'bg-pink-100', text: 'Ask alumni for referrals.', path: '/career/referrals' },
+    { name: 'Project Tracker', icon: <Target className="w-6 h-6 text-cyan-600" />, color: 'bg-cyan-100', text: 'Milestones & deadlines.', path: '/career/projects' },
+    { name: 'Skill Badges', icon: <CheckSquare className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Earn digital achievements.', path: '/career/badges' },
     { name: 'Eligibility Check', icon: <CheckSquare className="w-6 h-6 text-blue-600" />, color: 'bg-blue-100', text: 'Auto CGPA verifier.', path: '/career/jobs' },
     { name: 'Interviews', icon: <Clock className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Upcoming schedules.', path: null },
   ];

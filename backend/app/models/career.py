@@ -7,6 +7,97 @@ from datetime import datetime, timezone
 from ..extensions import db
 
 
+# ── Project Reminders & Milestones ──────────────────────────────────
+
+class Project(db.Model):
+    __tablename__ = "projects"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    title = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    subject_code = db.Column(db.String(20), nullable=True)
+    team_members = db.Column(db.Text, nullable=True)  # comma-separated names
+    deadline = db.Column(db.Date, nullable=True)
+    status = db.Column(db.String(20), default="in_progress")  # in_progress, completed, overdue
+    progress_pct = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    milestones = db.relationship("Milestone", backref="project", lazy="dynamic",
+                                 cascade="all, delete-orphan", order_by="Milestone.due_date")
+
+    def to_dict(self):
+        return {
+            "id": self.id, "student_id": self.student_id, "title": self.title,
+            "description": self.description, "subject_code": self.subject_code,
+            "team_members": self.team_members, "deadline": str(self.deadline) if self.deadline else None,
+            "status": self.status, "progress_pct": self.progress_pct,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "milestones": [m.to_dict() for m in self.milestones],
+        }
+
+
+class Milestone(db.Model):
+    __tablename__ = "milestones"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = db.Column(db.String(36), db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    title = db.Column(db.String(300), nullable=False)
+    due_date = db.Column(db.Date, nullable=True)
+    is_completed = db.Column(db.Boolean, default=False)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id, "project_id": self.project_id, "title": self.title,
+            "due_date": str(self.due_date) if self.due_date else None,
+            "is_completed": self.is_completed,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+        }
+
+
+# ── Skill Badges ────────────────────────────────────────────────────
+
+class SkillBadge(db.Model):
+    """Badge templates created by admin/faculty."""
+    __tablename__ = "skill_badges"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(50), default="technical")  # technical, soft_skill, workshop, hackathon
+    icon = db.Column(db.String(50), default="award")  # lucide icon name
+    color = db.Column(db.String(20), default="#6366f1")
+    criteria = db.Column(db.Text, nullable=True)  # what is needed to earn
+    points = db.Column(db.Integer, default=10)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id, "name": self.name, "description": self.description,
+            "category": self.category, "icon": self.icon, "color": self.color,
+            "criteria": self.criteria, "points": self.points,
+        }
+
+
+class EarnedBadge(db.Model):
+    """Record of a student earning a badge."""
+    __tablename__ = "earned_badges"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    badge_id = db.Column(db.String(36), db.ForeignKey("skill_badges.id"), nullable=False)
+    awarded_by = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
+    note = db.Column(db.String(500), nullable=True)
+    earned_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    badge = db.relationship("SkillBadge", backref="earned_badges")
+
+    def to_dict(self):
+        return {
+            "id": self.id, "student_id": self.student_id,
+            "badge": self.badge.to_dict() if self.badge else None,
+            "note": self.note,
+            "earned_at": self.earned_at.isoformat() if self.earned_at else None,
+        }
+
+
 # ── Career / Placements ────────────────────────────────────────────
 
 class JobPosting(db.Model):

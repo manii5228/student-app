@@ -29,6 +29,16 @@ import SystemHealth from './pages/SystemHealth';
 import HostelPass from './pages/HostelPass';
 import NoticeBoard from './pages/NoticeBoard';
 import Results from './pages/Results';
+import SyllabusViewer from './pages/SyllabusViewer';
+import FacultyDirectory from './pages/FacultyDirectory';
+import InternalMarks from './pages/InternalMarks';
+import ExamSchedule from './pages/ExamSchedule';
+import ProjectReminders from './pages/ProjectReminders';
+import SkillBadges from './pages/SkillBadges';
+import EventHub from './pages/EventHub';
+import VolunteerPortal from './pages/VolunteerPortal';
+import ClubsSocieties from './pages/ClubsSocieties';
+import AnonymousFeedback from './pages/AnonymousFeedback';
 
 // ── Route Guards ─────────────────────────────────────────────────
 // Requires any valid JWT token (student, faculty, admin, or guest)
@@ -88,6 +98,10 @@ function App() {
             <Route path="/campus/map" element={<ProtectedRoute><IndoorMap /></ProtectedRoute>} />
             <Route path="/campus/hostel-pass" element={<AuthenticatedRoute><HostelPass /></AuthenticatedRoute>} />
             <Route path="/campus/notices" element={<ProtectedRoute><NoticeBoard /></ProtectedRoute>} />
+            <Route path="/campus/events" element={<AuthenticatedRoute><EventHub /></AuthenticatedRoute>} />
+            <Route path="/campus/volunteer" element={<AuthenticatedRoute><VolunteerPortal /></AuthenticatedRoute>} />
+            <Route path="/campus/clubs" element={<AuthenticatedRoute><ClubsSocieties /></AuthenticatedRoute>} />
+            <Route path="/campus/feedback" element={<AuthenticatedRoute><AnonymousFeedback /></AuthenticatedRoute>} />
 
             {/* Career & Placements — Authenticated only */}
             <Route path="/career/jobs" element={<AuthenticatedRoute><JobPortal /></AuthenticatedRoute>} />
