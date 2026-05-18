@@ -1,6 +1,7 @@
 import { 
   Coffee, Bus, Map as MapIcon, Calendar, Bell, 
-  Users, MessageSquare, ShoppingBag, ClipboardCheck, BookOpen
+  Users, MessageSquare, ShoppingBag, ClipboardCheck, BookOpen,
+  Heart, AlertTriangle, BarChart3, RefreshCw, Sparkles, Calculator, Camera, Activity
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
@@ -19,7 +20,15 @@ const Campus = () => {
     { name: 'Clubs Hub', icon: <Users className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Join technical/cultural clubs.', path: '/campus/clubs' },
     { name: 'Anon Feedback', icon: <MessageSquare className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Voice your concerns safely.', path: '/campus/feedback' },
     { name: 'Library Portal', icon: <BookOpen className="w-6 h-6 text-amber-700" />, color: 'bg-amber-100', text: 'Search, borrow & renew books.', path: '/campus/library' },
-    { name: 'Marketplace', icon: <ShoppingBag className="w-6 h-6 text-amber-600" />, color: 'bg-amber-100', text: 'Buy/sell used materials.', path: null },
+    { name: 'Marketplace', icon: <ShoppingBag className="w-6 h-6 text-amber-600" />, color: 'bg-amber-100', text: 'Buy/sell used materials.', path: '/utility/marketplace' },
+    { name: 'Health Center', icon: <Heart className="w-6 h-6 text-red-600" />, color: 'bg-red-100', text: 'Book clinic appointments.', path: '/utility/health' },
+    { name: 'Emergency', icon: <AlertTriangle className="w-6 h-6 text-red-700" />, color: 'bg-red-50', text: 'One-tap security alert.', path: '/utility/emergency' },
+    { name: 'Polls', icon: <BarChart3 className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Vote on campus matters.', path: '/utility/polls' },
+    { name: 'Sync & Offline', icon: <RefreshCw className="w-6 h-6 text-slate-600" />, color: 'bg-slate-100', text: 'Manage cached data.', path: '/utility/sync' },
+    { name: 'AI Study Bot', icon: <Sparkles className="w-6 h-6 text-violet-600" />, color: 'bg-violet-100', text: 'Ask anything academic.', path: '/ai/study-assistant' },
+    { name: 'GPA Predictor', icon: <Calculator className="w-6 h-6 text-cyan-600" />, color: 'bg-cyan-100', text: 'Calculate & predict grades.', path: '/ai/gpa-predictor' },
+    { name: 'Doc Scanner', icon: <Camera className="w-6 h-6 text-slate-700" />, color: 'bg-slate-100', text: 'Scan notes to digital.', path: '/ai/scanner' },
+    { name: 'Usage Stats', icon: <Activity className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Track your study time.', path: '/ai/usage' },
   ];
 
   return (

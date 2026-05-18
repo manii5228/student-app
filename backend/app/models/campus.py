@@ -242,3 +242,93 @@ class HostelPass(db.Model):
             "qr_code_url": self.qr_code_url,
             "created_at": self.created_at.isoformat()
         }
+
+
+# ── Health Center ──────────────────────────────────────────────────
+
+class HealthAppointment(db.Model):
+    __tablename__ = "health_appointments"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    doctor_name = db.Column(db.String(200), default="Campus Doctor")
+    appointment_type = db.Column(db.String(50), default="general")  # general, dental, eye, mental_health
+    description = db.Column(db.Text, nullable=True)
+    preferred_date = db.Column(db.Date, nullable=False)
+    preferred_time = db.Column(db.String(20), nullable=True)  # morning, afternoon, evening
+    status = db.Column(db.String(20), default="pending")  # pending, confirmed, completed, cancelled
+    notes = db.Column(db.Text, nullable=True)  # doctor notes
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id, "student_id": self.student_id,
+            "doctor_name": self.doctor_name, "appointment_type": self.appointment_type,
+            "description": self.description,
+            "preferred_date": str(self.preferred_date) if self.preferred_date else None,
+            "preferred_time": self.preferred_time, "status": self.status,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ── Emergency Alert ────────────────────────────────────────────────
+
+class EmergencyAlert(db.Model):
+    __tablename__ = "emergency_alerts"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    alert_type = db.Column(db.String(30), nullable=False)  # medical, security, fire, other
+    message = db.Column(db.Text, nullable=True)
+    location = db.Column(db.String(200), nullable=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    status = db.Column(db.String(20), default="active")  # active, acknowledged, resolved
+    acknowledged_by = db.Column(db.String(36), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    resolved_at = db.Column(db.DateTime, nullable=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id, "student_id": self.student_id,
+            "alert_type": self.alert_type, "message": self.message,
+            "location": self.location, "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ── Polls & Surveys ───────────────────────────────────────────────
+
+class Poll(db.Model):
+    __tablename__ = "polls"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    options_json = db.Column(db.Text, nullable=False)  # JSON: ["Option A", "Option B", ...]
+    created_by = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    total_votes = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    votes = db.relationship("PollVote", backref="poll", lazy="dynamic", cascade="all, delete-orphan")
+
+    def to_dict(self):
+        import json
+        return {
+            "id": self.id, "title": self.title, "description": self.description,
+            "options": json.loads(self.options_json) if self.options_json else [],
+            "is_active": self.is_active, "total_votes": self.total_votes,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class PollVote(db.Model):
+    __tablename__ = "poll_votes"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    poll_id = db.Column(db.String(36), db.ForeignKey("polls.id", ondelete="CASCADE"), nullable=False)
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    option_index = db.Column(db.Integer, nullable=False)
+    voted_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {"id": self.id, "poll_id": self.poll_id, "option_index": self.option_index}

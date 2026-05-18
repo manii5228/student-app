@@ -44,6 +44,15 @@ import InterviewScheduler from './pages/InterviewScheduler';
 import CompanyPrep from './pages/CompanyPrep';
 import InternshipTracker from './pages/InternshipTracker';
 import MockTestPortal from './pages/MockTestPortal';
+import HealthCenter from './pages/HealthCenter';
+import EmergencyButton from './pages/EmergencyButton';
+import BuySell from './pages/BuySell';
+import PollsSurveys from './pages/PollsSurveys';
+import SyncStatus from './pages/SyncStatus';
+import AIStudyAssistant from './pages/AIStudyAssistant';
+import GPAPredictor from './pages/GPAPredictor';
+import DocumentScanner from './pages/DocumentScanner';
+import UsageAnalytics from './pages/UsageAnalytics';
 
 // ── Route Guards ─────────────────────────────────────────────────
 // Requires any valid JWT token (student, faculty, admin, or guest)
@@ -120,6 +129,19 @@ function App() {
             <Route path="/career/prep" element={<AuthenticatedRoute><CompanyPrep /></AuthenticatedRoute>} />
             <Route path="/career/internships" element={<AuthenticatedRoute><InternshipTracker /></AuthenticatedRoute>} />
             <Route path="/career/mock-tests" element={<AuthenticatedRoute><MockTestPortal /></AuthenticatedRoute>} />
+
+            {/* Utility & Health */}
+            <Route path="/utility/health" element={<AuthenticatedRoute><HealthCenter /></AuthenticatedRoute>} />
+            <Route path="/utility/emergency" element={<ProtectedRoute><EmergencyButton /></ProtectedRoute>} />
+            <Route path="/utility/marketplace" element={<AuthenticatedRoute><BuySell /></AuthenticatedRoute>} />
+            <Route path="/utility/polls" element={<AuthenticatedRoute><PollsSurveys /></AuthenticatedRoute>} />
+            <Route path="/utility/sync" element={<ProtectedRoute><SyncStatus /></ProtectedRoute>} />
+
+            {/* AI Features */}
+            <Route path="/ai/study-assistant" element={<AuthenticatedRoute><AIStudyAssistant /></AuthenticatedRoute>} />
+            <Route path="/ai/gpa-predictor" element={<AuthenticatedRoute><GPAPredictor /></AuthenticatedRoute>} />
+            <Route path="/ai/scanner" element={<AuthenticatedRoute><DocumentScanner /></AuthenticatedRoute>} />
+            <Route path="/ai/usage" element={<AuthenticatedRoute><UsageAnalytics /></AuthenticatedRoute>} />
 
             {/* Faculty Management Layer */}
             <Route path="/faculty" element={<AuthenticatedRoute><FacultyHub /></AuthenticatedRoute>} />
