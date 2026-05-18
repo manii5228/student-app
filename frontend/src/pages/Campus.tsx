@@ -1,6 +1,6 @@
 import { 
   Coffee, Bus, Map as MapIcon, Calendar, Bell, 
-  Users, MessageSquare, ShoppingBag, ClipboardCheck
+  Users, MessageSquare, ShoppingBag, ClipboardCheck, BookOpen
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
@@ -18,6 +18,7 @@ const Campus = () => {
     { name: 'Volunteer Portal', icon: <ClipboardCheck className="w-6 h-6 text-cyan-700" />, color: 'bg-cyan-100', text: 'Apply for organizing committees.', path: '/campus/volunteer' },
     { name: 'Clubs Hub', icon: <Users className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Join technical/cultural clubs.', path: '/campus/clubs' },
     { name: 'Anon Feedback', icon: <MessageSquare className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Voice your concerns safely.', path: '/campus/feedback' },
+    { name: 'Library Portal', icon: <BookOpen className="w-6 h-6 text-amber-700" />, color: 'bg-amber-100', text: 'Search, borrow & renew books.', path: '/campus/library' },
     { name: 'Marketplace', icon: <ShoppingBag className="w-6 h-6 text-amber-600" />, color: 'bg-amber-100', text: 'Buy/sell used materials.', path: null },
   ];
 

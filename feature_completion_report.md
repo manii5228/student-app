@@ -19,17 +19,17 @@
 - [x] **Exam Schedule:** Personalised calendar with date blocks, urgency badges (Today/Soon/Done).
 - [x] **Question Papers:** (Added) Previous Year Question Papers.
 
-## 3. Project & Skill Management (2/4 Completed)
+## 3. Project & Skill Management (4/4 ✅ COMPLETE)
 - [X] **Project Reminders:** Milestone tracking with push notifications.
 - [x] **Team Finder:** "Tinder-style" swiping to find partners.
 - [X] **Skill Badges:** Earn digital badges for completing college workshops.
 - [x] **Portfolio Builder:** Automatically generates a CV from app data.
 
-## 4. Campus Operations & Finance (4/5 Completed)
+## 4. Campus Operations & Finance (5/5 ✅ COMPLETE)
 - [x] **Digital Canteen:** Browse menu and pre-order food to skip lines.
 - [x] **Bus Tracking:** Live GPS location of college buses.
 - [x] **Hostel Pass:** QR-based out-pass system for boarding students.
-- [ ] **Library Portal:** Check book availability and renew via QR.
+- [x] **Library Portal:** Search books by title/author, category filters, view issued books with due-date urgency, one-tap QR renewal.
 - [x] **Campus Map:** Indoor navigation to find specific classrooms.
 
 ## 5. Communication & Events (7/7 ✅ COMPLETE)
@@ -41,14 +41,14 @@
 - [x] **Alumni Connect:** Directory to message graduated seniors (Referral Hub).
 - [x] **Anonymous Feedback:** Suggestion box for college improvements.
 
-## 6. Career & Placements (2/7 Completed)
+## 6. Career & Placements (7/7 ✅ COMPLETE)
 - [x] **Job Portal:** Feed of companies visiting for placements.
 - [x] **Eligibility Check:** Automatic "Yes/No" based on current CGPA.
-- [ ] **Interview Scheduler:** Calendar for upcoming placement rounds.
-- [ ] **Company Prep:** Access to previous years' interview questions.
-- [ ] **Internship Tracker:** Record summer internship certificates.
+- [x] **Interview Scheduler:** Calendar of upcoming placement rounds with urgency badges and venue/time info.
+- [x] **Company Prep:** Search previous years' interview questions by company, categorized by type.
+- [x] **Internship Tracker:** Record internships with stipend, mode, skills, mark-complete, certificate URL.
 - [x] **Referral Hub:** Ask alumni for referrals at top companies.
-- [ ] **Mock Test Portal:** Practice MCQ tests for technical rounds.
+- [x] **Mock Test Portal:** Timed MCQ tests with category filters, auto-scoring, explanations, attempt history.
 
 ## 7. Utility & Health (1/7 Completed)
 - [ ] **Health Center:** Appointment booking for the campus clinic.
@@ -89,4 +89,4 @@
 - [ ] **Placement Analytics:** View stats on how many students are placed vs. eligible.
 
 ---
-**Summary:** Currently, 31 core features have been fully implemented across the Frontend and Backend. Sections 1 (Auth), 2 (Academic Core), and 5 (Communication & Events) are fully complete. The remaining features are scaffolded in the UI Hubs and require individual logic implementation.
+**Summary:** Currently, 37 core features have been fully implemented across the Frontend and Backend. Sections 1 (Auth), 2 (Academic Core), 3 (Project & Skill), 4 (Campus Ops), 5 (Communication & Events), and 6 (Career & Placements) are fully complete. The remaining features are in Utility/Health, AI, Faculty, and Admin modules.

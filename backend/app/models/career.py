@@ -98,6 +98,109 @@ class EarnedBadge(db.Model):
         }
 
 
+# ── Internship Tracker ──────────────────────────────────────────────
+
+class Internship(db.Model):
+    __tablename__ = "internships"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    company_name = db.Column(db.String(200), nullable=False)
+    role_title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=True)
+    stipend = db.Column(db.Float, nullable=True)
+    mode = db.Column(db.String(20), default="onsite")  # onsite, remote, hybrid
+    certificate_url = db.Column(db.String(500), nullable=True)
+    status = db.Column(db.String(20), default="ongoing")  # ongoing, completed
+    skills_learned = db.Column(db.Text, nullable=True)  # comma-separated
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id, "student_id": self.student_id,
+            "company_name": self.company_name, "role_title": self.role_title,
+            "description": self.description,
+            "start_date": str(self.start_date) if self.start_date else None,
+            "end_date": str(self.end_date) if self.end_date else None,
+            "stipend": self.stipend, "mode": self.mode,
+            "certificate_url": self.certificate_url, "status": self.status,
+            "skills_learned": self.skills_learned,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ── Mock Test Portal ───────────────────────────────────────────────
+
+class MockTest(db.Model):
+    __tablename__ = "mock_tests"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(50), default="aptitude")  # aptitude, technical, verbal, coding
+    duration_minutes = db.Column(db.Integer, default=30)
+    total_questions = db.Column(db.Integer, default=20)
+    difficulty = db.Column(db.String(20), default="medium")  # easy, medium, hard
+    is_active = db.Column(db.Boolean, default=True)
+    created_by = db.Column(db.String(36), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    questions = db.relationship("MockTestQuestion", backref="test", lazy="dynamic",
+                                cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            "id": self.id, "title": self.title, "description": self.description,
+            "category": self.category, "duration_minutes": self.duration_minutes,
+            "total_questions": self.total_questions, "difficulty": self.difficulty,
+        }
+
+
+class MockTestQuestion(db.Model):
+    __tablename__ = "mock_test_questions"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    test_id = db.Column(db.String(36), db.ForeignKey("mock_tests.id", ondelete="CASCADE"), nullable=False)
+    question_text = db.Column(db.Text, nullable=False)
+    option_a = db.Column(db.String(500), nullable=False)
+    option_b = db.Column(db.String(500), nullable=False)
+    option_c = db.Column(db.String(500), nullable=False)
+    option_d = db.Column(db.String(500), nullable=False)
+    correct_option = db.Column(db.String(1), nullable=False)  # a, b, c, d
+    explanation = db.Column(db.Text, nullable=True)
+    order_num = db.Column(db.Integer, default=0)
+
+    def to_dict(self, show_answer=False):
+        d = {
+            "id": self.id, "question_text": self.question_text,
+            "option_a": self.option_a, "option_b": self.option_b,
+            "option_c": self.option_c, "option_d": self.option_d,
+            "order_num": self.order_num,
+        }
+        if show_answer:
+            d["correct_option"] = self.correct_option
+            d["explanation"] = self.explanation
+        return d
+
+
+class MockTestAttempt(db.Model):
+    __tablename__ = "mock_test_attempts"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    test_id = db.Column(db.String(36), db.ForeignKey("mock_tests.id"), nullable=False)
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    answers_json = db.Column(db.Text, nullable=True)  # JSON: {question_id: "a", ...}
+    score = db.Column(db.Integer, default=0)
+    total = db.Column(db.Integer, default=0)
+    time_taken_seconds = db.Column(db.Integer, nullable=True)
+    completed_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id, "test_id": self.test_id,
+            "score": self.score, "total": self.total,
+            "time_taken_seconds": self.time_taken_seconds,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+        }
+
+
 # ── Career / Placements ────────────────────────────────────────────
 
 class JobPosting(db.Model):

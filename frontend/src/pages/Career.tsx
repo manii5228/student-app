@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Briefcase, CheckSquare, Clock, BookOpen, 
-  Users, Share2, Target 
+  Users, Share2, Target, FileText, PenTool, BarChart3
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
@@ -16,8 +16,10 @@ const Career = () => {
     { name: 'Referral Hub', icon: <Share2 className="w-6 h-6 text-pink-600" />, color: 'bg-pink-100', text: 'Ask alumni for referrals.', path: '/career/referrals' },
     { name: 'Project Tracker', icon: <Target className="w-6 h-6 text-cyan-600" />, color: 'bg-cyan-100', text: 'Milestones & deadlines.', path: '/career/projects' },
     { name: 'Skill Badges', icon: <CheckSquare className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Earn digital achievements.', path: '/career/badges' },
-    { name: 'Eligibility Check', icon: <CheckSquare className="w-6 h-6 text-blue-600" />, color: 'bg-blue-100', text: 'Auto CGPA verifier.', path: '/career/jobs' },
-    { name: 'Interviews', icon: <Clock className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Upcoming schedules.', path: null },
+    { name: 'Interviews', icon: <Clock className="w-6 h-6 text-violet-600" />, color: 'bg-violet-100', text: 'Upcoming placement rounds.', path: '/career/interviews' },
+    { name: 'Company Prep', icon: <FileText className="w-6 h-6 text-blue-600" />, color: 'bg-blue-100', text: 'Previous year questions.', path: '/career/prep' },
+    { name: 'Internships', icon: <PenTool className="w-6 h-6 text-teal-600" />, color: 'bg-teal-100', text: 'Track summer internships.', path: '/career/internships' },
+    { name: 'Mock Tests', icon: <BarChart3 className="w-6 h-6 text-rose-600" />, color: 'bg-rose-100', text: 'Practice MCQ tests.', path: '/career/mock-tests' },
   ];
 
   return (
