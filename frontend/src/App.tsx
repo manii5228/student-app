@@ -39,6 +39,20 @@ import EventHub from './pages/EventHub';
 import VolunteerPortal from './pages/VolunteerPortal';
 import ClubsSocieties from './pages/ClubsSocieties';
 import AnonymousFeedback from './pages/AnonymousFeedback';
+import LibraryPortal from './pages/LibraryPortal';
+import InterviewScheduler from './pages/InterviewScheduler';
+import CompanyPrep from './pages/CompanyPrep';
+import InternshipTracker from './pages/InternshipTracker';
+import MockTestPortal from './pages/MockTestPortal';
+import HealthCenter from './pages/HealthCenter';
+import EmergencyButton from './pages/EmergencyButton';
+import BuySell from './pages/BuySell';
+import PollsSurveys from './pages/PollsSurveys';
+import SyncStatus from './pages/SyncStatus';
+import AIStudyAssistant from './pages/AIStudyAssistant';
+import GPAPredictor from './pages/GPAPredictor';
+import DocumentScanner from './pages/DocumentScanner';
+import UsageAnalytics from './pages/UsageAnalytics';
 
 // ── Route Guards ─────────────────────────────────────────────────
 // Requires any valid JWT token (student, faculty, admin, or guest)
@@ -98,6 +112,7 @@ function App() {
             <Route path="/campus/map" element={<ProtectedRoute><IndoorMap /></ProtectedRoute>} />
             <Route path="/campus/hostel-pass" element={<AuthenticatedRoute><HostelPass /></AuthenticatedRoute>} />
             <Route path="/campus/notices" element={<ProtectedRoute><NoticeBoard /></ProtectedRoute>} />
+            <Route path="/campus/library" element={<AuthenticatedRoute><LibraryPortal /></AuthenticatedRoute>} />
             <Route path="/campus/events" element={<AuthenticatedRoute><EventHub /></AuthenticatedRoute>} />
             <Route path="/campus/volunteer" element={<AuthenticatedRoute><VolunteerPortal /></AuthenticatedRoute>} />
             <Route path="/campus/clubs" element={<AuthenticatedRoute><ClubsSocieties /></AuthenticatedRoute>} />
@@ -108,6 +123,25 @@ function App() {
             <Route path="/career/referrals" element={<AuthenticatedRoute><ReferralHub /></AuthenticatedRoute>} />
             <Route path="/career/team-finder" element={<AuthenticatedRoute><TeamFinder /></AuthenticatedRoute>} />
             <Route path="/career/portfolio" element={<AuthenticatedRoute><PortfolioBuilder /></AuthenticatedRoute>} />
+            <Route path="/career/projects" element={<AuthenticatedRoute><ProjectReminders /></AuthenticatedRoute>} />
+            <Route path="/career/badges" element={<AuthenticatedRoute><SkillBadges /></AuthenticatedRoute>} />
+            <Route path="/career/interviews" element={<AuthenticatedRoute><InterviewScheduler /></AuthenticatedRoute>} />
+            <Route path="/career/prep" element={<AuthenticatedRoute><CompanyPrep /></AuthenticatedRoute>} />
+            <Route path="/career/internships" element={<AuthenticatedRoute><InternshipTracker /></AuthenticatedRoute>} />
+            <Route path="/career/mock-tests" element={<AuthenticatedRoute><MockTestPortal /></AuthenticatedRoute>} />
+
+            {/* Utility & Health */}
+            <Route path="/utility/health" element={<AuthenticatedRoute><HealthCenter /></AuthenticatedRoute>} />
+            <Route path="/utility/emergency" element={<ProtectedRoute><EmergencyButton /></ProtectedRoute>} />
+            <Route path="/utility/marketplace" element={<AuthenticatedRoute><BuySell /></AuthenticatedRoute>} />
+            <Route path="/utility/polls" element={<AuthenticatedRoute><PollsSurveys /></AuthenticatedRoute>} />
+            <Route path="/utility/sync" element={<ProtectedRoute><SyncStatus /></ProtectedRoute>} />
+
+            {/* AI Features */}
+            <Route path="/ai/study-assistant" element={<AuthenticatedRoute><AIStudyAssistant /></AuthenticatedRoute>} />
+            <Route path="/ai/gpa-predictor" element={<AuthenticatedRoute><GPAPredictor /></AuthenticatedRoute>} />
+            <Route path="/ai/scanner" element={<AuthenticatedRoute><DocumentScanner /></AuthenticatedRoute>} />
+            <Route path="/ai/usage" element={<AuthenticatedRoute><UsageAnalytics /></AuthenticatedRoute>} />
 
             {/* Faculty Management Layer */}
             <Route path="/faculty" element={<AuthenticatedRoute><FacultyHub /></AuthenticatedRoute>} />

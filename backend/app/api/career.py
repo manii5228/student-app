@@ -13,6 +13,7 @@ from ..models.career import (
     JobPosting, JobApplication, InterviewSchedule,
     CompanyPrepQuestion, AlumniProfile,
     Project, Milestone, SkillBadge, EarnedBadge,
+    Internship, MockTest, MockTestQuestion, MockTestAttempt,
 )
 from ..models.user import User
 
@@ -327,3 +328,163 @@ def award_badge(bid):
     db.session.commit()
     return jsonify({"message": "Badge awarded", "earned": earned.to_dict()}), 201
 
+
+# ── Internship Tracker ────────────────────────────────────────────
+
+@career_bp.route("/internships", methods=["GET"])
+@jwt_required()
+def my_internships():
+    """Get all internships for the logged-in student."""
+    internships = Internship.query.filter_by(student_id=get_jwt_identity())\
+        .order_by(Internship.start_date.desc()).all()
+    return jsonify({"internships": [i.to_dict() for i in internships]}), 200
+
+
+@career_bp.route("/internships", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def add_internship():
+    """Record a new internship."""
+    data = request.get_json()
+    i = Internship(
+        student_id=get_jwt_identity(),
+        company_name=data["company_name"], role_title=data["role_title"],
+        description=data.get("description"),
+        start_date=dt_date.fromisoformat(data["start_date"].split("T")[0]),
+        end_date=dt_date.fromisoformat(data["end_date"].split("T")[0]) if data.get("end_date") else None,
+        stipend=data.get("stipend"), mode=data.get("mode", "onsite"),
+        certificate_url=data.get("certificate_url"),
+        status=data.get("status", "ongoing"),
+        skills_learned=data.get("skills_learned"),
+    )
+    db.session.add(i)
+    db.session.commit()
+    return jsonify({"message": "Internship added", "internship": i.to_dict()}), 201
+
+
+@career_bp.route("/internships/<iid>", methods=["PUT"])
+@jwt_required()
+def update_internship(iid):
+    """Update an internship record."""
+    i = db.session.get(Internship, iid)
+    if not i or i.student_id != get_jwt_identity():
+        return jsonify({"error": "Not found"}), 404
+    data = request.get_json()
+    for field in ["company_name", "role_title", "description", "stipend", "mode",
+                  "certificate_url", "status", "skills_learned"]:
+        if field in data:
+            setattr(i, field, data[field])
+    if "end_date" in data and data["end_date"]:
+        i.end_date = dt_date.fromisoformat(data["end_date"].split("T")[0])
+    db.session.commit()
+    return jsonify({"internship": i.to_dict()}), 200
+
+
+@career_bp.route("/internships/<iid>", methods=["DELETE"])
+@jwt_required()
+def delete_internship(iid):
+    i = db.session.get(Internship, iid)
+    if not i or i.student_id != get_jwt_identity():
+        return jsonify({"error": "Not found"}), 404
+    db.session.delete(i)
+    db.session.commit()
+    return jsonify({"message": "Deleted"}), 200
+
+
+# ── Mock Test Portal ──────────────────────────────────────────────
+
+@career_bp.route("/mock-tests", methods=["GET"])
+@jwt_required()
+def list_mock_tests():
+    """List available mock tests."""
+    cat = request.args.get("category")
+    query = MockTest.query.filter_by(is_active=True)
+    if cat:
+        query = query.filter_by(category=cat)
+    tests = query.order_by(MockTest.created_at.desc()).all()
+    return jsonify({"tests": [t.to_dict() for t in tests]}), 200
+
+
+@career_bp.route("/mock-tests/<tid>/questions", methods=["GET"])
+@jwt_required()
+def get_test_questions(tid):
+    """Get questions for a test (no answers revealed)."""
+    qs = MockTestQuestion.query.filter_by(test_id=tid)\
+        .order_by(MockTestQuestion.order_num).all()
+    return jsonify({"questions": [q.to_dict(show_answer=False) for q in qs]}), 200
+
+
+@career_bp.route("/mock-tests/<tid>/submit", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def submit_test(tid):
+    """Submit answers and get score."""
+    import json as json_lib
+    data = request.get_json()
+    answers = data.get("answers", {})  # {question_id: "a"}
+    questions = MockTestQuestion.query.filter_by(test_id=tid).all()
+    score = 0
+    total = len(questions)
+    results = []
+    for q in questions:
+        student_ans = answers.get(q.id, "")
+        is_correct = student_ans.lower() == q.correct_option.lower()
+        if is_correct:
+            score += 1
+        results.append({
+            "question_id": q.id, "correct_option": q.correct_option,
+            "student_answer": student_ans, "is_correct": is_correct,
+            "explanation": q.explanation,
+        })
+    attempt = MockTestAttempt(
+        test_id=tid, student_id=get_jwt_identity(),
+        answers_json=json_lib.dumps(answers),
+        score=score, total=total,
+        time_taken_seconds=data.get("time_taken_seconds"),
+    )
+    db.session.add(attempt)
+    db.session.commit()
+    return jsonify({
+        "score": score, "total": total,
+        "percentage": round((score / total * 100) if total else 0),
+        "results": results, "attempt": attempt.to_dict(),
+    }), 200
+
+
+@career_bp.route("/mock-tests/my-attempts", methods=["GET"])
+@jwt_required()
+def my_attempts():
+    """Get student's test attempt history."""
+    attempts = MockTestAttempt.query.filter_by(student_id=get_jwt_identity())\
+        .order_by(MockTestAttempt.completed_at.desc()).all()
+    return jsonify({"attempts": [a.to_dict() for a in attempts]}), 200
+
+
+@career_bp.route("/mock-tests", methods=["POST"])
+@jwt_required()
+@role_required("admin", "faculty")
+def create_mock_test():
+    """Create a mock test with questions."""
+    data = request.get_json()
+    t = MockTest(
+        title=data["title"], description=data.get("description"),
+        category=data.get("category", "aptitude"),
+        duration_minutes=data.get("duration_minutes", 30),
+        difficulty=data.get("difficulty", "medium"),
+        created_by=get_jwt_identity(),
+    )
+    questions = data.get("questions", [])
+    t.total_questions = len(questions)
+    for idx, qd in enumerate(questions):
+        q = MockTestQuestion(
+            question_text=qd["question_text"],
+            option_a=qd["option_a"], option_b=qd["option_b"],
+            option_c=qd["option_c"], option_d=qd["option_d"],
+            correct_option=qd["correct_option"],
+            explanation=qd.get("explanation"),
+            order_num=idx,
+        )
+        t.questions.append(q)
+    db.session.add(t)
+    db.session.commit()
+    return jsonify({"message": "Test created", "test": t.to_dict()}), 201

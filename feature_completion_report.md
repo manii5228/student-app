@@ -19,17 +19,17 @@
 - [x] **Exam Schedule:** Personalised calendar with date blocks, urgency badges (Today/Soon/Done).
 - [x] **Question Papers:** (Added) Previous Year Question Papers.
 
-## 3. Project & Skill Management (2/4 Completed)
+## 3. Project & Skill Management (4/4 ✅ COMPLETE)
 - [X] **Project Reminders:** Milestone tracking with push notifications.
 - [x] **Team Finder:** "Tinder-style" swiping to find partners.
 - [X] **Skill Badges:** Earn digital badges for completing college workshops.
 - [x] **Portfolio Builder:** Automatically generates a CV from app data.
 
-## 4. Campus Operations & Finance (4/5 Completed)
+## 4. Campus Operations & Finance (5/5 ✅ COMPLETE)
 - [x] **Digital Canteen:** Browse menu and pre-order food to skip lines.
 - [x] **Bus Tracking:** Live GPS location of college buses.
 - [x] **Hostel Pass:** QR-based out-pass system for boarding students.
-- [ ] **Library Portal:** Check book availability and renew via QR.
+- [x] **Library Portal:** Search books by title/author, category filters, view issued books with due-date urgency, one-tap QR renewal.
 - [x] **Campus Map:** Indoor navigation to find specific classrooms.
 
 ## 5. Communication & Events (7/7 ✅ COMPLETE)
@@ -41,29 +41,29 @@
 - [x] **Alumni Connect:** Directory to message graduated seniors (Referral Hub).
 - [x] **Anonymous Feedback:** Suggestion box for college improvements.
 
-## 6. Career & Placements (2/7 Completed)
+## 6. Career & Placements (7/7 ✅ COMPLETE)
 - [x] **Job Portal:** Feed of companies visiting for placements.
 - [x] **Eligibility Check:** Automatic "Yes/No" based on current CGPA.
-- [ ] **Interview Scheduler:** Calendar for upcoming placement rounds.
-- [ ] **Company Prep:** Access to previous years' interview questions.
-- [ ] **Internship Tracker:** Record summer internship certificates.
+- [x] **Interview Scheduler:** Calendar of upcoming placement rounds with urgency badges and venue/time info.
+- [x] **Company Prep:** Search previous years' interview questions by company, categorized by type.
+- [x] **Internship Tracker:** Record internships with stipend, mode, skills, mark-complete, certificate URL.
 - [x] **Referral Hub:** Ask alumni for referrals at top companies.
-- [ ] **Mock Test Portal:** Practice MCQ tests for technical rounds.
+- [x] **Mock Test Portal:** Timed MCQ tests with category filters, auto-scoring, explanations, attempt history.
 
-## 7. Utility & Health (1/7 Completed)
-- [ ] **Health Center:** Appointment booking for the campus clinic.
-- [ ] **Emergency Button:** One-tap alert to campus security/ambulance.
-- [ ] **Buy & Sell:** Marketplace for used books and project materials.
-- [ ] **Polls & Surveys:** Quick voting for student council or fest themes.
-- [x] **Dark Mode:** (Implemented via Tailwind, needs global toggle).
-- [ ] **Offline Mode:** Local cache for all academic data.
-- [ ] **Sync Status:** Indicator showing when data was last updated.
+## 7. Utility & Health (7/7 ✅ COMPLETE)
+- [x] **Health Center:** Appointment booking with type selection (general/dental/eye/mental health), cancel, doctor notes.
+- [x] **Emergency Button:** One-tap alert with geolocation, type selection (medical/security/fire), emergency contacts.
+- [x] **Buy & Sell:** Marketplace with category filters, condition badges, grid view, post/sell flow.
+- [x] **Polls & Surveys:** Vote on active polls with live result bars and percentage display.
+- [x] **Dark Mode:** Implemented via Tailwind dark class system.
+- [x] **Offline Mode:** LocalStorage-based data caching with toggle control.
+- [x] **Sync Status:** Online/offline detection, last sync time, cache size display, clear cache.
 
-## 8. Advanced / AI Features (0/4 Completed)
-- [ ] **AI Study Assistant:** Chatbot for syllabus-related queries.
-- [ ] **GPA Predictor:** ML-tool to calculate required grades for a target CGPA.
-- [ ] **Document Scanner:** In-app tool to convert paper notes to PDF.
-- [ ] **Usage Analytics:** Shows students how much time they spend on study vs. social.
+## 8. Advanced / AI Features (4/4 ✅ COMPLETE)
+- [x] **AI Study Assistant:** Chat-based study bot with knowledge base for DSA, DBMS, OS, Networks, exam tips, suggested topics.
+- [x] **GPA Predictor:** Calculator + Predictor modes, editable subjects/grades/credits, target CGPA slider, required GPA analysis.
+- [x] **Document Scanner:** Camera/upload capture, image filters (Original/Grayscale/Contrast/B&W), save, download scanned docs.
+- [x] **Usage Analytics:** Time breakdown by category, weekly activity chart, day streak, period filters, smart insights.
 
 ## Faculty Module (Focus: Efficiency & Data Entry) (3/10 Completed)
 - [x] **Bulk Attendance Marker:** A "one-tap" list where all are marked present by default.
@@ -77,6 +77,7 @@
 - [ ] **Meeting Scheduler:** Set "Office Hours" so students can book 5-minute slots.
 - [ ] **Resource Uploader:** Fast upload for lecture notes, ppts, and lab manuals.
 
+
 ## Admin Module (Focus: Control & Analytics) (3/9 Completed)
 - [ ] **User Management:** Create, suspend, or delete Student and Faculty accounts.
 - [x] **Master Timetable Editor:** Drag-and-drop interface to resolve room or faculty scheduling conflicts.
@@ -89,4 +90,4 @@
 - [ ] **Placement Analytics:** View stats on how many students are placed vs. eligible.
 
 ---
-**Summary:** Currently, 31 core features have been fully implemented across the Frontend and Backend. Sections 1 (Auth), 2 (Academic Core), and 5 (Communication & Events) are fully complete. The remaining features are scaffolded in the UI Hubs and require individual logic implementation.
+**Summary:** Currently, 43 core features have been fully implemented across the Frontend and Backend. Sections 1 (Auth), 2 (Academic Core), 3 (Project & Skill), 4 (Campus Ops), 5 (Communication & Events), 6 (Career & Placements), and 7 (Utility & Health) are fully complete. The remaining features are in AI, Faculty, and Admin modules.
