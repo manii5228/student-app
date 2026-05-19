@@ -356,46 +356,6 @@ class Resource(db.Model):
                 "uploaded_by": self.uploaded_by, "download_count": self.download_count}
 
 
-# ── Health & Utility ───────────────────────────────────────────────
-
-class HealthAppointment(db.Model):
-    __tablename__ = "health_appointments"
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
-    appointment_date = db.Column(db.Date, nullable=False)
-    appointment_time = db.Column(db.Time, nullable=False)
-    reason = db.Column(db.Text, nullable=True)
-    doctor_name = db.Column(db.String(200), nullable=True)
-    status = db.Column(db.String(20), default="scheduled")
-    prescription = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
-    def to_dict(self):
-        return {"id": self.id, "student_id": self.student_id,
-                "appointment_date": str(self.appointment_date),
-                "appointment_time": self.appointment_time.strftime("%H:%M") if self.appointment_time else None,
-                "reason": self.reason, "doctor_name": self.doctor_name, "status": self.status}
-
-
-class EmergencyAlert(db.Model):
-    __tablename__ = "emergency_alerts"
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
-    alert_type = db.Column(db.String(30), default="sos")  # sos, medical, fire, security
-    location_lat = db.Column(db.Float, nullable=True)
-    location_lng = db.Column(db.Float, nullable=True)
-    message = db.Column(db.Text, nullable=True)
-    status = db.Column(db.String(20), default="active")
-    resolved_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-
-    def to_dict(self):
-        return {"id": self.id, "user_id": self.user_id, "alert_type": self.alert_type,
-                "location_lat": self.location_lat, "location_lng": self.location_lng,
-                "message": self.message, "status": self.status,
-                "created_at": self.created_at.isoformat() if self.created_at else None}
-
-
 # ── Admin Module ───────────────────────────────────────────────────
 
 class AuditLog(db.Model):

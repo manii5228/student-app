@@ -10,12 +10,12 @@ from .academic import (
 from .campus import (
     CanteenItem, CanteenOrder, Bus, LibraryBook, LibraryIssue,
     Event, EventRegistration, Notice, Club, ClubMembership,
-    Feedback, MarketListing,
+    Feedback, MarketListing, HealthAppointment, EmergencyAlert,
 )
 from .career import (
     JobPosting, JobApplication, InterviewSchedule, CompanyPrepQuestion,
     AlumniProfile, LeaveRequest, MeetingSlot, Resource,
-    HealthAppointment, EmergencyAlert, AuditLog, FeeRecord,
+    AuditLog, FeeRecord,
 )
 
 __all__ = [

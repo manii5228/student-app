@@ -53,6 +53,14 @@ import AIStudyAssistant from './pages/AIStudyAssistant';
 import GPAPredictor from './pages/GPAPredictor';
 import DocumentScanner from './pages/DocumentScanner';
 import UsageAnalytics from './pages/UsageAnalytics';
+import FacultyLeaveApproval from './pages/FacultyLeaveApproval';
+import FacultyBroadcast from './pages/FacultyBroadcast';
+import FacultyMentees from './pages/FacultyMentees';
+import FacultyMeetingScheduler from './pages/FacultyMeetingScheduler';
+import FacultyResourceUploader from './pages/FacultyResourceUploader';
+import FacultySyllabusTracker from './pages/FacultySyllabusTracker';
+import FacultyAssignmentGrader from './pages/FacultyAssignmentGrader';
+import FacultyReportGenerator from './pages/FacultyReportGenerator';
 
 // ── Route Guards ─────────────────────────────────────────────────
 // Requires any valid JWT token (student, faculty, admin, or guest)
@@ -148,6 +156,17 @@ function App() {
             <Route path="/faculty/bulk-attendance" element={<AuthenticatedRoute><FacultyBulkAttendance /></AuthenticatedRoute>} />
             <Route path="/faculty/qr" element={<AuthenticatedRoute><FacultyQRAttendance /></AuthenticatedRoute>} />
             <Route path="/faculty/marks" element={<AuthenticatedRoute><FacultyMarksEntry /></AuthenticatedRoute>} />
+            <Route path="/faculty/leaves" element={<AuthenticatedRoute><FacultyLeaveApproval /></AuthenticatedRoute>} />
+            <Route path="/faculty/broadcast" element={<AuthenticatedRoute><FacultyBroadcast /></AuthenticatedRoute>} />
+            <Route path="/faculty/mentees" element={<AuthenticatedRoute><FacultyMentees /></AuthenticatedRoute>} />
+            <Route path="/faculty/meetings" element={<AuthenticatedRoute><FacultyMeetingScheduler /></AuthenticatedRoute>} />
+            <Route path="/faculty/resources" element={<AuthenticatedRoute><FacultyResourceUploader /></AuthenticatedRoute>} />
+            <Route path="/faculty/syllabus-tracker" element={<AuthenticatedRoute><FacultySyllabusTracker /></AuthenticatedRoute>} />
+            <Route path="/faculty/grader" element={<AuthenticatedRoute><FacultyAssignmentGrader /></AuthenticatedRoute>} />
+            <Route path="/faculty/reports" element={<AuthenticatedRoute><FacultyReportGenerator /></AuthenticatedRoute>} />
+            <Route path="/faculty/question-bank" element={<AuthenticatedRoute><FacultyResourceUploader /></AuthenticatedRoute>} />
+            <Route path="/faculty/mock-tests-manage" element={<AuthenticatedRoute><FacultyResourceUploader /></AuthenticatedRoute>} />
+            <Route path="/faculty/student-performance" element={<AuthenticatedRoute><FacultyMentees /></AuthenticatedRoute>} />
 
             {/* Admin & Infrastructure Layer */}
             <Route path="/admin/timetable" element={<AuthenticatedRoute><TimetableEditor /></AuthenticatedRoute>} />

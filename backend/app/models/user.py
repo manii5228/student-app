@@ -54,6 +54,9 @@ class User(db.Model):
     designation = db.Column(db.String(100), nullable=True)
     specialization = db.Column(db.String(200), nullable=True)
 
+    # ── Mentor Assignment ──────────────────────────────────────────
+    mentor_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
+
     # ── Account status ─────────────────────────────────────────────
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)

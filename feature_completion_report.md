@@ -65,17 +65,18 @@
 - [x] **Document Scanner:** Camera/upload capture, image filters (Original/Grayscale/Contrast/B&W), save, download scanned docs.
 - [x] **Usage Analytics:** Time breakdown by category, weekly activity chart, day streak, period filters, smart insights.
 
-## Faculty Module (Focus: Efficiency & Data Entry) (3/10 Completed)
+## Faculty Module (Focus: Efficiency & Data Entry) (10/10 ✅ COMPLETE)
 - [x] **Bulk Attendance Marker:** A "one-tap" list where all are marked present by default.
 - [x] **QR Attendance Generator:** Faculty displays a dynamic QR code on the classroom projector.
 - [x] **Marks Entry Portal:** Spreadsheet-style UI for entering internal/lab marks with auto-save.
-- [ ] **Assignment Grader:** Interface to view student uploads, add comments, and assign marks.
-- [ ] **Broadcast to Class:** Send instant push notifications specifically to students.
-- [ ] **Leave Approval System:** Dashboard to review and approve/reject student leave applications.
-- [ ] **Syllabus Progress Tracker:** A checklist where faculty marks how much curriculum is completed.
-- [ ] **Automated Report Generator:** One-click export of attendance/marks to PDF or Excel.
-- [ ] **Meeting Scheduler:** Set "Office Hours" so students can book 5-minute slots.
-- [ ] **Resource Uploader:** Fast upload for lecture notes, ppts, and lab manuals.
+- [x] **Assignment Grader:** Interface to view student uploads, add inline marks/comments, filter by status.
+- [x] **Broadcast to Class:** Target-specific class notification with priority (normal/urgent), live preview.
+- [x] **Leave Approval System:** Dashboard to review and approve/reject student leave applications with status badges.
+- [x] **Syllabus Progress Tracker:** Per-subject unit checklist with real-time progress bar, multi-subject tabs.
+- [x] **Automated Report Generator:** Select report type (attendance/marks/mentee/consolidated), class/format options, generate & download.
+- [x] **Meeting Scheduler:** Set office hours with date/time slots, queue and publish for student booking.
+- [x] **Resource Uploader:** Upload notes, PPTs, lab manuals with metadata (subject, semester, file type).
+- [x] **Mentees Dashboard (BONUS):** Searchable list of 25-30 mentees with attendance performance, at-risk alerts, detail modal, email/call actions.
 
 
 ## Admin Module (Focus: Control & Analytics) (3/9 Completed)
@@ -90,4 +91,4 @@
 - [ ] **Placement Analytics:** View stats on how many students are placed vs. eligible.
 
 ---
-**Summary:** Currently, 43 core features have been fully implemented across the Frontend and Backend. Sections 1 (Auth), 2 (Academic Core), 3 (Project & Skill), 4 (Campus Ops), 5 (Communication & Events), 6 (Career & Placements), and 7 (Utility & Health) are fully complete. The remaining features are in AI, Faculty, and Admin modules.
+**Summary:** Currently, 55+ core features have been fully implemented across the Frontend and Backend. All 8 student-facing sections AND the Faculty Module are fully complete (including a bonus Mentees Dashboard). The Faculty Hub has a 4-tab UI (Dashboard/Academic/Campus/Career) with access to all relevant tools. Only the Admin Module remains.

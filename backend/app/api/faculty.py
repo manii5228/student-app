@@ -160,3 +160,46 @@ def broadcast_message():
         "target": data.get("target_class"),
         "content": data.get("message")
     }), 200
+
+
+# ── Mentees ────────────────────────────────────────────────────────
+
+@faculty_bp.route("/mentees", methods=["GET"])
+@jwt_required()
+@role_required("faculty")
+def get_mentees():
+    """Get students assigned to this faculty as mentor."""
+    faculty_id = get_jwt_identity()
+    mentees = User.query.filter_by(mentor_id=faculty_id, role="student").all()
+    result = []
+    for m in mentees:
+        d = m.to_dict() if hasattr(m, 'to_dict') else {
+            "id": m.id, "name": f"{m.first_name} {m.last_name}", "email": m.email,
+            "register_number": getattr(m, 'roll_number', None),
+            "department": getattr(m, 'department', None),
+            "semester": getattr(m, 'semester', None),
+        }
+        result.append(d)
+    return jsonify({"mentees": result, "total": len(result)}), 200
+
+
+@faculty_bp.route("/mentees/performance", methods=["GET"])
+@jwt_required()
+@role_required("faculty")
+def mentee_performance():
+    """Get attendance/marks summary for mentees."""
+    from ..models.attendance import Attendance
+    faculty_id = get_jwt_identity()
+    mentees = User.query.filter_by(mentor_id=faculty_id, role="student").all()
+    summary = []
+    for m in mentees:
+        total = Attendance.query.filter_by(student_id=m.id).count()
+        present = Attendance.query.filter_by(student_id=m.id, status="present").count()
+        pct = round(present / total * 100) if total else 0
+        summary.append({
+            "id": m.id, "name": f"{m.first_name} {m.last_name}",
+            "register_number": getattr(m, 'roll_number', None),
+            "department": getattr(m, 'department', None),
+            "attendance_pct": pct, "total_classes": total,
+        })
+    return jsonify({"mentees": summary}), 200
