@@ -21,8 +21,14 @@ const Login = () => {
     try {
       const res = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', res.data.access_token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      navigate('/');
+      const role = res.data.user.role;
+      if (role === 'faculty') {
+        navigate('/faculty');
+      } else if (role === 'admin') {
+        navigate('/admin/timetable');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
     } finally {
@@ -49,8 +55,14 @@ const Login = () => {
         sso_token: 'mock-sso-token-from-idp',
       });
       localStorage.setItem('token', res.data.access_token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      navigate('/');
+      const role = res.data.user.role;
+      if (role === 'faculty') {
+        navigate('/faculty');
+      } else if (role === 'admin') {
+        navigate('/admin/timetable');
+      } else {
+        navigate('/');
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'SSO login failed. Is your account registered?');
     } finally {

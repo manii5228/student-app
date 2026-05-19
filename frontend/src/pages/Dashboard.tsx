@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ChevronLeft, Share2, Plus, Search, 
   PieChart, Book, ChevronRight, Activity 
@@ -6,6 +7,17 @@ import {
 import BottomNav from '../components/BottomNav';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user.role === 'faculty') navigate('/faculty');
+      if (user.role === 'admin') navigate('/admin/timetable');
+    }
+  }, [navigate]);
+
   return (
     <div className="h-full bg-white flex flex-col font-sans animate-fade-in pb-10">
       
