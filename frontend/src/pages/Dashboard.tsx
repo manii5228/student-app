@@ -14,7 +14,7 @@ const Dashboard = () => {
     if (userStr) {
       const user = JSON.parse(userStr);
       if (user.role === 'faculty') navigate('/faculty');
-      if (user.role === 'admin') navigate('/admin/timetable');
+      if (user.role === 'admin') navigate('/admin');
     }
   }, [navigate]);
 

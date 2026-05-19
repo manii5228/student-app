@@ -25,7 +25,7 @@ const Login = () => {
       if (role === 'faculty') {
         navigate('/faculty');
       } else if (role === 'admin') {
-        navigate('/admin/timetable');
+        navigate('/admin');
       } else {
         navigate('/');
       }
@@ -59,7 +59,7 @@ const Login = () => {
       if (role === 'faculty') {
         navigate('/faculty');
       } else if (role === 'admin') {
-        navigate('/admin/timetable');
+        navigate('/admin');
       } else {
         navigate('/');
       }

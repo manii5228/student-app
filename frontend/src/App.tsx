@@ -61,6 +61,14 @@ import FacultyResourceUploader from './pages/FacultyResourceUploader';
 import FacultySyllabusTracker from './pages/FacultySyllabusTracker';
 import FacultyAssignmentGrader from './pages/FacultyAssignmentGrader';
 import FacultyReportGenerator from './pages/FacultyReportGenerator';
+import AdminHub from './pages/AdminHub';
+import AdminUserManagement from './pages/AdminUserManagement';
+import AdminGlobalAlerts from './pages/AdminGlobalAlerts';
+import AdminFeeDefaulters from './pages/AdminFeeDefaulters';
+import AdminAccessControl from './pages/AdminAccessControl';
+import AdminDataExport from './pages/AdminDataExport';
+import AdminModeration from './pages/AdminModeration';
+import AdminPlacementAnalytics from './pages/AdminPlacementAnalytics';
 
 // ── Route Guards ─────────────────────────────────────────────────
 // Requires any valid JWT token (student, faculty, admin, or guest)
@@ -169,8 +177,16 @@ function App() {
             <Route path="/faculty/student-performance" element={<AuthenticatedRoute><FacultyMentees /></AuthenticatedRoute>} />
 
             {/* Admin & Infrastructure Layer */}
+            <Route path="/admin" element={<AuthenticatedRoute><AdminHub /></AuthenticatedRoute>} />
             <Route path="/admin/timetable" element={<AuthenticatedRoute><TimetableEditor /></AuthenticatedRoute>} />
             <Route path="/admin/health" element={<AuthenticatedRoute><SystemHealth /></AuthenticatedRoute>} />
+            <Route path="/admin/users" element={<AuthenticatedRoute><AdminUserManagement /></AuthenticatedRoute>} />
+            <Route path="/admin/alerts" element={<AuthenticatedRoute><AdminGlobalAlerts /></AuthenticatedRoute>} />
+            <Route path="/admin/fees" element={<AuthenticatedRoute><AdminFeeDefaulters /></AuthenticatedRoute>} />
+            <Route path="/admin/access-control" element={<AuthenticatedRoute><AdminAccessControl /></AuthenticatedRoute>} />
+            <Route path="/admin/export" element={<AuthenticatedRoute><AdminDataExport /></AuthenticatedRoute>} />
+            <Route path="/admin/moderation" element={<AuthenticatedRoute><AdminModeration /></AuthenticatedRoute>} />
+            <Route path="/admin/placements" element={<AuthenticatedRoute><AdminPlacementAnalytics /></AuthenticatedRoute>} />
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/login" />} />
