@@ -1,4 +1,6 @@
-/** @type {import('tailwindcss').Config} */
+import re
+
+tailwind_config = """/** @type {import('tailwindcss').Config} */
 const colors = require('tailwindcss/colors');
 
 // Custom Palettes based on provided hex colors
@@ -104,3 +106,8 @@ module.exports = {
   },
   plugins: [],
 }
+"""
+
+with open('tailwind.config.js', 'w') as f:
+    f.write(tailwind_config)
+print("Updated tailwind.config.js")
