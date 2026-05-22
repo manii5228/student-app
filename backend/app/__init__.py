@@ -26,7 +26,10 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     jwt.init_app(app)
     limiter.init_app(app)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(app, resources={r"/api/*": {
+        "origins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+        "supports_credentials": True
+    }})
 
     # ── Initialize Redis ───────────────────────────────────────────
     redis_client.init_app(app)
@@ -55,6 +58,12 @@ def create_app(config_name=None):
     app.register_blueprint(utility_bp, url_prefix="/api/v1/utility")
 
     # ── JWT Error Handlers ─────────────────────────────────────────
+    @jwt.token_in_blocklist_loader
+    def check_if_token_is_revoked(jwt_header, jwt_payload):
+        jti = jwt_payload["jti"]
+        token_in_redis = redis_client.get(f"token_blocklist:{jti}")
+        return token_in_redis is not None
+
     @jwt.expired_token_loader
     def expired_token_callback(jwt_header, jwt_payload):
         return {"error": "Token has expired", "code": "TOKEN_EXPIRED"}, 401

@@ -125,6 +125,7 @@ class AttendanceRecord(db.Model):
     # ── Audit ──────────────────────────────────────────────────────
     marked_by = db.Column(db.String(36), nullable=True)  # Faculty who marked
     remarks = db.Column(db.String(300), nullable=True)
+    discrepancy_reported = db.Column(db.Boolean, default=False)
 
     # ── Indexes ────────────────────────────────────────────────────
     __table_args__ = (
@@ -141,7 +142,45 @@ class AttendanceRecord(db.Model):
             "method": self.method.value,
             "marked_at": self.marked_at.isoformat() if self.marked_at else None,
             "remarks": self.remarks,
+            "discrepancy_reported": self.discrepancy_reported,
+            "discrepancy": self.discrepancy.to_dict() if getattr(self, "discrepancy", None) else None,
         }
 
     def __repr__(self):
         return f"<AttendanceRecord {self.student_id} → {self.status.value}>"
+
+
+class AttendanceDiscrepancy(db.Model):
+    """
+    Model for students to report discrepancy in marked attendance.
+    """
+    __tablename__ = "attendance_discrepancies"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    record_id = db.Column(db.String(36), db.ForeignKey("attendance_records.id", ondelete="CASCADE"), nullable=False, unique=True)
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    reason = db.Column(db.String(500), nullable=False)
+    status = db.Column(db.String(20), default="pending")  # pending, resolved, rejected
+    resolved_by = db.Column(db.String(36), db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    resolution_remarks = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    resolved_at = db.Column(db.DateTime, nullable=True)
+
+    # Relationships
+    record = db.relationship("AttendanceRecord", backref=db.backref("discrepancy", uselist=False, cascade="all, delete-orphan"))
+    student = db.relationship("User", foreign_keys=[student_id], backref="reported_discrepancies")
+    resolver = db.relationship("User", foreign_keys=[resolved_by], backref="resolved_discrepancies")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "record_id": self.record_id,
+            "student_id": self.student_id,
+            "reason": self.reason,
+            "status": self.status,
+            "resolved_by": self.resolved_by,
+            "resolution_remarks": self.resolution_remarks,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
+        }
+

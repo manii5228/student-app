@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Lock, Eye, EyeOff, CheckCircle, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Lock, Eye, EyeOff, CheckCircle, ShieldCheck, AlertTriangle, Check, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import BottomNav from '../components/BottomNav';
+import zxcvbn from 'zxcvbn';
 
 const ChangePassword = () => {
   const navigate = useNavigate();
@@ -15,21 +16,40 @@ const ChangePassword = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  // Password strength calculator
-  const getStrength = (pw: string): { score: number; label: string; color: string } => {
-    let score = 0;
-    if (pw.length >= 8) score++;
-    if (pw.length >= 12) score++;
-    if (/[A-Z]/.test(pw)) score++;
-    if (/[0-9]/.test(pw)) score++;
-    if (/[^A-Za-z0-9]/.test(pw)) score++;
-
-    if (score <= 1) return { score, label: 'Weak', color: 'bg-red-500' };
-    if (score <= 2) return { score, label: 'Fair', color: 'bg-amber-500' };
-    if (score <= 3) return { score, label: 'Good', color: 'bg-blue-500' };
-    return { score, label: 'Strong', color: 'bg-emerald-500' };
+  // Password requirements check
+  const checkRequirements = (pw: string) => {
+    return {
+      length: pw.length >= 8,
+      uppercase: /[A-Z]/.test(pw),
+      number: /[0-9]/.test(pw),
+      symbol: /[^A-Za-z0-9]/.test(pw),
+    };
   };
 
+  // Password strength calculator using zxcvbn
+  const getStrength = (pw: string): { score: number; label: string; color: string; feedback?: string } => {
+    if (!pw) return { score: 0, label: 'Very Weak', color: 'bg-slate-200' };
+    const result = zxcvbn(pw);
+    const score = result.score; // 0 to 4
+    
+    switch (score) {
+      case 0:
+        return { score: 1, label: 'Very Weak', color: 'bg-red-600', feedback: result.feedback.warning || 'Highly vulnerable password.' };
+      case 1:
+        return { score: 2, label: 'Weak', color: 'bg-red-400', feedback: result.feedback.warning || 'Predictable password.' };
+      case 2:
+        return { score: 3, label: 'Fair', color: 'bg-amber-500', feedback: result.feedback.suggestions?.[0] || 'Decent, but easily guessable.' };
+      case 3:
+        return { score: 4, label: 'Good', color: 'bg-blue-500', feedback: 'Good security. Hard to guess.' };
+      case 4:
+        return { score: 5, label: 'Strong', color: 'bg-emerald-500', feedback: 'Excellent strength. Very secure.' };
+      default:
+        return { score: 0, label: 'Very Weak', color: 'bg-slate-200' };
+    }
+  };
+
+  const reqs = checkRequirements(newPassword);
+  const requirementsMet = reqs.length && reqs.uppercase && reqs.number && reqs.symbol;
   const strength = getStrength(newPassword);
   const passwordsMatch = newPassword === confirmPassword && confirmPassword.length > 0;
 
@@ -37,8 +57,8 @@ const ChangePassword = () => {
     e.preventDefault();
     setError('');
 
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters.');
+    if (!requirementsMet) {
+      setError('New password must satisfy all security requirements.');
       return;
     }
     if (!passwordsMatch) {
@@ -168,11 +188,58 @@ const ChangePassword = () => {
                     <div key={i} className={`h-1.5 flex-1 rounded-full transition-all ${i <= strength.score ? strength.color : 'bg-slate-200'}`} />
                   ))}
                 </div>
-                <p className={`text-[10px] font-bold uppercase tracking-wider ${strength.score <= 1 ? 'text-red-500' : strength.score <= 2 ? 'text-amber-500' : strength.score <= 3 ? 'text-blue-500' : 'text-emerald-500'}`}>
-                  {strength.label}
-                </p>
+                <div className="flex justify-between items-center">
+                  <p className={`text-[10px] font-bold uppercase tracking-wider ${
+                    strength.score <= 2 ? 'text-red-500' : strength.score === 3 ? 'text-amber-500' : strength.score === 4 ? 'text-blue-500' : 'text-emerald-500'
+                  }`}>
+                    Strength: {strength.label}
+                  </p>
+                </div>
+                {strength.feedback && (
+                  <p className="text-[11px] text-slate-500 mt-1 flex items-start gap-1 font-medium">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                    <span>{strength.feedback}</span>
+                  </p>
+                )}
               </div>
             )}
+
+            {/* Password Requirements Checklist */}
+            <div className="mt-3 bg-slate-50 border border-slate-100 rounded-2xl p-4 text-xs space-y-2.5">
+              <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Security Checklist</p>
+              <div className="flex items-center gap-2">
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${reqs.length ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'}`}>
+                  {reqs.length ? <Check className="w-2.5 h-2.5" /> : <X className="w-2.5 h-2.5" />}
+                </div>
+                <span className={reqs.length ? 'text-emerald-700 font-medium' : 'text-slate-500'}>
+                  At least 8 characters
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${reqs.uppercase ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'}`}>
+                  {reqs.uppercase ? <Check className="w-2.5 h-2.5" /> : <X className="w-2.5 h-2.5" />}
+                </div>
+                <span className={reqs.uppercase ? 'text-emerald-700 font-medium' : 'text-slate-500'}>
+                  At least one uppercase letter (A-Z)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${reqs.number ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'}`}>
+                  {reqs.number ? <Check className="w-2.5 h-2.5" /> : <X className="w-2.5 h-2.5" />}
+                </div>
+                <span className={reqs.number ? 'text-emerald-700 font-medium' : 'text-slate-500'}>
+                  At least one number (0-9)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${reqs.symbol ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'}`}>
+                  {reqs.symbol ? <Check className="w-2.5 h-2.5" /> : <X className="w-2.5 h-2.5" />}
+                </div>
+                <span className={reqs.symbol ? 'text-emerald-700 font-medium' : 'text-slate-500'}>
+                  At least one special character (!@#$, etc.)
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Confirm New Password */}
@@ -208,7 +275,7 @@ const ChangePassword = () => {
 
           <button
             type="submit"
-            disabled={loading || !passwordsMatch || newPassword.length < 8}
+            disabled={loading || !passwordsMatch || !requirementsMet}
             className="mt-4 w-full bg-slate-900 text-white py-4 rounded-[20px] font-bold text-sm shadow-xl hover:bg-slate-800 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (

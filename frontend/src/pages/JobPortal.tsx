@@ -45,7 +45,7 @@ const JobPortal = () => {
   };
 
   return (
-    <div className="h-full bg-white flex flex-col font-sans animate-fade-in pb-10 relative">
+    <div className="h-full bg-white flex flex-col font-sans animate-fade-in pb-24 relative">
       {/* Top Navigation */}
       <div className="flex justify-between items-center p-6 mt-4">
         <button onClick={() => navigate(-1)} className="w-12 h-12 rounded-full border border-slate-100 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors">

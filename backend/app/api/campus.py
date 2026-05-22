@@ -150,7 +150,11 @@ def renew_book(issue_id):
 def list_events():
     """Discovery feed for fests and events."""
     etype = request.args.get("type")
-    query = Event.query.filter_by(is_approved=True)
+    pending = request.args.get("pending")  # Admin: fetch unapproved events
+    if pending == "true":
+        query = Event.query.filter_by(is_approved=False)
+    else:
+        query = Event.query.filter_by(is_approved=True)
     if etype:
         query = query.filter_by(event_type=etype)
     events = query.order_by(Event.start_date.desc()).limit(50).all()
@@ -179,10 +183,15 @@ def create_event():
 @jwt_required()
 @role_required("student")
 def register_event(eid):
-    """Register for an event."""
+    """Register for an event (with duplicate check)."""
+    student_id = get_jwt_identity()
+    existing = EventRegistration.query.filter_by(
+        event_id=eid, student_id=student_id).first()
+    if existing:
+        return jsonify({"message": "Already registered"}), 200
     data = request.get_json() or {}
     reg = EventRegistration(
-        event_id=eid, student_id=get_jwt_identity(),
+        event_id=eid, student_id=student_id,
         role=data.get("role", "participant"),
     )
     db.session.add(reg)
@@ -191,6 +200,16 @@ def register_event(eid):
         event.registration_count = (event.registration_count or 0) + 1
     db.session.commit()
     return jsonify({"message": "Registered"}), 201
+
+
+@campus_bp.route("/events/my-registrations", methods=["GET"])
+@jwt_required()
+def my_event_registrations():
+    """Get event IDs the current user has registered for."""
+    regs = EventRegistration.query.filter_by(
+        student_id=get_jwt_identity()).all()
+    event_ids = [r.event_id for r in regs]
+    return jsonify({"event_ids": event_ids}), 200
 
 
 @campus_bp.route("/events/<eid>/approve", methods=["POST"])
@@ -204,6 +223,19 @@ def approve_event(eid):
     event.is_approved = True
     db.session.commit()
     return jsonify({"message": "Event approved"}), 200
+
+
+@campus_bp.route("/events/<eid>/reject", methods=["POST"])
+@jwt_required()
+@role_required("admin")
+def reject_event(eid):
+    """Admin rejects an event (deletes it)."""
+    event = db.session.get(Event, eid)
+    if not event:
+        return jsonify({"error": "Event not found"}), 404
+    db.session.delete(event)
+    db.session.commit()
+    return jsonify({"message": "Event rejected and removed"}), 200
 
 
 # ── Notice Board ───────────────────────────────────────────────────
@@ -249,8 +281,13 @@ def list_clubs():
 @jwt_required()
 @role_required("student")
 def join_club(cid):
-    """Join a club."""
-    mem = ClubMembership(club_id=cid, student_id=get_jwt_identity())
+    """Join a club (with duplicate check)."""
+    student_id = get_jwt_identity()
+    existing = ClubMembership.query.filter_by(
+        club_id=cid, student_id=student_id).first()
+    if existing:
+        return jsonify({"message": "Already a member"}), 200
+    mem = ClubMembership(club_id=cid, student_id=student_id)
     db.session.add(mem)
     club = db.session.get(Club, cid)
     if club:

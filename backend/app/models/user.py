@@ -53,6 +53,10 @@ class User(db.Model):
     employee_id = db.Column(db.String(30), unique=True, nullable=True)
     designation = db.Column(db.String(100), nullable=True)
     specialization = db.Column(db.String(200), nullable=True)
+    publications = db.Column(db.Text, nullable=True)
+    research_interests = db.Column(db.Text, nullable=True)
+    office_hours = db.Column(db.String(200), nullable=True)
+    office_location = db.Column(db.String(200), nullable=True)
 
     # ── Mentor Assignment ──────────────────────────────────────────
     mentor_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
@@ -61,6 +65,7 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
     last_login = db.Column(db.DateTime, nullable=True)
+    last_password_change = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
         db.DateTime,
@@ -123,6 +128,10 @@ class User(db.Model):
                 "employee_id": self.employee_id,
                 "designation": self.designation,
                 "specialization": self.specialization,
+                "publications": self.publications,
+                "research_interests": self.research_interests,
+                "office_hours": self.office_hours,
+                "office_location": self.office_location,
             })
 
         return data
@@ -197,3 +206,57 @@ class BiometricCredential(db.Model):
 
     def __repr__(self):
         return f"<BiometricCredential user={self.user_id} device={self.device_name}>"
+
+
+class GuestActivityLog(db.Model):
+    """
+    Lightweight anonymous tracking for Guest Mode usage.
+    Tracks feature interaction without identifying personal user data.
+    """
+    __tablename__ = "guest_activity_logs"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = db.Column(db.String(36), nullable=False)  # anonymous transient session UUID
+    feature_name = db.Column(db.String(100), nullable=False)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "feature_name": self.feature_name,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None
+        }
+
+    def __repr__(self):
+        return f"<GuestActivityLog {self.feature_name} at {self.timestamp}>"
+
+
+class BiometricAuditLog(db.Model):
+    """
+    Audit log for FIDO2 WebAuthn biometric enrollment and verification.
+    """
+    __tablename__ = "biometric_audit_logs"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    action = db.Column(db.String(50), nullable=False)  # e.g. "enroll_start", "enroll_success", "auth_success", "auth_failure"
+    details = db.Column(db.Text, nullable=True)        # detailed failure reason or success metadata
+    ip_address = db.Column(db.String(45), nullable=True)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    user = db.relationship("User", backref=db.backref("biometric_audit_logs", lazy="dynamic"))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "action": self.action,
+            "details": self.details,
+            "ip_address": self.ip_address,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None
+        }
+
+    def __repr__(self):
+        return f"<BiometricAuditLog {self.action} for user={self.user_id}>"
+

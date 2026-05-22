@@ -92,7 +92,7 @@ const PortfolioBuilder = () => {
   };
 
   return (
-    <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in pb-10 relative">
+    <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in pb-24 relative">
       {/* Top Navigation */}
       <div className="flex justify-between items-center p-6 mt-4 relative z-20">
         <button onClick={() => navigate('/')} className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center shadow-sm hover:bg-white transition-colors bg-slate-50">

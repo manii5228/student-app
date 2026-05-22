@@ -15,13 +15,18 @@ const VolunteerPortal = () => {
   const navigate = useNavigate();
   const [committee, setCommittee] = useState(COMMITTEES[0].id);
   const [shift, setShift] = useState('morning');
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(() => {
+    return localStorage.getItem('volunteer_submitted') === 'true';
+  });
 
   const selectedCommittee = COMMITTEES.find((item) => item.id === committee) ?? COMMITTEES[0];
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitted(true);
+    localStorage.setItem('volunteer_submitted', 'true');
+    localStorage.setItem('volunteer_committee', committee);
+    localStorage.setItem('volunteer_shift', shift);
   };
 
   return (

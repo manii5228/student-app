@@ -8,12 +8,31 @@ import {
   BookOpen, GraduationCap, ClipboardList
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
+import { api } from '../lib/api';
 
 const FacultyHub = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'dashboard'|'academic'|'campus'|'career'>('dashboard');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const facultyName = user.first_name ? `Dr. ${user.first_name}` : 'Faculty';
+  const [stats, setStats] = useState({ mentees: 0, subjects: 0, pending: 0 });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [menteesRes, leavesRes] = await Promise.allSettled([
+          api.get('/faculty/mentees'),
+          api.get('/faculty/leaves'),
+        ]);
+        const menteeCount = menteesRes.status === 'fulfilled' ? (menteesRes.value.data.total || 0) : 0;
+        const pendingCount = leavesRes.status === 'fulfilled' ? (leavesRes.value.data.leaves?.length || 0) : 0;
+        setStats({ mentees: menteeCount, subjects: 4, pending: pendingCount });
+      } catch {
+        // Keep defaults
+      }
+    };
+    fetchStats();
+  }, []);
 
   const tabs = [
     { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4"/> },
@@ -42,6 +61,7 @@ const FacultyHub = () => {
     { name: 'Assignment Grader', desc: 'Grade student uploads', icon: <CheckSquare className="w-5 h-5 text-purple-600"/>, color: 'bg-purple-100', path: '/faculty/grader' },
     { name: 'Report Generator', desc: 'Export to PDF/Excel', icon: <BookOpen className="w-5 h-5 text-amber-600"/>, color: 'bg-amber-100', path: '/faculty/reports' },
     { name: 'Student Performance', desc: 'Analytics dashboard', icon: <Target className="w-5 h-5 text-cyan-600"/>, color: 'bg-cyan-100', path: '/faculty/student-performance' },
+    { name: 'Attendance Disputes', desc: 'Resolve marked errors', icon: <AlertTriangle className="w-5 h-5 text-rose-600"/>, color: 'bg-rose-100', path: '/faculty/discrepancies' },
   ];
 
   // ── Campus Quick Access ──
@@ -82,15 +102,15 @@ const FacultyHub = () => {
           {/* Quick stats */}
           <div className="flex gap-3 mt-4">
             <div className="flex-1 bg-white/5 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-              <p className="text-lg font-black text-white">25</p>
+              <p className="text-lg font-black text-white">{stats.mentees}</p>
               <p className="text-[9px] font-bold text-slate-400 uppercase">Mentees</p>
             </div>
             <div className="flex-1 bg-white/5 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-              <p className="text-lg font-black text-white">4</p>
+              <p className="text-lg font-black text-white">{stats.subjects}</p>
               <p className="text-[9px] font-bold text-slate-400 uppercase">Subjects</p>
             </div>
             <div className="flex-1 bg-white/5 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-              <p className="text-lg font-black text-emerald-400">3</p>
+              <p className="text-lg font-black text-emerald-400">{stats.pending}</p>
               <p className="text-[9px] font-bold text-slate-400 uppercase">Pending</p>
             </div>
           </div>

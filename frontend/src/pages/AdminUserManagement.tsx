@@ -43,7 +43,7 @@ const AdminUserManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-20">
+    <div className="min-h-screen bg-slate-50 font-sans pb-24">
       {/* Header */}
       <div className="bg-white px-6 py-4 sticky top-0 z-20 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-3">

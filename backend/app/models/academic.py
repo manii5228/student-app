@@ -67,15 +67,21 @@ class AssignmentSubmission(db.Model):
     faculty_comment = db.Column(db.Text, nullable=True)
     submitted_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     graded_at = db.Column(db.DateTime, nullable=True)
+    plagiarism_score = db.Column(db.Float, nullable=True)
+    virus_scan_passed = db.Column(db.Boolean, default=True)
 
     def to_dict(self):
         return {
             "id": self.id, "assignment_id": self.assignment_id,
             "student_id": self.student_id, "file_url": self.file_url,
+            "file_name": self.file_name,
             "submission_hash": self.submission_hash,
             "status": self.status.value, "marks_obtained": self.marks_obtained,
             "faculty_comment": self.faculty_comment,
             "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
+            "graded_at": self.graded_at.isoformat() if self.graded_at else None,
+            "plagiarism_score": self.plagiarism_score,
+            "virus_scan_passed": self.virus_scan_passed,
         }
 
 
@@ -98,6 +104,8 @@ class Result(db.Model):
     exam_type = db.Column(db.String(30), default="regular")
     published = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    digital_signature = db.Column(db.String(512), nullable=True)
+    hash_receipt = db.Column(db.String(64), nullable=True)
 
     def to_dict(self):
         return {
@@ -107,6 +115,8 @@ class Result(db.Model):
             "internal_marks": self.internal_marks, "external_marks": self.external_marks,
             "total_marks": self.total_marks, "grade": self.grade,
             "grade_points": self.grade_points, "sgpa": self.sgpa, "cgpa": self.cgpa,
+            "digital_signature": self.digital_signature,
+            "hash_receipt": self.hash_receipt,
         }
 
 
@@ -125,6 +135,8 @@ class Syllabus(db.Model):
     is_completed = db.Column(db.Boolean, default=False)
     completed_by = db.Column(db.String(36), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    academic_year = db.Column(db.String(20), default="2025-2026")
+    version = db.Column(db.Integer, default=1)
 
     def to_dict(self):
         return {
@@ -133,6 +145,7 @@ class Syllabus(db.Model):
             "semester": self.semester, "unit_number": self.unit_number,
             "unit_title": self.unit_title, "topics": self.topics,
             "hours": self.hours, "is_completed": self.is_completed,
+            "academic_year": self.academic_year, "version": self.version,
         }
 
 
@@ -232,6 +245,7 @@ class QuestionPaper(db.Model):
     uploaded_by = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
     download_count = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    ocr_content = db.Column(db.Text, nullable=True)
 
     __table_args__ = (
         db.Index("ix_qp_subject_year", "subject_code", "year"),
@@ -244,5 +258,6 @@ class QuestionPaper(db.Model):
             "semester": self.semester, "year": self.year,
             "exam_type": self.exam_type, "file_url": self.file_url,
             "download_count": self.download_count,
+            "ocr_content": self.ocr_content,
         }
 

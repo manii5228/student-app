@@ -1,34 +1,63 @@
+import React, { useState } from 'react';
 import { 
   Coffee, Bus, Map as MapIcon, Calendar, Bell, 
-  Users, MessageSquare, ShoppingBag, ClipboardCheck, BookOpen,
-  Heart, AlertTriangle, BarChart3, RefreshCw, Sparkles, Calculator, Camera, Activity
+  Users, MessageSquare, ClipboardCheck, BookOpen,
+  Heart, AlertTriangle, RefreshCw, Sparkles, Calculator, Camera, Activity, Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import UpsellModal from '../components/UpsellModal';
+import { api } from '../lib/api';
 
 const Campus = () => {
   const navigate = useNavigate();
+  const [upsellOpen, setUpsellOpen] = useState(false);
+  
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isGuest = user?.is_guest || user?.role === 'guest';
+
+  const logGuestAction = async (featureName: string) => {
+    if (!isGuest) return;
+    try {
+      await api.post('/auth/guest-log', { feature_name: featureName });
+    } catch (err) {
+      console.error('Failed to log guest action:', err);
+    }
+  };
+
+  const handleFeatureClick = (feature: any) => {
+    if (isGuest && feature.restricted) {
+      logGuestAction(`${feature.name.toLowerCase().replace(/\s+/g, '_')}_lock_click`);
+      setUpsellOpen(true);
+    } else {
+      if (isGuest) {
+        logGuestAction(`${feature.name.toLowerCase().replace(/\s+/g, '_')}_view`);
+      }
+      if (feature.path) {
+        navigate(feature.path);
+      }
+    }
+  };
   
   const features = [
-    { name: 'Canteen Pre-order', icon: <Coffee className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Skip the line, order now.', path: '/campus/canteen' },
-    { name: 'Hostel Out-Pass', icon: <Calendar className="w-6 h-6 text-teal-600" />, color: 'bg-teal-100', text: 'QR-based exit pass system.', path: '/campus/hostel-pass' },
-    { name: 'Bus Tracker', icon: <Bus className="w-6 h-6 text-blue-600" />, color: 'bg-blue-100', text: 'Live GPS of college buses.', path: '/campus/bus' },
-    { name: 'Indoor Map', icon: <MapIcon className="w-6 h-6 text-emerald-600" />, color: 'bg-emerald-100', text: 'Navigate labs and POIs.', path: '/campus/map' },
-    { name: 'Events & Fests', icon: <Calendar className="w-6 h-6 text-pink-600" />, color: 'bg-pink-100', text: 'Register and follow live schedules.', path: '/campus/events' },
-    { name: 'Notice Board', icon: <Bell className="w-6 h-6 text-red-600" />, color: 'bg-red-100', text: 'Important announcements.', path: '/campus/notices' },
-    { name: 'Volunteer Portal', icon: <ClipboardCheck className="w-6 h-6 text-cyan-700" />, color: 'bg-cyan-100', text: 'Apply for organizing committees.', path: '/campus/volunteer' },
-    { name: 'Clubs Hub', icon: <Users className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Join technical/cultural clubs.', path: '/campus/clubs' },
-    { name: 'Anon Feedback', icon: <MessageSquare className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Voice your concerns safely.', path: '/campus/feedback' },
-    { name: 'Library Portal', icon: <BookOpen className="w-6 h-6 text-amber-700" />, color: 'bg-amber-100', text: 'Search, borrow & renew books.', path: '/campus/library' },
-    { name: 'Marketplace', icon: <ShoppingBag className="w-6 h-6 text-amber-600" />, color: 'bg-amber-100', text: 'Buy/sell used materials.', path: '/utility/marketplace' },
-    { name: 'Health Center', icon: <Heart className="w-6 h-6 text-red-600" />, color: 'bg-red-100', text: 'Book clinic appointments.', path: '/utility/health' },
-    { name: 'Emergency', icon: <AlertTriangle className="w-6 h-6 text-red-700" />, color: 'bg-red-50', text: 'One-tap security alert.', path: '/utility/emergency' },
-    { name: 'Polls', icon: <BarChart3 className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Vote on campus matters.', path: '/utility/polls' },
-    { name: 'Sync & Offline', icon: <RefreshCw className="w-6 h-6 text-slate-600" />, color: 'bg-slate-100', text: 'Manage cached data.', path: '/utility/sync' },
-    { name: 'AI Study Bot', icon: <Sparkles className="w-6 h-6 text-violet-600" />, color: 'bg-violet-100', text: 'Ask anything academic.', path: '/ai/study-assistant' },
-    { name: 'GPA Predictor', icon: <Calculator className="w-6 h-6 text-cyan-600" />, color: 'bg-cyan-100', text: 'Calculate & predict grades.', path: '/ai/gpa-predictor' },
-    { name: 'Doc Scanner', icon: <Camera className="w-6 h-6 text-slate-700" />, color: 'bg-slate-100', text: 'Scan notes to digital.', path: '/ai/scanner' },
-    { name: 'Usage Stats', icon: <Activity className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Track your study time.', path: '/ai/usage' },
+    { name: 'Canteen Pre-order', icon: <Coffee className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Skip the line, order now.', path: '/campus/canteen', restricted: true },
+    { name: 'Hostel Out-Pass', icon: <Calendar className="w-6 h-6 text-teal-600" />, color: 'bg-teal-100', text: 'QR-based exit pass system.', path: '/campus/hostel-pass', restricted: true },
+    { name: 'Bus Tracker', icon: <Bus className="w-6 h-6 text-blue-600" />, color: 'bg-blue-100', text: 'Live GPS of college buses.', path: '/campus/bus', restricted: false },
+    { name: 'Indoor Map', icon: <MapIcon className="w-6 h-6 text-emerald-600" />, color: 'bg-emerald-100', text: 'Navigate labs and POIs.', path: '/campus/map', restricted: false },
+    { name: 'Events & Fests', icon: <Calendar className="w-6 h-6 text-pink-600" />, color: 'bg-pink-100', text: 'Register and follow live schedules.', path: '/campus/events', restricted: false },
+    { name: 'Notice Board', icon: <Bell className="w-6 h-6 text-red-600" />, color: 'bg-red-100', text: 'Important announcements.', path: '/campus/notices', restricted: false },
+    { name: 'Volunteer Portal', icon: <ClipboardCheck className="w-6 h-6 text-cyan-700" />, color: 'bg-cyan-100', text: 'Apply for organizing committees.', path: '/campus/volunteer', restricted: true },
+    { name: 'Clubs Hub', icon: <Users className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Join technical/cultural clubs.', path: '/campus/clubs', restricted: true },
+    { name: 'Anon Feedback', icon: <MessageSquare className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Voice your concerns safely.', path: '/campus/feedback', restricted: true },
+    { name: 'Library Portal', icon: <BookOpen className="w-6 h-6 text-amber-700" />, color: 'bg-amber-100', text: 'Search, borrow & renew books.', path: '/campus/library', restricted: true },
+    { name: 'Health Center', icon: <Heart className="w-6 h-6 text-red-600" />, color: 'bg-red-100', text: 'Book clinic appointments.', path: '/utility/health', restricted: true },
+    { name: 'Emergency', icon: <AlertTriangle className="w-6 h-6 text-red-700" />, color: 'bg-red-50', text: 'One-tap security alert.', path: '/utility/emergency', restricted: false },
+    { name: 'Sync & Offline', icon: <RefreshCw className="w-6 h-6 text-slate-600" />, color: 'bg-slate-100', text: 'Manage cached data.', path: '/utility/sync', restricted: false },
+    { name: 'AI Study Bot', icon: <Sparkles className="w-6 h-6 text-violet-600" />, color: 'bg-violet-100', text: 'Ask anything academic.', path: '/ai/study-assistant', restricted: true },
+    { name: 'GPA Predictor', icon: <Calculator className="w-6 h-6 text-cyan-600" />, color: 'bg-cyan-100', text: 'Calculate & predict grades.', path: '/ai/gpa-predictor', restricted: true },
+    { name: 'Doc Scanner', icon: <Camera className="w-6 h-6 text-slate-700" />, color: 'bg-slate-100', text: 'Scan notes to digital.', path: '/ai/scanner', restricted: true },
+    { name: 'Usage Stats', icon: <Activity className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Track your study time.', path: '/ai/usage', restricted: true },
   ];
 
   return (
@@ -40,7 +69,15 @@ const Campus = () => {
         <p className="text-orange-100 text-sm">Everything outside the classroom.</p>
         
         {/* Featured Event Card overlaying the header */}
-        <div className="bg-slate-900 rounded-[24px] p-5 mt-6 shadow-xl text-white transform translate-y-12 bg-[url('https://images.unsplash.com/photo-1540575467063-178a50c2df87?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80')] bg-cover bg-center relative overflow-hidden">
+        <div 
+          onClick={() => {
+            if (isGuest) {
+              logGuestAction('featured_lavaza_click');
+            }
+            navigate('/campus/events');
+          }}
+          className="bg-slate-900 rounded-[24px] p-5 mt-6 shadow-xl text-white transform translate-y-12 bg-[url('https://images.unsplash.com/photo-1540575467063-178a50c2df87?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80')] bg-cover bg-center relative overflow-hidden cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all"
+        >
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent"></div>
           <div className="relative z-10 flex flex-col h-full justify-end pt-16">
             <span className="bg-pink-500 text-white text-[10px] font-bold px-2 py-1 rounded-full w-max mb-2">UPCOMING FEST</span>
@@ -55,15 +92,20 @@ const Campus = () => {
         <div className="flex flex-col gap-4">
           {features.map((feature, idx) => (
             <button key={idx} 
-              onClick={() => feature.path && navigate(feature.path)}
-              className="bg-white rounded-[24px] p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-all active:scale-95 text-left"
+              onClick={() => handleFeatureClick(feature)}
+              className={`bg-white rounded-[24px] p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-all active:scale-95 text-left border ${isGuest && feature.restricted ? 'border-dashed border-slate-200 opacity-90' : 'border-transparent'}`}
             >
               <div className={`w-14 h-14 rounded-2xl ${feature.color} flex items-center justify-center shrink-0`}>
                 {feature.icon}
               </div>
-              <div className="flex-1">
-                <h3 className="text-base font-bold text-slate-800">{feature.name}</h3>
-                <p className="text-xs font-medium text-slate-500 mt-0.5">{feature.text}</p>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-800 truncate">{feature.name}</h3>
+                  {isGuest && feature.restricted && (
+                    <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  )}
+                </div>
+                <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">{feature.text}</p>
               </div>
             </button>
           ))}
@@ -71,6 +113,7 @@ const Campus = () => {
       </div>
 
       <BottomNav />
+      <UpsellModal isOpen={upsellOpen} onClose={() => setUpsellOpen(false)} />
     </div>
   );
 };

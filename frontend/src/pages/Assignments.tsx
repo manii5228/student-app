@@ -74,7 +74,7 @@ const Assignments = () => {
   };
 
   return (
-    <div className="h-full bg-white flex flex-col font-sans animate-fade-in pb-10 relative">
+    <div className="h-full bg-white flex flex-col font-sans animate-fade-in pb-24 relative">
 
       {/* Header aligned to Bento Dashboard Style */}
       <div className="flex justify-between items-center p-6 mt-4">

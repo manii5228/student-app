@@ -25,11 +25,14 @@ class BaseConfig:
 
     # ── JWT ────────────────────────────────────────────────────────
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwt-secret-change-in-prod")
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
-    JWT_TOKEN_LOCATION = ["headers"]
+    JWT_TOKEN_LOCATION = ["headers", "cookies"]
     JWT_HEADER_NAME = "Authorization"
     JWT_HEADER_TYPE = "Bearer"
+    JWT_REFRESH_COOKIE_NAME = "refresh_token"
+    JWT_COOKIE_SECURE = False  # Set to True in production
+    JWT_COOKIE_CSRF_PROTECT = False  # Simplified for API dev without double-submit CSRF cookies
 
     # ── Redis ──────────────────────────────────────────────────────
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")

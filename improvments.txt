@@ -5,3 +5,8 @@ faculty ui maraledhu
 konni sarulu kindhi bar buttons ki clashes vasthundhi ,not able toclick buttons 
 #a91f23  #22346c    #0080c7    #c9503d   #27bcd1
 no yellow,black,dark blue
+faculty ,admin vala ids tho login iythe direct ga dashboard lo velali
+inka anni features deatila ga cheyali so search for eve2ry feature in detail
+remove market place,polls
+
+ in student acdamic section syllabus, map,faculty dir,internal marks,exam schedule are redirecting to login page if clicked

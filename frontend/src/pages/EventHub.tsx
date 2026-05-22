@@ -69,12 +69,19 @@ const LIVE_SCHEDULE = [
   { time: '18:00', title: 'Celebrity pro show', venue: 'Central Ground', status: 'Prime', icon: Mic2 },
 ];
 
+import UpsellModal from '../components/UpsellModal';
+
 const EventHub = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState<CampusEvent[]>(FALLBACK_EVENTS);
   const [activeType, setActiveType] = useState('all');
   const [registered, setRegistered] = useState<string[]>([]);
   const [activeView, setActiveView] = useState<'events' | 'schedule'>('events');
+  const [upsellOpen, setUpsellOpen] = useState(false);
+
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isGuest = user?.is_guest || user?.role === 'guest';
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -88,7 +95,21 @@ const EventHub = () => {
       }
     };
 
+    const fetchMyRegistrations = async () => {
+      try {
+        const { data } = await api.get('/campus/events/my-registrations');
+        if (Array.isArray(data.event_ids)) {
+          setRegistered(data.event_ids);
+        }
+      } catch (error) {
+        // Fallback: load from localStorage
+        const cached = localStorage.getItem('registered_events');
+        if (cached) setRegistered(JSON.parse(cached));
+      }
+    };
+
     fetchEvents();
+    fetchMyRegistrations();
   }, []);
 
   const eventTypes = useMemo(() => ['all', ...Array.from(new Set(events.map((event) => event.event_type)))], [events]);
@@ -96,9 +117,17 @@ const EventHub = () => {
   const featured = events[0];
 
   const handleRegister = async (eventId: string) => {
+    if (isGuest) {
+      setUpsellOpen(true);
+      return;
+    }
     if (registered.includes(eventId)) return;
 
-    setRegistered((current) => [...current, eventId]);
+    const newRegistered = [...registered, eventId];
+    setRegistered(newRegistered);
+    localStorage.setItem('registered_events', JSON.stringify(newRegistered));
+    // Optimistically update registration count
+    setEvents((prev) => prev.map((e) => e.id === eventId ? { ...e, registration_count: e.registration_count + 1 } : e));
     try {
       await api.post(`/campus/events/${eventId}/register`, { role: 'participant' });
     } catch (error) {
@@ -255,13 +284,14 @@ const EventHub = () => {
             </div>
           </div>
 
-          <button onClick={() => navigate('/campus/volunteer')} className="w-full bg-[#c9503d] text-white py-4 rounded-2xl text-sm font-black shadow-lg shadow-red-500/20">
+          <button onClick={() => isGuest ? setUpsellOpen(true) : navigate('/campus/volunteer')} className="w-full bg-[#c9503d] text-white py-4 rounded-2xl text-sm font-black shadow-lg shadow-red-500/20">
             Apply as Volunteer
           </button>
         </div>
       )}
 
       <BottomNav />
+      <UpsellModal isOpen={upsellOpen} onClose={() => setUpsellOpen(false)} />
     </div>
   );
 };

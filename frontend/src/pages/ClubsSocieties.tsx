@@ -46,7 +46,21 @@ const ClubsSocieties = () => {
       }
     };
 
+    const fetchMyClubs = async () => {
+      try {
+        const { data } = await api.get('/campus/clubs/my-clubs');
+        if (Array.isArray(data.clubs)) {
+          setJoined(data.clubs.map((c: Club) => c.id));
+        }
+      } catch (error) {
+        // Fallback: load from localStorage
+        const cached = localStorage.getItem('joined_clubs');
+        if (cached) setJoined(JSON.parse(cached));
+      }
+    };
+
     fetchClubs();
+    fetchMyClubs();
   }, []);
 
   const clubTypes = useMemo(() => ['all', ...Array.from(new Set(clubs.map((club) => club.club_type)))], [clubs]);
@@ -59,7 +73,11 @@ const ClubsSocieties = () => {
   const handleJoin = async (clubId: string) => {
     if (joined.includes(clubId)) return;
 
-    setJoined((current) => [...current, clubId]);
+    const newJoined = [...joined, clubId];
+    setJoined(newJoined);
+    localStorage.setItem('joined_clubs', JSON.stringify(newJoined));
+    // Update member count optimistically
+    setClubs((prev) => prev.map((c) => c.id === clubId ? { ...c, member_count: c.member_count + 1 } : c));
     try {
       await api.post(`/campus/clubs/${clubId}/join`);
     } catch (error) {

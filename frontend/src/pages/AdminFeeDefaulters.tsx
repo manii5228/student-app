@@ -11,7 +11,7 @@ const AdminFeeDefaulters = () => {
   ]);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-20">
+    <div className="min-h-screen bg-slate-50 font-sans pb-24">
       <div className="bg-white px-6 py-4 shadow-sm flex items-center gap-3 sticky top-0 z-20">
         <button onClick={() => navigate('/admin')} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition-colors">
           <ChevronLeft className="w-6 h-6 text-slate-700" />

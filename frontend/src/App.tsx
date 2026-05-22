@@ -46,8 +46,6 @@ import InternshipTracker from './pages/InternshipTracker';
 import MockTestPortal from './pages/MockTestPortal';
 import HealthCenter from './pages/HealthCenter';
 import EmergencyButton from './pages/EmergencyButton';
-import BuySell from './pages/BuySell';
-import PollsSurveys from './pages/PollsSurveys';
 import SyncStatus from './pages/SyncStatus';
 import AIStudyAssistant from './pages/AIStudyAssistant';
 import GPAPredictor from './pages/GPAPredictor';
@@ -55,6 +53,7 @@ import DocumentScanner from './pages/DocumentScanner';
 import UsageAnalytics from './pages/UsageAnalytics';
 import FacultyLeaveApproval from './pages/FacultyLeaveApproval';
 import FacultyBroadcast from './pages/FacultyBroadcast';
+import FacultyDiscrepancies from './pages/FacultyDiscrepancies';
 import FacultyMentees from './pages/FacultyMentees';
 import FacultyMeetingScheduler from './pages/FacultyMeetingScheduler';
 import FacultyResourceUploader from './pages/FacultyResourceUploader';
@@ -70,7 +69,16 @@ import AdminDataExport from './pages/AdminDataExport';
 import AdminModeration from './pages/AdminModeration';
 import AdminPlacementAnalytics from './pages/AdminPlacementAnalytics';
 
-// ── Route Guards ─────────────────────────────────────────────────
+import GuestLockedFeature from './components/GuestLockedFeature';
+
+// Helper to read user role
+const getUserRole = (): string | null => {
+  const userStr = localStorage.getItem('user');
+  if (!userStr) return null;
+  try { return JSON.parse(userStr).role || null; } catch { return null; }
+};
+
+// Route Guards
 // Requires any valid JWT token (student, faculty, admin, or guest)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem('token');
@@ -89,10 +97,29 @@ const AuthenticatedRoute = ({ children }: { children: React.ReactNode }) => {
   if (userStr) {
     const user = JSON.parse(userStr);
     if (user.is_guest || user.role === 'guest') {
-      // Redirect guests to their profile which shows the "limited access" banner
-      return <Navigate to="/profile" />;
+      return <GuestLockedFeature />;
     }
   }
+  return <>{children}</>;
+};
+
+// Faculty-only — redirects students/guests to home, admin to admin hub
+const FacultyRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem('token');
+  if (!token) return <Navigate to="/login" />;
+  const role = getUserRole();
+  if (role === 'admin') return <Navigate to="/admin" />;
+  if (role !== 'faculty') return <Navigate to="/" />;
+  return <>{children}</>;
+};
+
+// Admin-only — redirects students/guests to home, faculty to faculty hub
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem('token');
+  if (!token) return <Navigate to="/login" />;
+  const role = getUserRole();
+  if (role === 'faculty') return <Navigate to="/faculty" />;
+  if (role !== 'admin') return <Navigate to="/" />;
   return <>{children}</>;
 };
 
@@ -121,6 +148,10 @@ function App() {
             <Route path="/academic/question-papers" element={<AuthenticatedRoute><QuestionPapers /></AuthenticatedRoute>} />
             <Route path="/academic/credits" element={<AuthenticatedRoute><CreditDashboard /></AuthenticatedRoute>} />
             <Route path="/academic/results" element={<AuthenticatedRoute><Results /></AuthenticatedRoute>} />
+            <Route path="/academic/syllabus" element={<AuthenticatedRoute><SyllabusViewer /></AuthenticatedRoute>} />
+            <Route path="/academic/faculty" element={<AuthenticatedRoute><FacultyDirectory /></AuthenticatedRoute>} />
+            <Route path="/academic/internal-marks" element={<AuthenticatedRoute><InternalMarks /></AuthenticatedRoute>} />
+            <Route path="/academic/exams" element={<AuthenticatedRoute><ExamSchedule /></AuthenticatedRoute>} />
 
             {/* Campus Operations — Map & Notices are guest-accessible */}
             <Route path="/campus/canteen" element={<AuthenticatedRoute><DigitalCanteen /></AuthenticatedRoute>} />
@@ -129,7 +160,7 @@ function App() {
             <Route path="/campus/hostel-pass" element={<AuthenticatedRoute><HostelPass /></AuthenticatedRoute>} />
             <Route path="/campus/notices" element={<ProtectedRoute><NoticeBoard /></ProtectedRoute>} />
             <Route path="/campus/library" element={<AuthenticatedRoute><LibraryPortal /></AuthenticatedRoute>} />
-            <Route path="/campus/events" element={<AuthenticatedRoute><EventHub /></AuthenticatedRoute>} />
+            <Route path="/campus/events" element={<ProtectedRoute><EventHub /></ProtectedRoute>} />
             <Route path="/campus/volunteer" element={<AuthenticatedRoute><VolunteerPortal /></AuthenticatedRoute>} />
             <Route path="/campus/clubs" element={<AuthenticatedRoute><ClubsSocieties /></AuthenticatedRoute>} />
             <Route path="/campus/feedback" element={<AuthenticatedRoute><AnonymousFeedback /></AuthenticatedRoute>} />
@@ -146,11 +177,9 @@ function App() {
             <Route path="/career/internships" element={<AuthenticatedRoute><InternshipTracker /></AuthenticatedRoute>} />
             <Route path="/career/mock-tests" element={<AuthenticatedRoute><MockTestPortal /></AuthenticatedRoute>} />
 
-            {/* Utility & Health */}
+            {/* Utility & Health — marketplace and polls REMOVED per requirement */}
             <Route path="/utility/health" element={<AuthenticatedRoute><HealthCenter /></AuthenticatedRoute>} />
             <Route path="/utility/emergency" element={<ProtectedRoute><EmergencyButton /></ProtectedRoute>} />
-            <Route path="/utility/marketplace" element={<AuthenticatedRoute><BuySell /></AuthenticatedRoute>} />
-            <Route path="/utility/polls" element={<AuthenticatedRoute><PollsSurveys /></AuthenticatedRoute>} />
             <Route path="/utility/sync" element={<ProtectedRoute><SyncStatus /></ProtectedRoute>} />
 
             {/* AI Features */}
@@ -159,34 +188,35 @@ function App() {
             <Route path="/ai/scanner" element={<AuthenticatedRoute><DocumentScanner /></AuthenticatedRoute>} />
             <Route path="/ai/usage" element={<AuthenticatedRoute><UsageAnalytics /></AuthenticatedRoute>} />
 
-            {/* Faculty Management Layer */}
-            <Route path="/faculty" element={<AuthenticatedRoute><FacultyHub /></AuthenticatedRoute>} />
-            <Route path="/faculty/bulk-attendance" element={<AuthenticatedRoute><FacultyBulkAttendance /></AuthenticatedRoute>} />
-            <Route path="/faculty/qr" element={<AuthenticatedRoute><FacultyQRAttendance /></AuthenticatedRoute>} />
-            <Route path="/faculty/marks" element={<AuthenticatedRoute><FacultyMarksEntry /></AuthenticatedRoute>} />
-            <Route path="/faculty/leaves" element={<AuthenticatedRoute><FacultyLeaveApproval /></AuthenticatedRoute>} />
-            <Route path="/faculty/broadcast" element={<AuthenticatedRoute><FacultyBroadcast /></AuthenticatedRoute>} />
-            <Route path="/faculty/mentees" element={<AuthenticatedRoute><FacultyMentees /></AuthenticatedRoute>} />
-            <Route path="/faculty/meetings" element={<AuthenticatedRoute><FacultyMeetingScheduler /></AuthenticatedRoute>} />
-            <Route path="/faculty/resources" element={<AuthenticatedRoute><FacultyResourceUploader /></AuthenticatedRoute>} />
-            <Route path="/faculty/syllabus-tracker" element={<AuthenticatedRoute><FacultySyllabusTracker /></AuthenticatedRoute>} />
-            <Route path="/faculty/grader" element={<AuthenticatedRoute><FacultyAssignmentGrader /></AuthenticatedRoute>} />
-            <Route path="/faculty/reports" element={<AuthenticatedRoute><FacultyReportGenerator /></AuthenticatedRoute>} />
-            <Route path="/faculty/question-bank" element={<AuthenticatedRoute><FacultyResourceUploader /></AuthenticatedRoute>} />
-            <Route path="/faculty/mock-tests-manage" element={<AuthenticatedRoute><FacultyResourceUploader /></AuthenticatedRoute>} />
-            <Route path="/faculty/student-performance" element={<AuthenticatedRoute><FacultyMentees /></AuthenticatedRoute>} />
+            {/* Faculty Management Layer — Faculty only */}
+            <Route path="/faculty" element={<FacultyRoute><FacultyHub /></FacultyRoute>} />
+            <Route path="/faculty/bulk-attendance" element={<FacultyRoute><FacultyBulkAttendance /></FacultyRoute>} />
+            <Route path="/faculty/qr" element={<FacultyRoute><FacultyQRAttendance /></FacultyRoute>} />
+            <Route path="/faculty/marks" element={<FacultyRoute><FacultyMarksEntry /></FacultyRoute>} />
+            <Route path="/faculty/leaves" element={<FacultyRoute><FacultyLeaveApproval /></FacultyRoute>} />
+            <Route path="/faculty/discrepancies" element={<FacultyRoute><FacultyDiscrepancies /></FacultyRoute>} />
+            <Route path="/faculty/broadcast" element={<FacultyRoute><FacultyBroadcast /></FacultyRoute>} />
+            <Route path="/faculty/mentees" element={<FacultyRoute><FacultyMentees /></FacultyRoute>} />
+            <Route path="/faculty/meetings" element={<FacultyRoute><FacultyMeetingScheduler /></FacultyRoute>} />
+            <Route path="/faculty/resources" element={<FacultyRoute><FacultyResourceUploader /></FacultyRoute>} />
+            <Route path="/faculty/syllabus-tracker" element={<FacultyRoute><FacultySyllabusTracker /></FacultyRoute>} />
+            <Route path="/faculty/grader" element={<FacultyRoute><FacultyAssignmentGrader /></FacultyRoute>} />
+            <Route path="/faculty/reports" element={<FacultyRoute><FacultyReportGenerator /></FacultyRoute>} />
+            <Route path="/faculty/question-bank" element={<FacultyRoute><FacultyResourceUploader /></FacultyRoute>} />
+            <Route path="/faculty/mock-tests-manage" element={<FacultyRoute><FacultyResourceUploader /></FacultyRoute>} />
+            <Route path="/faculty/student-performance" element={<FacultyRoute><FacultyMentees /></FacultyRoute>} />
 
-            {/* Admin & Infrastructure Layer */}
-            <Route path="/admin" element={<AuthenticatedRoute><AdminHub /></AuthenticatedRoute>} />
-            <Route path="/admin/timetable" element={<AuthenticatedRoute><TimetableEditor /></AuthenticatedRoute>} />
-            <Route path="/admin/health" element={<AuthenticatedRoute><SystemHealth /></AuthenticatedRoute>} />
-            <Route path="/admin/users" element={<AuthenticatedRoute><AdminUserManagement /></AuthenticatedRoute>} />
-            <Route path="/admin/alerts" element={<AuthenticatedRoute><AdminGlobalAlerts /></AuthenticatedRoute>} />
-            <Route path="/admin/fees" element={<AuthenticatedRoute><AdminFeeDefaulters /></AuthenticatedRoute>} />
-            <Route path="/admin/access-control" element={<AuthenticatedRoute><AdminAccessControl /></AuthenticatedRoute>} />
-            <Route path="/admin/export" element={<AuthenticatedRoute><AdminDataExport /></AuthenticatedRoute>} />
-            <Route path="/admin/moderation" element={<AuthenticatedRoute><AdminModeration /></AuthenticatedRoute>} />
-            <Route path="/admin/placements" element={<AuthenticatedRoute><AdminPlacementAnalytics /></AuthenticatedRoute>} />
+            {/* Admin & Infrastructure Layer — Admin only */}
+            <Route path="/admin" element={<AdminRoute><AdminHub /></AdminRoute>} />
+            <Route path="/admin/timetable" element={<AdminRoute><TimetableEditor /></AdminRoute>} />
+            <Route path="/admin/health" element={<AdminRoute><SystemHealth /></AdminRoute>} />
+            <Route path="/admin/users" element={<AdminRoute><AdminUserManagement /></AdminRoute>} />
+            <Route path="/admin/alerts" element={<AdminRoute><AdminGlobalAlerts /></AdminRoute>} />
+            <Route path="/admin/fees" element={<AdminRoute><AdminFeeDefaulters /></AdminRoute>} />
+            <Route path="/admin/access-control" element={<AdminRoute><AdminAccessControl /></AdminRoute>} />
+            <Route path="/admin/export" element={<AdminRoute><AdminDataExport /></AdminRoute>} />
+            <Route path="/admin/moderation" element={<AdminRoute><AdminModeration /></AdminRoute>} />
+            <Route path="/admin/placements" element={<AdminRoute><AdminPlacementAnalytics /></AdminRoute>} />
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/login" />} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Calendar as CalendarIcon, Bell, Activity, DollarSign,
@@ -6,11 +6,31 @@ import {
   Database, Server
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
+import { api } from '../lib/api';
 
 const AdminHub = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const adminName = user.first_name ? `${user.first_name}` : 'Administrator';
+  const [stats, setStats] = useState({ totalUsers: '...', activeUsers: '...', serverLoad: '42%' });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const { data } = await api.get('/admin/stats');
+        const total = data.total_users || 0;
+        const active = data.active_users || 0;
+        setStats({
+          totalUsers: total >= 1000 ? `${(total / 1000).toFixed(0)}k` : String(total),
+          activeUsers: active >= 1000 ? `${(active / 1000).toFixed(0)}k` : String(active),
+          serverLoad: '42%',
+        });
+      } catch {
+        setStats({ totalUsers: '—', activeUsers: '—', serverLoad: '—' });
+      }
+    };
+    fetchStats();
+  }, []);
 
   // Core Management Modules
   const managementFeatures = [
@@ -54,11 +74,11 @@ const AdminHub = () => {
               <p className="text-[9px] font-bold text-slate-400 uppercase">DB Health</p>
             </div>
             <div className="flex-1 bg-white/5 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-              <p className="text-lg font-black text-white flex items-center justify-center gap-1"><Users className="w-4 h-4"/> 14k</p>
-              <p className="text-[9px] font-bold text-slate-400 uppercase">Active Users</p>
+              <p className="text-lg font-black text-white flex items-center justify-center gap-1"><Users className="w-4 h-4"/> {stats.totalUsers}</p>
+              <p className="text-[9px] font-bold text-slate-400 uppercase">Total Users</p>
             </div>
             <div className="flex-1 bg-white/5 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-              <p className="text-lg font-black text-amber-400 flex items-center justify-center gap-1"><Server className="w-4 h-4"/> 42%</p>
+              <p className="text-lg font-black text-amber-400 flex items-center justify-center gap-1"><Server className="w-4 h-4"/> {stats.serverLoad}</p>
               <p className="text-[9px] font-bold text-slate-400 uppercase">Server Load</p>
             </div>
           </div>

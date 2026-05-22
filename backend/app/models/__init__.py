@@ -1,7 +1,7 @@
 """Models package — All SQLAlchemy ORM models for the Super-App."""
 
 from .user import User, UserSession
-from .attendance import Attendance, AttendanceRecord
+from .attendance import Attendance, AttendanceRecord, AttendanceDiscrepancy
 from .timetable import Timetable, TimetableSlot
 from .academic import (
     Assignment, AssignmentSubmission, Result, Syllabus,
@@ -20,7 +20,7 @@ from .career import (
 
 __all__ = [
     "User", "UserSession",
-    "Attendance", "AttendanceRecord",
+    "Attendance", "AttendanceRecord", "AttendanceDiscrepancy",
     "Timetable", "TimetableSlot",
     "Assignment", "AssignmentSubmission", "Result", "Syllabus",
     "ExamSchedule", "CreditProgress", "InternalMark",

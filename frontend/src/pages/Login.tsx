@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Fingerprint, UserCircle, Shield, AlertTriangle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Fingerprint, UserCircle, Shield, AlertTriangle, Globe, Building } from 'lucide-react';
 import { api } from '../lib/api';
 
 const Login = () => {
@@ -13,6 +13,13 @@ const Login = () => {
   const [tab, setTab] = useState<'email' | 'sso'>('email');
   const [showGuestConfirm, setShowGuestConfirm] = useState(false);
 
+  // SSO & Biometrics Fallback state
+  const [showSSOPopup, setShowSSOPopup] = useState(false);
+  const [ssoProvider, setSsoProvider] = useState<'google' | 'microsoft' | null>(null);
+  const [ssoStage, setSsoStage] = useState(0);
+  const [ssoProcessingMsg, setSsoProcessingMsg] = useState('');
+  const [highlightPassword, setHighlightPassword] = useState(false);
+
   // ── Email/Password Login ──
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,6 +28,7 @@ const Login = () => {
     try {
       const res = await api.post('/auth/login', { email, password });
       localStorage.setItem('token', res.data.access_token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
       const role = res.data.user.role;
       if (role === 'faculty') {
         navigate('/faculty');
@@ -37,37 +45,63 @@ const Login = () => {
   };
 
   // ── SSO Login (College Email) ──
+  const startSSOSimulation = (provider: 'google' | 'microsoft') => {
+    setSsoProvider(provider);
+    setLoading(true);
+    setSsoStage(1);
+    setSsoProcessingMsg('Connecting to identity provider...');
+
+    setTimeout(() => {
+      setSsoStage(2);
+      setSsoProcessingMsg(`Authenticating via ${provider === 'google' ? 'Google accounts' : 'Microsoft Azure AD'}...`);
+      
+      setTimeout(() => {
+        setSsoStage(3);
+        setSsoProcessingMsg('Verifying federated token claims with VelTech Directory...');
+        
+        setTimeout(async () => {
+          setSsoStage(4);
+          setSsoProcessingMsg('Redirecting back to VelTech Super-App...');
+          
+          try {
+            const res = await api.post('/auth/sso', {
+              email,
+              sso_token: `mock-sso-token-from-${provider}`,
+            });
+            localStorage.setItem('token', res.data.access_token);
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+            const role = res.data.user.role;
+            if (role === 'faculty') {
+              navigate('/faculty');
+            } else if (role === 'admin') {
+              navigate('/admin');
+            } else {
+              navigate('/');
+            }
+          } catch (err: any) {
+            setError(err.response?.data?.error || 'SSO authentication failed. Is your account registered?');
+          } finally {
+            setLoading(false);
+            setSsoProvider(null);
+            setSsoStage(0);
+          }
+        }, 1200);
+      }, 1200);
+    }, 1000);
+  };
+
   const handleSSO = async () => {
     if (!email) { setError('Please enter your college email.'); return; }
     
     const domain = email.split('@')[1]?.toLowerCase();
     const allowed = ['veltech.edu.in', 'vel-tech.org', 'veltech.ac.in'];
     if (!allowed.includes(domain)) {
-      setError('SSO is only available for @veltech.edu.in accounts.');
+      setError('SSO is only available for @veltech.edu.in, @vel-tech.org, or @veltech.ac.in accounts.');
       return;
     }
 
-    setLoading(true);
     setError('');
-    try {
-      const res = await api.post('/auth/sso', {
-        email,
-        sso_token: 'mock-sso-token-from-idp',
-      });
-      localStorage.setItem('token', res.data.access_token);
-      const role = res.data.user.role;
-      if (role === 'faculty') {
-        navigate('/faculty');
-      } else if (role === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/');
-      }
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'SSO login failed. Is your account registered?');
-    } finally {
-      setLoading(false);
-    }
+    setShowSSOPopup(true);
   };
 
   // ── Biometric Login (WebAuthn) ──
@@ -76,6 +110,7 @@ const Login = () => {
     
     if (!window.PublicKeyCredential) {
       setError('WebAuthn is not supported on this browser. Use Chrome or Safari with biometric hardware.');
+      transitionToEmailFallback();
       return;
     }
 
@@ -89,13 +124,13 @@ const Login = () => {
       const assertion = await navigator.credentials.get({
         publicKey: {
           challenge,
-          timeout: 60000,
+          timeout: 10000,
           userVerification: 'required',
           rpId: window.location.hostname,
         },
       }) as PublicKeyCredential;
 
-      if (!assertion) throw new Error('Biometric authentication was cancelled.');
+      if (!assertion) throw new Error('Biometric assertion not generated.');
 
       const credentialId = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
 
@@ -109,14 +144,25 @@ const Login = () => {
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/');
     } catch (err: any) {
+      let errMsg = '';
       if (err.name === 'NotAllowedError') {
-        setError('Biometric authentication was denied or timed out.');
+        errMsg = 'Biometric authentication was denied or timed out.';
       } else {
-        setError(err.response?.data?.error || err.message || 'Biometric auth failed. Register your fingerprint in Profile first.');
+        errMsg = err.response?.data?.error || err.message || 'Biometric auth failed. Register your fingerprint in Profile first.';
       }
+      setError(errMsg);
+      transitionToEmailFallback();
     } finally {
       setLoading(false);
     }
+  };
+
+  const transitionToEmailFallback = () => {
+    setTab('email');
+    setHighlightPassword(true);
+    setTimeout(() => {
+      setHighlightPassword(false);
+    }, 2500);
   };
 
   // ── Guest Mode ──
@@ -198,7 +244,11 @@ const Login = () => {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-100 rounded-2xl py-4 pl-12 pr-12 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+                className={`w-full bg-slate-100 rounded-2xl py-4 pl-12 pr-12 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none transition-all border ${
+                  highlightPassword
+                    ? 'border-red-500 ring-2 ring-indigo-500/40 animate-pulse scale-[1.01]'
+                    : 'border-transparent focus:ring-2 focus:ring-indigo-500/30'
+                }`}
                 required
               />
               <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -285,6 +335,114 @@ const Login = () => {
                 Enter as Guest
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SSO Provider Selector Modal */}
+      {showSSOPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6 animate-fade-in">
+          <div className="bg-white rounded-[28px] p-6 shadow-2xl max-w-sm w-full animate-scale-in border border-slate-100">
+            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-7 h-7 text-indigo-600 animate-pulse" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 text-center mb-1">Select SSO Provider</h3>
+            <p className="text-xs text-slate-500 text-center mb-6">
+              Authenticate securely with your VelTech credentials
+            </p>
+            
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSSOPopup(false);
+                  startSSOSimulation('google');
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 bg-slate-50 hover:bg-slate-100 rounded-2xl border border-slate-200/60 text-slate-700 font-semibold text-sm transition-all hover:scale-[1.01]"
+              >
+                <Globe className="w-5 h-5 text-red-500" />
+                <span>Sign in with Google Workspace</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSSOPopup(false);
+                  startSSOSimulation('microsoft');
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3.5 bg-slate-50 hover:bg-slate-100 rounded-2xl border border-slate-200/60 text-slate-700 font-semibold text-sm transition-all hover:scale-[1.01]"
+              >
+                <Building className="w-5 h-5 text-blue-500" />
+                <span>Sign in with Microsoft 365</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowSSOPopup(false)}
+              className="w-full mt-4 bg-slate-100 text-slate-500 hover:text-slate-700 py-3 rounded-xl font-bold text-xs transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* SSO Simulation Stage Overlay */}
+      {ssoStage > 0 && ssoProvider && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-md p-6">
+          <div className="max-w-md w-full bg-white/10 border border-white/20 backdrop-filter backdrop-blur-lg rounded-3xl p-8 shadow-2xl text-center text-white">
+            <div className="relative w-20 h-20 mx-auto mb-6">
+              <div className="absolute inset-0 rounded-full border-4 border-white/10"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-indigo-500 border-t-transparent animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Shield className="w-8 h-8 text-indigo-400" />
+              </div>
+            </div>
+            
+            <h3 className="text-xl font-bold mb-2">VelTech Authentication</h3>
+            <p className="text-sm text-slate-300 font-medium mb-6">
+              {ssoProvider === 'google' ? 'Google IDP Link' : 'Microsoft Azure AD Link'}
+            </p>
+
+            <div className="space-y-3 text-left bg-black/20 rounded-2xl p-4 border border-white/5 font-mono text-xs text-indigo-300">
+              <div className="flex items-center gap-2">
+                <span className={ssoStage >= 1 ? "text-emerald-400" : "text-slate-500"}>
+                  {ssoStage >= 1 ? "●" : "○"}
+                </span>
+                <span className={ssoStage >= 1 ? "text-slate-200" : "text-slate-400"}>
+                  Connecting to {ssoProvider === 'google' ? 'Google Accounts' : 'Microsoft Live'}...
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={ssoStage >= 2 ? "text-emerald-400" : "text-slate-500"}>
+                  {ssoStage >= 2 ? "●" : "○"}
+                </span>
+                <span className={ssoStage >= 2 ? "text-slate-200" : "text-slate-400"}>
+                  Verifying identity claims for {email}...
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={ssoStage >= 3 ? "text-emerald-400" : "text-slate-500"}>
+                  {ssoStage >= 3 ? "●" : "○"}
+                </span>
+                <span className={ssoStage >= 3 ? "text-slate-200" : "text-slate-400"}>
+                  Exchanging SAML/OIDC federated token...
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={ssoStage >= 4 ? "text-emerald-400" : "text-slate-500"}>
+                  {ssoStage >= 4 ? "●" : "○"}
+                </span>
+                <span className={ssoStage >= 4 ? "text-slate-200" : "text-slate-400"}>
+                  Redirecting to VelTech Dashboard...
+                </span>
+              </div>
+            </div>
+
+            <p className="mt-6 text-xs text-slate-400 animate-pulse font-medium">
+              {ssoProcessingMsg}
+            </p>
           </div>
         </div>
       )}

@@ -1,29 +1,53 @@
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { 
   ChevronLeft, Share2, Plus, Search, 
-  PieChart, Book, ChevronRight, Activity 
+  PieChart, Book, ChevronRight, Activity, Lock 
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
+import UpsellModal from '../components/UpsellModal';
+import { api } from '../lib/api';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const [upsellOpen, setUpsellOpen] = useState(false);
   
-  useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      if (user.role === 'faculty') navigate('/faculty');
-      if (user.role === 'admin') navigate('/admin');
+  // Immediately redirect faculty/admin before any render
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  
+  if (user) {
+    if (user.role === 'faculty') return <Navigate to="/faculty" replace />;
+    if (user.role === 'admin') return <Navigate to="/admin" replace />;
+  }
+
+  const isGuest = user?.is_guest || user?.role === 'guest';
+
+  const logGuestAction = async (featureName: string) => {
+    if (!isGuest) return;
+    try {
+      await api.post('/auth/guest-log', { feature_name: featureName });
+    } catch (err) {
+      console.error('Failed to log guest action:', err);
     }
-  }, [navigate]);
+  };
+
+  const handleMetricClick = (metricName: string) => {
+    if (isGuest) {
+      logGuestAction(`dashboard_${metricName}_click`);
+      setUpsellOpen(true);
+    }
+  };
 
   return (
-    <div className="h-full bg-white flex flex-col font-sans animate-fade-in pb-10">
+    <div className="h-full bg-white flex flex-col font-sans animate-fade-in pb-24 relative">
       
       {/* Top Navigation */}
       <div className="flex justify-between items-center p-6 mt-4">
-        <button className="w-12 h-12 rounded-full border border-slate-100 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors">
+        <button 
+          onClick={() => navigate(-1)}
+          className="w-12 h-12 rounded-full border border-slate-100 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors"
+        >
           <ChevronLeft className="w-5 h-5 text-slate-600" />
         </button>
         <button className="w-12 h-12 rounded-full border border-slate-100 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors">
@@ -46,7 +70,10 @@ const Dashboard = () => {
         {/* Progress Cards */}
         <div className="grid grid-cols-2 gap-4 mb-8">
           {/* Completed Card */}
-          <div className="bg-app-blue rounded-[32px] p-6 flex flex-col justify-between aspect-square">
+          <div 
+            onClick={() => handleMetricClick('completed_card')}
+            className="bg-app-blue rounded-[32px] p-6 flex flex-col justify-between aspect-square relative overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
             <div className="flex justify-between items-start">
               <span className="text-sm font-semibold text-slate-800">Completed</span>
               <PieChart className="w-5 h-5 text-app-accent" />
@@ -54,10 +81,19 @@ const Dashboard = () => {
             <div className="mt-4">
               <span className="text-4xl font-bold text-slate-900">56<span className="text-2xl font-semibold">%</span></span>
             </div>
+            {isGuest && (
+              <div className="absolute inset-0 bg-white/20 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center border border-slate-200 rounded-[32px]">
+                <Lock className="w-5 h-5 text-slate-700 mb-1" />
+                <span className="text-[10px] font-bold text-slate-800">Locked</span>
+              </div>
+            )}
           </div>
 
           {/* Lessons Card */}
-          <div className="bg-app-purple rounded-[32px] p-6 flex flex-col justify-between aspect-square">
+          <div 
+            onClick={() => handleMetricClick('lessons_card')}
+            className="bg-app-purple rounded-[32px] p-6 flex flex-col justify-between aspect-square relative overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+          >
             <div className="flex justify-between items-start">
               <span className="text-sm font-semibold text-slate-800">Lessons</span>
               <Book className="w-5 h-5 text-slate-700" />
@@ -66,11 +102,20 @@ const Dashboard = () => {
               <span className="text-4xl font-bold text-slate-900">21</span>
               <span className="text-xl font-medium text-slate-500">/23</span>
             </div>
+            {isGuest && (
+              <div className="absolute inset-0 bg-white/20 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center border border-slate-200 rounded-[32px]">
+                <Lock className="w-5 h-5 text-slate-700 mb-1" />
+                <span className="text-[10px] font-bold text-slate-800">Locked</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Badges Section */}
-        <div className="mb-8">
+        <div 
+          onClick={() => handleMetricClick('badges_section')}
+          className="mb-8 relative rounded-2xl overflow-hidden p-2 hover:bg-slate-50 cursor-pointer transition-colors"
+        >
           <div className="flex justify-between items-center mb-5">
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-bold text-slate-900">Badges</h2>
@@ -118,10 +163,19 @@ const Dashboard = () => {
               <span className="text-xs font-semibold text-center leading-tight">Reading<br/>Pass</span>
             </div>
           </div>
+          {isGuest && (
+            <div className="absolute inset-0 bg-white/40 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center rounded-2xl">
+              <Lock className="w-5 h-5 text-slate-700 mb-1" />
+              <span className="text-xs font-bold text-slate-800">Sign In to Earn Badges</span>
+            </div>
+          )}
         </div>
 
         {/* Your Activity Chart Card */}
-        <div className="bg-app-dark rounded-[40px] p-6 text-white mb-6 shadow-xl">
+        <div 
+          onClick={() => handleMetricClick('activity_card')}
+          className="bg-app-dark rounded-[40px] p-6 text-white mb-6 shadow-xl relative overflow-hidden cursor-pointer"
+        >
           <div className="flex justify-between items-start mb-6">
             <div>
               <p className="text-sm text-slate-400 font-medium mb-1">Your activity</p>
@@ -140,20 +194,16 @@ const Dashboard = () => {
           {/* Custom Bar Chart Component */}
           <div className="mt-12">
             <div className="flex items-end justify-between h-32 gap-2 mb-2 relative">
-              {/* Tooltip for Thursday */}
               <div className="absolute top-2 left-[58%] -translate-x-1/2 bg-[#0d7a8e] text-white text-xs font-bold px-3 py-1 rounded-full z-10 whitespace-nowrap">
                 4,5hr
               </div>
 
-              {/* Bars */}
               <div className="w-full bg-slate-800 rounded-t-xl h-[20%] transition-all"></div>
               <div className="w-full bg-slate-800 rounded-t-xl h-[35%] transition-all"></div>
               <div className="w-full bg-slate-800 rounded-t-xl h-[45%] transition-all"></div>
               <div className="w-full bg-slate-800 rounded-t-xl h-[30%] transition-all"></div>
               
-              {/* Highlighted Bar (Thursday) with diagonal stripes effect */}
               <div className="w-full h-[85%] rounded-t-xl relative overflow-hidden bg-app-accent">
-                 {/* CSS pattern for diagonal stripes */}
                  <div className="absolute inset-0 opacity-30" style={{
                    backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 4px, #ffffff 4px, #ffffff 8px)'
                  }}></div>
@@ -163,7 +213,6 @@ const Dashboard = () => {
               <div className="w-full bg-slate-800 rounded-t-xl h-[15%] transition-all"></div>
             </div>
             
-            {/* Days row */}
             <div className="flex justify-between text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-1">
               <span>Sun</span>
               <span>Mon</span>
@@ -174,11 +223,20 @@ const Dashboard = () => {
               <span>Sat</span>
             </div>
           </div>
+
+          {isGuest && (
+            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center rounded-[40px] border border-slate-800">
+              <Lock className="w-6 h-6 text-violet-400 mb-2 animate-bounce" />
+              <span className="text-sm font-bold text-white">Track Study Analytics</span>
+              <p className="text-[10px] text-slate-400 mt-1 max-w-[200px]">Sign in with your academic account to view usage trends.</p>
+            </div>
+          )}
         </div>
 
       </div>
 
       <BottomNav />
+      <UpsellModal isOpen={upsellOpen} onClose={() => setUpsellOpen(false)} />
 
       <style>{`
         .hide-scrollbar::-webkit-scrollbar {

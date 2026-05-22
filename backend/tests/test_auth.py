@@ -58,7 +58,7 @@ class TestLogin:
         assert resp.status_code == 200
         data = resp.get_json()
         assert "access_token" in data
-        assert "refresh_token" in data
+        assert any("refresh_token=" in h for h in resp.headers.getlist("Set-Cookie"))
 
     def test_wrong_password(self, client):
         client.post("/api/v1/auth/register", json={

@@ -223,3 +223,116 @@ def get_class_students():
         "students": [s.to_dict() for s in students],
         "total": len(students),
     }), 200
+
+
+# ── Get Attendance Trends (Student Only) ──────────────────────────
+
+@attendance_bp.route("/trends", methods=["GET"])
+@jwt_required()
+@role_required("student")
+def get_trends():
+    """Get overall and subject-wise cumulative attendance trends."""
+    student_id = get_jwt_identity()
+    result = attendance_service.get_attendance_trends(student_id)
+    return jsonify(result), 200
+
+
+# ── Get Student Attendance Records (Student Only) ──────────────────
+
+@attendance_bp.route("/my-records", methods=["GET"])
+@jwt_required()
+@role_required("student")
+def get_my_records():
+    """Get all attendance records for the logged-in student."""
+    student_id = get_jwt_identity()
+    subject_code = request.args.get("subject_code")
+    result = attendance_service.get_student_records(student_id, subject_code)
+    return jsonify({"records": result}), 200
+
+
+# ── Report Discrepancy (Student Only) ──────────────────────────────
+
+@attendance_bp.route("/discrepancy", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def report_discrepancy():
+    """
+    Student reports a discrepancy for an attendance record.
+    Body: {"record_id": "...", "reason": "..."}
+    """
+    data = request.get_json() or {}
+    student_id = get_jwt_identity()
+    record_id = data.get("record_id")
+    reason = data.get("reason")
+
+    if not record_id or not reason:
+        return jsonify({"error": "record_id and reason are required"}), 400
+
+    result, error = attendance_service.report_discrepancy(student_id, record_id, reason)
+    if error:
+        return jsonify({"error": error}), 400
+
+    return jsonify({"message": "Discrepancy reported successfully", "discrepancy": result}), 201
+
+
+# ── List Discrepancies (Student, Faculty, Admin) ───────────────────
+
+@attendance_bp.route("/discrepancies", methods=["GET"])
+@jwt_required()
+def get_discrepancies():
+    """
+    List discrepancies for the logged-in user.
+    Query params: ?status=pending
+    """
+    user_id = get_jwt_identity()
+    claims = get_jwt()
+    role = claims.get("role", "student")
+    status = request.args.get("status")
+
+    result = attendance_service.get_discrepancies(user_id, role, status)
+    return jsonify({"discrepancies": result}), 200
+
+
+# ── Resolve Discrepancy (Faculty, Admin) ───────────────────────────
+
+@attendance_bp.route("/discrepancy/<discrepancy_id>/resolve", methods=["POST"])
+@jwt_required()
+@role_required("faculty", "admin")
+def resolve_discrepancy(discrepancy_id):
+    """
+    Resolve or reject a student discrepancy.
+    Body: {
+        "status": "resolved" or "rejected",
+        "resolution_remarks": "...",
+        "updated_status": "present" or "absent" or "late"  (optional, if resolved)
+    }
+    """
+    data = request.get_json() or {}
+    faculty_id = get_jwt_identity()
+    status = data.get("status")
+    remarks = data.get("resolution_remarks")
+    updated_status = data.get("updated_status")
+
+    if not status or status not in ["resolved", "rejected"]:
+        return jsonify({"error": "status must be 'resolved' or 'rejected'"}), 400
+    if not remarks:
+        return jsonify({"error": "resolution_remarks is required"}), 400
+
+    result, error = attendance_service.resolve_discrepancy(
+        discrepancy_id, faculty_id, status, remarks, updated_status
+    )
+    if error:
+        return jsonify({"error": error}), 400
+
+    return jsonify({"message": "Discrepancy status updated", "discrepancy": result}), 200
+
+
+# ── Trigger Attendance Alerts (Admin Only) ─────────────────────────
+
+@attendance_bp.route("/alerts/run", methods=["POST"])
+@jwt_required()
+@role_required("admin")
+def run_alerts():
+    """Trigger the cron job task manually to alert students with low attendance."""
+    result = attendance_service.run_attendance_alerts()
+    return jsonify(result), 200

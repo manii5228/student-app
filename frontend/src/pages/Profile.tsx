@@ -32,6 +32,10 @@ const Profile = () => {
   const [confirmLogoutAll, setConfirmLogoutAll] = useState(false);
   const [biometricRegistering, setBiometricRegistering] = useState(false);
   const [biometricMsg, setBiometricMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
+  
+  // Custom device naming
+  const [showBiometricNameModal, setShowBiometricNameModal] = useState(false);
+  const [customDeviceName, setCustomDeviceName] = useState('');
 
   useEffect(() => {
     const stored = localStorage.getItem('user');
@@ -85,9 +89,17 @@ const Profile = () => {
     }
   };
 
-  const registerBiometric = async () => {
+  const startBiometricRegistration = () => {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    setCustomDeviceName(isMobile ? 'Personal Phone' : 'Work Laptop');
+    setShowBiometricNameModal(true);
+    setBiometricMsg(null);
+  };
+
+  const registerBiometric = async (deviceName: string) => {
     setBiometricRegistering(true);
     setBiometricMsg(null);
+    setShowBiometricNameModal(false);
 
     try {
       // Step 1: Check if WebAuthn is available
@@ -96,7 +108,6 @@ const Profile = () => {
       }
 
       // Step 2: Create a credential using the browser's WebAuthn API
-      // In a full production system, the challenge & user info would come from the server.
       const challenge = new Uint8Array(32);
       crypto.getRandomValues(challenge);
 
@@ -134,10 +145,10 @@ const Profile = () => {
       await api.post('/auth/biometric/register', {
         credential_id: rawId,
         public_key: publicKey,
-        device_name: navigator.userAgent.includes('Mobile') ? 'Mobile Device' : 'Desktop Browser',
+        device_name: deviceName || 'Security Key',
       });
 
-      setBiometricMsg({ type: 'success', text: 'Biometric credential registered successfully!' });
+      setBiometricMsg({ type: 'success', text: `Biometric credential for "${deviceName}" registered successfully!` });
       fetchBiometrics();
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || 'Failed to register biometric.';
@@ -259,9 +270,9 @@ const Profile = () => {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {sessions.map((session, idx) => (
-                  <div key={session.id} className={`rounded-[20px] p-4 flex items-center gap-4 transition-all ${idx === 0 ? 'bg-indigo-50 border border-indigo-200' : 'bg-slate-50'}`}>
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${idx === 0 ? 'bg-indigo-100 text-indigo-600' : 'bg-white text-slate-500'}`}>
+                {sessions.map((session) => (
+                  <div key={session.id} className={`rounded-[20px] p-4 flex items-center gap-4 transition-all ${session.is_current ? 'bg-indigo-50 border border-indigo-200' : 'bg-slate-50'}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${session.is_current ? 'bg-indigo-100 text-indigo-600' : 'bg-white text-slate-500'}`}>
                       {getDeviceIcon(session.device_type)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -269,12 +280,20 @@ const Profile = () => {
                         <p className="text-sm font-bold text-slate-800 truncate">
                           {session.device_info?.split(' ').slice(0, 3).join(' ') || 'Unknown Device'}
                         </p>
-                        {idx === 0 && (
-                          <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded-md uppercase">This</span>
+                        {session.is_current && (
+                          <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded-md uppercase">This Device</span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                         <span className="text-xs text-slate-500">{session.ip_address || '—'}</span>
+                        {session.location && (
+                          <>
+                            <span className="text-slate-300">·</span>
+                            <span className="text-xs text-slate-500 truncate max-w-[150px]" title={session.location}>
+                              {session.location}
+                            </span>
+                          </>
+                        )}
                         <span className="text-slate-300">·</span>
                         <span className="text-xs text-slate-400 flex items-center gap-0.5">
                           <Clock className="w-3 h-3" />
@@ -304,6 +323,17 @@ const Profile = () => {
                 )}
               </div>
             )}
+
+            {/* Privacy Notice */}
+            <div className="mt-6 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-start gap-3">
+              <Shield className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Privacy & Session Tracking Notice</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed mt-1">
+                  We log active IP addresses, device user-agents, and approximate network locations to prevent unauthorized access. If you recognize any suspicious activity, immediately revoke that session or change your password.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -313,7 +343,7 @@ const Profile = () => {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-slate-900">Biometric Auth</h3>
               <button 
-                onClick={registerBiometric} 
+                onClick={startBiometricRegistration} 
                 disabled={biometricRegistering}
                 className="text-xs font-bold text-indigo-600 flex items-center gap-1 hover:text-indigo-700 disabled:opacity-50"
               >
@@ -468,6 +498,47 @@ const Profile = () => {
               </button>
               <button onClick={revokeAllSessions} className="flex-1 bg-red-600 text-white py-3.5 rounded-[16px] font-bold text-sm hover:bg-red-700 transition-colors">
                 Logout All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Biometric Device Naming Modal */}
+      {showBiometricNameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-6">
+          <div className="bg-white rounded-[28px] p-6 shadow-2xl max-w-sm w-full animate-scale-in">
+            <div className="w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-indigo-600">
+              <Fingerprint className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Register Biometric</h3>
+            <p className="text-sm text-slate-500 text-center mb-4">
+              Enter a custom nickname for this biometric device (e.g. "Mani's Phone", "Work Laptop") to recognize it.
+            </p>
+            <div className="mb-6">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Device Name</label>
+              <input
+                type="text"
+                value={customDeviceName}
+                onChange={(e) => setCustomDeviceName(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-medium text-slate-900 focus:outline-none focus:border-indigo-400 focus:bg-white transition-all"
+                placeholder="e.g. Personal Phone"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowBiometricNameModal(false)} 
+                className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-[16px] font-bold text-sm hover:bg-slate-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => registerBiometric(customDeviceName)} 
+                disabled={!customDeviceName.trim()}
+                className="flex-1 bg-indigo-600 text-white py-3.5 rounded-[16px] font-bold text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              >
+                Proceed
               </button>
             </div>
           </div>
