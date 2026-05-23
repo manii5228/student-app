@@ -335,6 +335,130 @@ def seed_db():
     db.session.commit()
     print("Academic results, credits, syllabus, exams, and internal marks seeded successfully!")
 
+    # ── Team Finder Profiles ──────────────────────────────────────
+    from app.models.career import (
+        TeamFinderProfile, SkillBadge, EarnedBadge,
+        Project, Milestone, Portfolio,
+    )
+    import json as json_lib
+
+    # Fetch users for seeding
+    students = User.query.filter_by(role=UserRole.STUDENT).order_by(User.id).all()
+    faculty_user = User.query.filter_by(role=UserRole.FACULTY).first()
+
+    tf_profiles = [
+        {"user": students[0], "skills": "React,TypeScript,Node.js", "looking_for": "Backend Developer for Hackathon", "bio": "Fullstack enthusiast passionate about web development"},
+        {"user": students[1], "skills": "Python,Django,PostgreSQL", "looking_for": "Frontend Dev for E-commerce Project", "bio": "Backend specialist, love building APIs and databases"},
+        {"user": students[2], "skills": "Figma,Tailwind,React", "looking_for": "ML Engineer for Health-Tech Startup", "bio": "UI/UX designer who also codes in React"},
+        {"user": students[3], "skills": "Java,Spring Boot,Kubernetes", "looking_for": "DevOps partner for Cloud Project", "bio": "Enterprise developer with cloud experience"},
+        {"user": students[4], "skills": "Flutter,Dart,Firebase", "looking_for": "Backend Developer for Mobile App", "bio": "Mobile app developer with multiple published apps"},
+    ]
+    for tfp in tf_profiles:
+        db.session.add(TeamFinderProfile(
+            user_id=tfp["user"].id, skills=tfp["skills"],
+            looking_for=tfp["looking_for"], bio=tfp["bio"],
+        ))
+    db.session.commit()
+    print("Team Finder profiles seeded!")
+
+    # ── Skill Badges ──────────────────────────────────────────────
+    badge_templates = [
+        {"name": "React Ninja", "desc": "Mastered React.js fundamentals", "cat": "technical", "icon": "code", "pts": 50, "criteria": "Complete React Workshop + Build 1 Project"},
+        {"name": "Hackathon Hero", "desc": "Participated in a 24-hour hackathon", "cat": "hackathon", "icon": "trophy", "pts": 100, "criteria": "Complete any hackathon event"},
+        {"name": "Team Leader", "desc": "Led a project team of 3+ members", "cat": "soft_skill", "icon": "users", "pts": 30, "criteria": "Successfully lead a team project to completion"},
+        {"name": "Cloud Architect", "desc": "Deployed an app to AWS/GCP/Azure", "cat": "technical", "icon": "zap", "pts": 75, "criteria": "Deploy any production application to cloud"},
+        {"name": "Open Source Star", "desc": "Contributed to an open-source project", "cat": "technical", "icon": "star", "pts": 60, "criteria": "Get 1+ PR merged in any open-source repo"},
+        {"name": "Workshop Attendee", "desc": "Attended a technical workshop", "cat": "workshop", "icon": "book", "pts": 20, "criteria": "Attend any department-approved workshop"},
+    ]
+    badges = []
+    for bt in badge_templates:
+        b = SkillBadge(name=bt["name"], description=bt["desc"], category=bt["cat"],
+                       icon=bt["icon"], points=bt["pts"], criteria=bt["criteria"])
+        db.session.add(b)
+        badges.append(b)
+    db.session.commit()
+
+    # Award some badges
+    db.session.add(EarnedBadge(student_id=students[0].id, badge_id=badges[0].id, awarded_by=faculty_user.id, note="Completed React workshop"))
+    db.session.add(EarnedBadge(student_id=students[0].id, badge_id=badges[1].id, awarded_by=faculty_user.id, note="Won VelHack 2026"))
+    db.session.add(EarnedBadge(student_id=students[0].id, badge_id=badges[5].id, awarded_by=faculty_user.id, note="Docker Workshop"))
+    db.session.add(EarnedBadge(student_id=students[1].id, badge_id=badges[3].id, awarded_by=faculty_user.id, note="Deployed Django app to AWS"))
+    db.session.add(EarnedBadge(student_id=students[2].id, badge_id=badges[2].id, awarded_by=faculty_user.id, note="Led UI/UX team"))
+    db.session.commit()
+    print("Skill Badges seeded and awarded!")
+
+    # ── Projects with Kanban Milestones ───────────────────────────
+    from datetime import timedelta, date as dt_date
+    p1 = Project(
+        student_id=students[0].id, title="University Super-App",
+        description="A comprehensive campus management system with React + Flask",
+        team_members="Priya K.,Rahul S.", deadline=dt_date.today() + timedelta(days=30),
+        status="in_progress", progress_pct=40,
+    )
+    db.session.add(p1)
+    db.session.flush()
+    milestones_data = [
+        {"title": "Design Figma mockups", "col": "done", "assigned": "Priya K.", "completed": True},
+        {"title": "Setup Flask backend", "col": "done", "assigned": "Mani M.", "completed": True},
+        {"title": "Build React frontend", "col": "in_progress", "assigned": "Mani M.", "completed": False},
+        {"title": "Integrate APIs", "col": "todo", "assigned": "Rahul S.", "completed": False},
+        {"title": "Write unit tests", "col": "todo", "assigned": None, "completed": False},
+    ]
+    for md in milestones_data:
+        db.session.add(Milestone(
+            project_id=p1.id, title=md["title"], column=md["col"],
+            assigned_to=md["assigned"], is_completed=md["completed"],
+            completed_at=datetime.now(timezone.utc) if md["completed"] else None,
+            due_date=dt_date.today() + timedelta(days=random.randint(5, 25)),
+        ))
+
+    p2 = Project(
+        student_id=students[0].id, title="AI Portfolio Builder",
+        description="Auto-generates CVs from student data using NLP",
+        team_members="Karthik R.", deadline=dt_date.today() + timedelta(days=45),
+        status="in_progress", progress_pct=20,
+    )
+    db.session.add(p2)
+    db.session.flush()
+    for md in [
+        {"title": "Research NLP models", "col": "done", "assigned": "Mani M.", "completed": True},
+        {"title": "Build data pipeline", "col": "in_progress", "assigned": "Karthik R.", "completed": False},
+        {"title": "Train model", "col": "todo", "assigned": None, "completed": False},
+    ]:
+        db.session.add(Milestone(
+            project_id=p2.id, title=md["title"], column=md["col"],
+            assigned_to=md["assigned"], is_completed=md["completed"],
+            completed_at=datetime.now(timezone.utc) if md["completed"] else None,
+        ))
+    db.session.commit()
+    print("Projects with Kanban milestones seeded!")
+
+    # ── Portfolio for student1 ─────────────────────────────────────
+    portfolio_data = {
+        "name": students[0].full_name,
+        "role": "Fullstack Developer",
+        "bio": "A passionate developer building scalable apps with React and Node.js. Hackathon enthusiast and open-source contributor.",
+        "education": f"B.Tech CSE - Veltech University ({students[0].batch_year})",
+        "cgpa": str(students[0].cgpa or "8.5"),
+        "skills": ["React", "TypeScript", "Node.js", "Python", "PostgreSQL", "Docker"],
+        "projects": [
+            {"title": "University Super-App", "desc": "A comprehensive campus management system."},
+            {"title": "AI Portfolio Builder", "desc": "Auto-generates CVs from student data."},
+        ],
+        "experience": [
+            {"company": "TechCorp", "role": "Frontend Intern", "duration": "Jun 2025 - Aug 2025"},
+        ],
+        "links": {"github": "https://github.com/mani", "linkedin": "https://linkedin.com/in/mani"},
+    }
+    db.session.add(Portfolio(
+        user_id=students[0].id, template="modern",
+        data_json=json_lib.dumps(portfolio_data),
+        public_slug=f"{students[0].first_name.lower()}-{students[0].last_name.lower()}-{students[0].id[:6]}",
+        is_public=True, view_count=12,
+    ))
+    db.session.commit()
+    print("Portfolio seeded!")
+
     print("Database seeded successfully!")
     print("   Admin:   admin@veltech.edu.in / admin123!")
     print("   Faculty: faculty@veltech.edu.in / faculty123!")

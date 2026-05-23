@@ -20,6 +20,8 @@ class Project(db.Model):
     deadline = db.Column(db.Date, nullable=True)
     status = db.Column(db.String(20), default="in_progress")  # in_progress, completed, overdue
     progress_pct = db.Column(db.Integer, default=0)
+    last_modified_by = db.Column(db.String(36), nullable=True)
+    last_modified_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     milestones = db.relationship("Milestone", backref="project", lazy="dynamic",
                                  cascade="all, delete-orphan", order_by="Milestone.due_date")
@@ -30,6 +32,8 @@ class Project(db.Model):
             "description": self.description, "subject_code": self.subject_code,
             "team_members": self.team_members, "deadline": str(self.deadline) if self.deadline else None,
             "status": self.status, "progress_pct": self.progress_pct,
+            "last_modified_by": self.last_modified_by,
+            "last_modified_at": self.last_modified_at.isoformat() if self.last_modified_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "milestones": [m.to_dict() for m in self.milestones],
         }
@@ -43,6 +47,8 @@ class Milestone(db.Model):
     due_date = db.Column(db.Date, nullable=True)
     is_completed = db.Column(db.Boolean, default=False)
     completed_at = db.Column(db.DateTime, nullable=True)
+    column = db.Column(db.String(20), default="todo")  # todo, in_progress, done
+    assigned_to = db.Column(db.String(200), nullable=True)  # team member name
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
@@ -51,6 +57,7 @@ class Milestone(db.Model):
             "due_date": str(self.due_date) if self.due_date else None,
             "is_completed": self.is_completed,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "column": self.column, "assigned_to": self.assigned_to,
         }
 
 
@@ -95,6 +102,116 @@ class EarnedBadge(db.Model):
             "badge": self.badge.to_dict() if self.badge else None,
             "note": self.note,
             "earned_at": self.earned_at.isoformat() if self.earned_at else None,
+        }
+
+
+# ── Team Finder ─────────────────────────────────────────────────────
+
+class TeamFinderProfile(db.Model):
+    """Student profile for team matching."""
+    __tablename__ = "team_finder_profiles"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), unique=True, nullable=False)
+    skills = db.Column(db.Text, nullable=True)  # comma-separated: "React,Node.js,Python"
+    looking_for = db.Column(db.String(500), nullable=True)
+    bio = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    user = db.relationship("User", backref=db.backref("team_profile", uselist=False))
+
+    def to_dict(self):
+        from ..models.user import User
+        u = db.session.get(User, self.user_id)
+        return {
+            "id": self.id, "user_id": self.user_id,
+            "name": u.full_name if u else "Unknown",
+            "department": u.department if u else None,
+            "semester": u.semester if u else None,
+            "year": f"{((u.semester or 0) + 1) // 2}{'st' if ((u.semester or 0) + 1) // 2 == 1 else 'nd' if ((u.semester or 0) + 1) // 2 == 2 else 'rd' if ((u.semester or 0) + 1) // 2 == 3 else 'th'} Year" if u and u.semester else None,
+            "avatar_url": u.avatar_url if u else None,
+            "skills": self.skills.split(",") if self.skills else [],
+            "looking_for": self.looking_for, "bio": self.bio,
+            "is_active": self.is_active,
+        }
+
+
+class TeamSwipe(db.Model):
+    """Record of a user swiping left/right on another."""
+    __tablename__ = "team_swipes"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    swiper_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    target_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    direction = db.Column(db.String(10), nullable=False)  # right (like) or left (skip)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    __table_args__ = (db.UniqueConstraint("swiper_id", "target_id", name="uq_swipe"),)
+
+
+class TeamMatch(db.Model):
+    """Mutual match between two users."""
+    __tablename__ = "team_matches"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user1_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    user2_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    matched_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        from ..models.user import User
+        u1 = db.session.get(User, self.user1_id)
+        u2 = db.session.get(User, self.user2_id)
+        return {
+            "id": self.id,
+            "user1": {"id": u1.id, "name": u1.full_name, "department": u1.department} if u1 else None,
+            "user2": {"id": u2.id, "name": u2.full_name, "department": u2.department} if u2 else None,
+            "matched_at": self.matched_at.isoformat() if self.matched_at else None,
+        }
+
+
+class TeamMessage(db.Model):
+    """Chat messages between matched team members."""
+    __tablename__ = "team_messages"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    match_id = db.Column(db.String(36), db.ForeignKey("team_matches.id", ondelete="CASCADE"), nullable=False)
+    sender_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    sent_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        from ..models.user import User
+        sender = db.session.get(User, self.sender_id)
+        return {
+            "id": self.id, "match_id": self.match_id,
+            "sender_id": self.sender_id,
+            "sender_name": sender.full_name if sender else "Unknown",
+            "content": self.content,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None,
+        }
+
+
+# ── Portfolio Builder ──────────────────────────────────────────────
+
+class Portfolio(db.Model):
+    """Student portfolio / resume data stored as JSON."""
+    __tablename__ = "portfolios"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), unique=True, nullable=False)
+    template = db.Column(db.String(30), default="modern")  # modern, classic, creative, minimal
+    data_json = db.Column(db.Text, nullable=True)  # JSON blob with all portfolio data
+    public_slug = db.Column(db.String(50), unique=True, nullable=True)
+    is_public = db.Column(db.Boolean, default=False)
+    view_count = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        import json
+        return {
+            "id": self.id, "user_id": self.user_id,
+            "template": self.template,
+            "data": json.loads(self.data_json) if self.data_json else {},
+            "public_slug": self.public_slug, "is_public": self.is_public,
+            "view_count": self.view_count,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
 

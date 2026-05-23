@@ -1,259 +1,429 @@
-import React, { useState } from 'react';
-import { ChevronLeft, FileText, Download, Edit3, Award, Code, CheckCircle, Save } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, LayoutTemplate, Palette, Plus, Save, Download, Share2, Globe, Link2, Eye, Edit3, ArrowUp, ArrowDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import { api } from '../lib/api';
+
+const TEMPLATES = [
+  { id: 'modern', name: 'Modern', icon: <LayoutTemplate className="w-5 h-5" />, color: 'border-blue-500 text-blue-600 bg-blue-50' },
+  { id: 'minimal', name: 'Minimal', icon: <LayoutTemplate className="w-5 h-5" />, color: 'border-zinc-800 text-zinc-800 bg-zinc-50' },
+  { id: 'creative', name: 'Creative', icon: <Palette className="w-5 h-5" />, color: 'border-pink-500 text-pink-600 bg-pink-50' },
+  { id: 'classic', name: 'Classic', icon: <LayoutTemplate className="w-5 h-5" />, color: 'border-slate-600 text-slate-700 bg-slate-100' }
+];
 
 const PortfolioBuilder = () => {
   const navigate = useNavigate();
-  
+  const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
+  const [isSaving, setIsSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
   const [portfolio, setPortfolio] = useState({
-    name: 'Mani Manjunath',
-    role: 'Fullstack Developer',
-    bio: 'A passionate developer building scalable apps with React and Node.js. Hackathon enthusiast.',
-    education: 'B.Tech CSE - Veltech University (2026)',
-    cgpa: '8.5',
-    skills: ['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Docker'],
-    projects: [
-      { title: 'University Super-App', desc: 'A comprehensive campus management system.' },
-      { title: 'AI Portfolio Builder', desc: 'Auto-generates CVs from student data.' }
-    ]
+    template: 'modern',
+    is_public: false,
+    data: {
+      name: '',
+      role: '',
+      bio: '',
+      skills: [] as string[],
+      projects: [] as any[],
+      links: { github: '', linkedin: '' }
+    }
   });
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [skillInput, setSkillInput] = useState('');
+  const [newProject, setNewProject] = useState({ title: '', desc: '' });
 
-  const handleGeneratePDF = () => {
-    setIsGenerating(true);
-    setSuccess(false);
-    
+  useEffect(() => {
+    const fetchPortfolio = async () => {
+      try {
+        const { data } = await api.get('/career/portfolio');
+        if (data.portfolio) {
+          setPortfolio({
+            template: data.portfolio.template || 'modern',
+            is_public: data.portfolio.is_public || false,
+            data: {
+              name: data.portfolio.data?.name || '',
+              role: data.portfolio.data?.role || '',
+              bio: data.portfolio.data?.bio || '',
+              skills: data.portfolio.data?.skills || [],
+              projects: data.portfolio.data?.projects || [],
+              links: data.portfolio.data?.links || { github: '', linkedin: '' }
+            }
+          });
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPortfolio();
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await api.post('/career/portfolio', {
+        template: portfolio.template,
+        is_public: portfolio.is_public,
+        data: portfolio.data
+      });
+      alert('Portfolio saved successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save portfolio');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateData = (field: string, value: any) => {
+    setPortfolio(prev => ({
+      ...prev,
+      data: { ...prev.data, [field]: value }
+    }));
+  };
+
+  const moveProject = (index: number, direction: 'up' | 'down') => {
+    const projects = [...portfolio.data.projects];
+    if (direction === 'up' && index > 0) {
+      [projects[index], projects[index - 1]] = [projects[index - 1], projects[index]];
+    } else if (direction === 'down' && index < projects.length - 1) {
+      [projects[index], projects[index + 1]] = [projects[index + 1], projects[index]];
+    }
+    updateData('projects', projects);
+  };
+
+  const handleDownloadPDF = () => {
+    setActiveTab('preview');
     setTimeout(() => {
-      // Create a simple HTML document that acts as the CV
-      const cvHtml = `
-        <html>
-          <head>
-            <title>${portfolio.name} - CV</title>
-            <style>
-              body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; color: #333; line-height: 1.6; }
-              h1 { color: #1e3a8a; border-bottom: 2px solid #1e3a8a; padding-bottom: 10px; }
-              h2 { color: #2563eb; margin-top: 30px; }
-              .header { text-align: center; margin-bottom: 40px; }
-              .skills { display: flex; flex-wrap: wrap; gap: 10px; }
-              .skill { background: #eff6ff; color: #1d4ed8; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-size: 14px; }
-              .project { margin-bottom: 20px; }
-            </style>
-          </head>
-          <body>
-            <div class="header">
-              <h1>${portfolio.name}</h1>
-              <p><strong>${portfolio.role}</strong></p>
-              <p>${portfolio.bio}</p>
-            </div>
-            
-            <h2>Education</h2>
-            <p><strong>${portfolio.education}</strong> - CGPA: ${portfolio.cgpa}</p>
-            
-            <h2>Core Skills</h2>
-            <div class="skills">
-              ${portfolio.skills.map(s => `<span class="skill">${s}</span>`).join('')}
-            </div>
-            
-            <h2>Top Projects</h2>
-            ${portfolio.projects.map(p => `
-              <div class="project">
-                <h3>${p.title}</h3>
-                <p>${p.desc}</p>
-              </div>
-            `).join('')}
-          </body>
-        </html>
-      `;
-
-      // Trigger actual download
-      const blob = new Blob([cvHtml], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${portfolio.name.replace(/\s+/g, '_')}_CV.html`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      setIsGenerating(false);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 5000);
-    }, 1500);
+      window.print();
+    }, 500);
   };
 
-  const handleSave = () => {
-    setIsEditing(false);
-    // Real implementation would send to backend here
-  };
+  if (loading) return <div className="h-full flex items-center justify-center bg-slate-50"><span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></span></div>;
 
   return (
-    <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in pb-24 relative">
-      {/* Top Navigation */}
-      <div className="flex justify-between items-center p-6 mt-4 relative z-20">
-        <button onClick={() => navigate('/')} className="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center shadow-sm hover:bg-white transition-colors bg-slate-50">
-          <ChevronLeft className="w-5 h-5 text-slate-600" />
-        </button>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Portfolio Builder</h1>
-        <button 
-          onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-          className={`w-12 h-12 rounded-full border flex items-center justify-center shadow-sm hover:opacity-80 transition-colors ${isEditing ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-slate-50 border-slate-200 text-app-accent'}`}
-        >
-          {isEditing ? <Save className="w-5 h-5" /> : <Edit3 className="w-5 h-5" />}
-        </button>
-      </div>
+    <div className="h-full bg-slate-50 flex flex-col font-sans relative pb-24 print:pb-0">
 
-      <div className="px-6 flex-1 overflow-y-auto custom-scrollbar">
-        
-        {success && (
-          <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-[24px] p-4 flex items-start gap-3 shadow-sm animate-fade-in">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-               <CheckCircle className="w-5 h-5 text-emerald-600" />
-            </div>
+      {/* NO-PRINT Header */}
+      <div className="bg-slate-900 p-6 pt-12 shadow-md relative z-20 print:hidden">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
             <div>
-              <p className="text-sm font-bold text-emerald-800">CV Downloaded Successfully!</p>
-              <p className="text-xs text-emerald-700 mt-1 flex items-center gap-1 font-medium">
-                Check your device's downloads folder.
-              </p>
+              <h1 className="text-xl font-bold text-white tracking-tight">Portfolio Builder</h1>
+              <p className="text-xs text-indigo-300">Showcase your skills</p>
             </div>
           </div>
-        )}
-
-        {/* Live Preview CV Card */}
-        <div className="bg-white rounded-[32px] p-6 shadow-xl border border-slate-100 mb-8 relative overflow-hidden transition-all duration-300">
-          {/* Decorative Background */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-app-blue rounded-bl-[100px] opacity-50"></div>
-          
-          <div className="relative z-10">
-             <div className="flex items-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-[20px] bg-app-dark flex items-center justify-center text-white font-black text-2xl shadow-lg shrink-0">
-                   {portfolio.name.charAt(0) || 'U'}
-                </div>
-                <div className="flex-1">
-                   {isEditing ? (
-                     <>
-                       <input value={portfolio.name} onChange={e => setPortfolio({...portfolio, name: e.target.value})} className="w-full text-xl font-bold text-slate-900 border-b border-slate-200 focus:border-app-accent outline-none mb-1 pb-1 bg-transparent" placeholder="Your Name" />
-                       <input value={portfolio.role} onChange={e => setPortfolio({...portfolio, role: e.target.value})} className="w-full text-sm font-semibold text-app-accent border-b border-slate-200 focus:border-app-accent outline-none pb-1 bg-transparent" placeholder="Your Role" />
-                     </>
-                   ) : (
-                     <>
-                       <h2 className="text-xl font-bold text-slate-900 leading-tight">{portfolio.name}</h2>
-                       <p className="text-sm font-semibold text-app-accent">{portfolio.role}</p>
-                     </>
-                   )}
-                </div>
-             </div>
-
-             {isEditing ? (
-               <textarea 
-                 value={portfolio.bio} 
-                 onChange={e => setPortfolio({...portfolio, bio: e.target.value})}
-                 className="w-full text-sm text-slate-600 font-medium leading-relaxed mb-6 border border-slate-200 rounded-[12px] p-3 focus:border-app-accent outline-none resize-none h-24"
-                 placeholder="Short bio about yourself..."
-               />
-             ) : (
-               <p className="text-sm text-slate-600 font-medium leading-relaxed mb-6">
-                 {portfolio.bio}
-               </p>
-             )}
-
-             {/* Sections */}
-             <div className="space-y-5">
-               <div>
-                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                   <Award className="w-3.5 h-3.5" /> Education
-                 </h3>
-                 {isEditing ? (
-                   <div className="flex gap-2">
-                     <input value={portfolio.education} onChange={e => setPortfolio({...portfolio, education: e.target.value})} className="flex-1 text-sm font-bold text-slate-800 border-b border-slate-200 focus:border-app-accent outline-none pb-1 bg-transparent" placeholder="University Details" />
-                     <input value={portfolio.cgpa} onChange={e => setPortfolio({...portfolio, cgpa: e.target.value})} className="w-20 text-xs font-medium text-slate-500 border-b border-slate-200 focus:border-app-accent outline-none pb-1 bg-transparent" placeholder="CGPA" />
-                   </div>
-                 ) : (
-                   <>
-                     <p className="text-sm font-bold text-slate-800">{portfolio.education}</p>
-                     <p className="text-xs font-medium text-slate-500 mt-0.5">CGPA: {portfolio.cgpa}</p>
-                   </>
-                 )}
-               </div>
-
-               <div>
-                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                   <Code className="w-3.5 h-3.5" /> Core Skills
-                 </h3>
-                 {isEditing ? (
-                   <input 
-                     value={portfolio.skills.join(', ')} 
-                     onChange={e => setPortfolio({...portfolio, skills: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})}
-                     className="w-full text-xs font-medium text-slate-700 border border-slate-200 rounded-[12px] p-3 focus:border-app-accent outline-none bg-transparent" 
-                     placeholder="Comma separated skills (e.g., React, Node.js)" 
-                   />
-                 ) : (
-                   <div className="flex flex-wrap gap-1.5">
-                     {portfolio.skills.map((s, i) => (
-                       <span key={i} className="bg-app-blue/30 text-app-accent px-3 py-1 rounded-[10px] text-[10px] font-black tracking-wide">
-                         {s}
-                       </span>
-                     ))}
-                   </div>
-                 )}
-               </div>
-
-               <div>
-                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                   <FileText className="w-3.5 h-3.5" /> Top Projects
-                 </h3>
-                 <div className="space-y-3">
-                   {portfolio.projects.map((p, idx) => (
-                     <div key={idx} className={`border-l-2 ${isEditing ? 'border-slate-300' : 'border-app-accent'} pl-3 flex flex-col gap-1`}>
-                       {isEditing ? (
-                         <>
-                           <input value={p.title} onChange={e => {
-                             const newProjects = [...portfolio.projects];
-                             newProjects[idx].title = e.target.value;
-                             setPortfolio({...portfolio, projects: newProjects});
-                           }} className="w-full text-sm font-bold text-slate-800 border-b border-slate-200 focus:border-app-accent outline-none bg-transparent" placeholder="Project Title" />
-                           <input value={p.desc} onChange={e => {
-                             const newProjects = [...portfolio.projects];
-                             newProjects[idx].desc = e.target.value;
-                             setPortfolio({...portfolio, projects: newProjects});
-                           }} className="w-full text-xs text-slate-500 border-b border-slate-200 focus:border-app-accent outline-none bg-transparent" placeholder="Short description" />
-                         </>
-                       ) : (
-                         <>
-                           <p className="text-sm font-bold text-slate-800">{p.title}</p>
-                           <p className="text-xs text-slate-500 mt-0.5 leading-tight">{p.desc}</p>
-                         </>
-                       )}
-                     </div>
-                   ))}
-                 </div>
-               </div>
-             </div>
+          <div className="flex gap-2">
+            <button onClick={handleSave} disabled={isSaving} className="w-10 h-10 bg-indigo-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-600 transition-colors">
+              <Save className="w-4 h-4" />
+            </button>
+            <button onClick={handleDownloadPDF} className="w-10 h-10 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-colors">
+              <Download className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* Generate Button */}
-        {!isEditing && (
-          <button 
-            onClick={handleGeneratePDF}
-            disabled={isGenerating}
-            className="w-full bg-app-dark text-white py-4 rounded-[20px] text-sm font-bold flex items-center justify-center gap-2 shadow-xl hover:bg-slate-800 active:scale-[0.98] transition-all disabled:opacity-70 disabled:scale-100"
-          >
-            {isGenerating ? (
-               <><span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Compiling File...</>
-            ) : (
-               <><Download className="w-5 h-5" /> Download ATS-Friendly CV</>
-            )}
+        {/* Tabs */}
+        <div className="flex bg-white/10 p-1 rounded-2xl relative">
+          <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-xl shadow-md transition-transform duration-300 ${activeTab === 'preview' ? 'translate-x-[calc(100%+8px)]' : 'translate-x-0'}`}></div>
+          <button onClick={() => setActiveTab('edit')} className={`flex-1 py-2 text-xs font-bold z-10 flex items-center justify-center gap-2 transition-colors ${activeTab === 'edit' ? 'text-slate-900' : 'text-slate-300'}`}>
+            <Edit3 className="w-4 h-4" /> Editor
           </button>
+          <button onClick={() => setActiveTab('preview')} className={`flex-1 py-2 text-xs font-bold z-10 flex items-center justify-center gap-2 transition-colors ${activeTab === 'preview' ? 'text-slate-900' : 'text-slate-300'}`}>
+            <Eye className="w-4 h-4" /> Preview
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {activeTab === 'edit' ? (
+          /* ─── EDITOR ─── */
+          <div className="p-4 flex flex-col gap-4 animate-fade-in print:hidden">
+
+            {/* Template Selection */}
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">1. Select Template</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {TEMPLATES.map(t => (
+                  <button key={t.id} onClick={() => setPortfolio({ ...portfolio, template: t.id })} className={`p-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${portfolio.template === t.id ? t.color : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200 hover:shadow-sm'}`}>
+                    {t.icon}
+                    <span className="text-xs font-bold">{t.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Basic Info */}
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">2. Basic Info</h3>
+              <div className="flex flex-col gap-3">
+                <input value={portfolio.data.name} onChange={e => updateData('name', e.target.value)} placeholder="Full Name" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 border border-slate-200 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                <input value={portfolio.data.role} onChange={e => updateData('role', e.target.value)} placeholder="Role (e.g. Fullstack Developer)" className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 border border-slate-200 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                <textarea value={portfolio.data.bio} onChange={e => updateData('bio', e.target.value)} placeholder="Short Bio..." rows={3} className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 border border-slate-200 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all resize-none" />
+              </div>
+            </div>
+
+            {/* Links */}
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">3. Social Links</h3>
+              <div className="flex flex-col gap-3">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none"><Globe className="w-4 h-4 text-slate-400" /></div>
+                  <input value={portfolio.data.links?.github || ''} onChange={e => updateData('links', { ...portfolio.data.links, github: e.target.value })} placeholder="GitHub URL" className="w-full bg-slate-50 rounded-xl pl-10 pr-4 py-3 text-sm font-medium text-slate-900 border border-slate-200 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none"><Link2 className="w-4 h-4 text-slate-400" /></div>
+                  <input value={portfolio.data.links?.linkedin || ''} onChange={e => updateData('links', { ...portfolio.data.links, linkedin: e.target.value })} placeholder="LinkedIn URL" className="w-full bg-slate-50 rounded-xl pl-10 pr-4 py-3 text-sm font-medium text-slate-900 border border-slate-200 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                </div>
+              </div>
+            </div>
+
+            {/* Skills */}
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4">4. Skills</h3>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {(portfolio.data.skills || []).map((s: string, i: number) => (
+                  <span key={i} className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 border border-indigo-100">
+                    {s} <button onClick={() => updateData('skills', portfolio.data.skills.filter((_: any, idx: number) => idx !== i))} className="text-indigo-400 hover:text-indigo-700 ml-1">&times;</button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input value={skillInput} onChange={e => setSkillInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && skillInput.trim()) { updateData('skills', [...(portfolio.data.skills || []), skillInput.trim()]); setSkillInput(''); } }} placeholder="Add a skill (e.g. React)" className="flex-1 bg-slate-50 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 border border-slate-200 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all" />
+                <button onClick={() => { if (skillInput.trim()) { updateData('skills', [...(portfolio.data.skills || []), skillInput.trim()]); setSkillInput(''); } }} className="bg-slate-800 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-slate-700 transition-colors">Add</button>
+              </div>
+            </div>
+
+            {/* Projects */}
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center justify-between">
+                <span>5. Key Projects</span>
+                <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{(portfolio.data.projects || []).length}</span>
+              </h3>
+
+              <div className="flex flex-col gap-3 mb-4">
+                {(portfolio.data.projects || []).map((p: any, i: number) => (
+                  <div key={i} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 relative group hover:border-indigo-200 transition-colors">
+                    <div className="absolute right-3 top-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => moveProject(i, 'up')} disabled={i === 0} className="p-1 text-slate-400 hover:text-indigo-600 disabled:opacity-30"><ArrowUp className="w-4 h-4" /></button>
+                      <button onClick={() => moveProject(i, 'down')} disabled={i === portfolio.data.projects.length - 1} className="p-1 text-slate-400 hover:text-indigo-600 disabled:opacity-30"><ArrowDown className="w-4 h-4" /></button>
+                      <button onClick={() => updateData('projects', portfolio.data.projects.filter((_: any, idx: number) => idx !== i))} className="p-1 text-slate-400 hover:text-red-600 ml-1"><XCircleIcon className="w-4 h-4" /></button>
+                    </div>
+                    <p className="text-sm font-bold text-slate-900 pr-20">{p.title}</p>
+                    <p className="text-xs text-slate-500 mt-1.5 line-clamp-3 leading-relaxed">{p.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="p-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 focus-within:border-indigo-400 focus-within:bg-indigo-50/30 transition-colors">
+                <input value={newProject.title} onChange={e => setNewProject({ ...newProject, title: e.target.value })} placeholder="Project Title" className="w-full bg-white rounded-xl px-3 py-2 text-sm font-bold border border-slate-200 mb-2 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100" />
+                <textarea value={newProject.desc} onChange={e => setNewProject({ ...newProject, desc: e.target.value })} placeholder="Project Description & Tech Stack..." rows={3} className="w-full bg-white rounded-xl px-3 py-2 text-sm border border-slate-200 mb-3 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none" />
+                <button onClick={() => { if (newProject.title) { updateData('projects', [...(portfolio.data.projects || []), newProject]); setNewProject({ title: '', desc: '' }); } }} disabled={!newProject.title} className="w-full bg-indigo-100 text-indigo-700 py-3 rounded-xl text-sm font-bold hover:bg-indigo-200 transition-colors disabled:opacity-50 flex justify-center items-center gap-2">
+                  <Plus className="w-4 h-4" /> Add Project
+                </button>
+              </div>
+            </div>
+
+            {/* Visibility Settings */}
+            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-3xl p-5 shadow-sm border border-indigo-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><Share2 className="w-4 h-4 text-indigo-600" /> Public Portfolio</h3>
+                <p className="text-[10px] text-slate-500 mt-1 font-medium">Allow anyone with the link to view your portfolio.</p>
+              </div>
+              <button onClick={() => setPortfolio({ ...portfolio, is_public: !portfolio.is_public })} className={`w-14 h-7 rounded-full relative transition-colors shadow-inner ${portfolio.is_public ? 'bg-indigo-500' : 'bg-slate-300'}`}>
+                <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-sm ${portfolio.is_public ? 'left-8' : 'left-1'}`}></div>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ─── LIVE PREVIEW / PRINT AREA ─── */
+          <div className="p-4 md:p-8 h-full bg-slate-200 print:bg-white print:p-0 flex justify-center">
+            <div className="w-full max-w-3xl min-h-[800px] shadow-2xl border border-slate-300 bg-white relative print:shadow-none print:border-none print:min-h-0 overflow-hidden print:overflow-visible">
+
+              {portfolio.template === 'modern' && (
+                <div className="h-full bg-slate-50 text-slate-900 font-sans pb-10">
+                  <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-12 text-center text-white relative shadow-lg">
+                    <div className="w-28 h-28 bg-white/10 rounded-full mx-auto mb-6 backdrop-blur-md flex items-center justify-center text-4xl font-black border border-white/20 shadow-xl">{portfolio.data.name?.charAt(0) || 'A'}</div>
+                    <h1 className="text-4xl font-black tracking-tight mb-2">{portfolio.data.name || 'Your Name'}</h1>
+                    <p className="text-blue-100 font-bold text-lg tracking-wide uppercase">{portfolio.data.role || 'Your Role'}</p>
+                    <div className="flex justify-center gap-4 mt-6">
+                      {portfolio.data.links?.github && <span className="text-sm text-blue-200 flex items-center gap-1 bg-black/20 px-3 py-1 rounded-full"><Globe className="w-3 h-3" /> {portfolio.data.links.github}</span>}
+                      {portfolio.data.links?.linkedin && <span className="text-sm text-blue-200 flex items-center gap-1 bg-black/20 px-3 py-1 rounded-full"><Link2 className="w-3 h-3" /> {portfolio.data.links.linkedin}</span>}
+                    </div>
+                  </div>
+                  <div className="px-10 -mt-8 relative z-10">
+                    <div className="bg-white rounded-2xl p-8 shadow-xl border border-slate-100 mb-8">
+                      <p className="text-base text-slate-600 leading-relaxed text-center font-medium">"{portfolio.data.bio || 'Add a bio to introduce yourself.'}"</p>
+                    </div>
+                    {portfolio.data.skills?.length > 0 && (
+                      <div className="mb-10">
+                        <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                          <span className="w-8 h-px bg-slate-300"></span> Technical Skills <span className="flex-1 h-px bg-slate-300"></span>
+                        </h2>
+                        <div className="flex flex-wrap gap-2.5">
+                          {portfolio.data.skills.map((s: string, i: number) => <span key={i} className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl text-sm font-bold border border-indigo-100 shadow-sm">{s}</span>)}
+                        </div>
+                      </div>
+                    )}
+                    {portfolio.data.projects?.length > 0 && (
+                      <div>
+                        <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                          <span className="w-8 h-px bg-slate-300"></span> Selected Projects <span className="flex-1 h-px bg-slate-300"></span>
+                        </h2>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                          {portfolio.data.projects.map((p: any, i: number) => (
+                            <div key={i} className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 hover:-translate-y-1 transition-transform border-t-4 border-t-blue-500">
+                              <h3 className="font-black text-lg text-slate-900 mb-2">{p.title}</h3>
+                              <p className="text-sm text-slate-600 leading-relaxed">{p.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {portfolio.template === 'creative' && (
+                <div className="h-full bg-[#fdf2f8] text-slate-800 font-serif pb-12 p-10 print:bg-white">
+                  <div className="mb-12 border-b-4 border-pink-200 pb-8">
+                    <h1 className="text-5xl font-black text-pink-600 mb-2 tracking-tight">{portfolio.data.name || 'Your Name'}</h1>
+                    <p className="text-base font-bold text-pink-400 tracking-[0.3em] uppercase">{portfolio.data.role || 'Your Role'}</p>
+                    <div className="flex gap-4 mt-4 font-sans text-xs font-bold text-slate-500">
+                      {portfolio.data.links?.github && <span>GH: {portfolio.data.links.github}</span>}
+                      {portfolio.data.links?.linkedin && <span>IN: {portfolio.data.links.linkedin}</span>}
+                    </div>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-10">
+                    <div className="md:col-span-1">
+                      <p className="text-xl italic text-slate-600 leading-relaxed border-l-4 border-pink-400 pl-4 bg-pink-50/50 p-4 rounded-r-2xl">"{portfolio.data.bio || 'Your short bio here...'}"</p>
+
+                      {portfolio.data.skills?.length > 0 && (
+                        <div className="mt-10">
+                          <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">Expertise</h2>
+                          <div className="flex flex-wrap gap-2 font-sans">
+                            {portfolio.data.skills.map((s: string, i: number) => <span key={i} className="text-xs font-bold text-white bg-pink-500 px-3 py-1.5 rounded-full shadow-sm">{s}</span>)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="md:col-span-2">
+                      {portfolio.data.projects?.length > 0 && (
+                        <div>
+                          <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-4">Selected Works <div className="h-px bg-pink-200 flex-1"></div></h2>
+                          <div className="flex flex-col gap-6">
+                            {portfolio.data.projects.map((p: any, i: number) => (
+                              <div key={i} className="bg-white rounded-3xl p-6 shadow-xl shadow-pink-900/5 border border-pink-50 hover:scale-[1.02] transition-transform relative overflow-hidden">
+                                <div className="absolute top-0 left-0 w-2 h-full bg-pink-400"></div>
+                                <h3 className="font-black text-xl text-slate-900 mb-2">{p.title}</h3>
+                                <p className="text-sm text-slate-600 font-sans leading-relaxed">{p.desc}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {portfolio.template === 'minimal' && (
+                <div className="h-full bg-white text-zinc-900 font-sans p-12 max-w-2xl mx-auto border-l border-r border-zinc-100">
+                  <div className="mb-16">
+                    <h1 className="text-4xl font-light tracking-tight text-zinc-900 mb-1">{portfolio.data.name || 'Your Name'}</h1>
+                    <p className="text-sm text-zinc-500 font-medium tracking-wide">{portfolio.data.role || 'Role'}</p>
+                    <div className="flex gap-3 mt-3 text-[10px] uppercase tracking-widest text-zinc-400 font-bold">
+                      {portfolio.data.links?.github && <a href={portfolio.data.links.github} className="hover:text-zinc-800">GitHub</a>}
+                      {portfolio.data.links?.linkedin && <a href={portfolio.data.links.linkedin} className="hover:text-zinc-800">LinkedIn</a>}
+                    </div>
+                  </div>
+
+                  <div className="mb-16">
+                    <p className="text-sm text-zinc-700 leading-loose">{portfolio.data.bio || 'Bio.'}</p>
+                  </div>
+
+                  {portfolio.data.skills?.length > 0 && (
+                    <div className="mb-16">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold mb-4">Skills</p>
+                      <p className="text-sm leading-relaxed text-zinc-800 font-medium">{portfolio.data.skills.join('  •  ')}</p>
+                    </div>
+                  )}
+
+                  {portfolio.data.projects?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400 font-bold mb-6">Projects</p>
+                      <div className="flex flex-col gap-10">
+                        {portfolio.data.projects.map((p: any, i: number) => (
+                          <div key={i} className="group">
+                            <h3 className="text-base font-semibold text-zinc-900 group-hover:text-zinc-600 transition-colors">{p.title}</h3>
+                            <p className="text-sm text-zinc-500 mt-2 leading-relaxed">{p.desc}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {portfolio.template === 'classic' && (
+                <div className="h-full bg-white text-black font-serif p-10 px-12">
+                  <div className="text-center border-b-2 border-black pb-6 mb-8">
+                    <h1 className="text-3xl font-bold uppercase tracking-[0.1em] mb-1">{portfolio.data.name || 'YOUR NAME'}</h1>
+                    <p className="text-base mb-2 italic">{portfolio.data.role || 'Role'}</p>
+                    <p className="text-xs text-gray-600 font-sans">
+                      {portfolio.data.links?.github} {portfolio.data.links?.github && portfolio.data.links?.linkedin && '  |  '} {portfolio.data.links?.linkedin}
+                    </p>
+                  </div>
+
+                  <h2 className="text-sm font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3">Professional Summary</h2>
+                  <p className="text-sm text-gray-800 leading-relaxed mb-8">{portfolio.data.bio || 'Professional summary.'}</p>
+
+                  {portfolio.data.skills?.length > 0 && (
+                    <>
+                      <h2 className="text-sm font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-3">Technical Skills</h2>
+                      <div className="text-sm text-gray-800 mb-8 font-sans">
+                        <span className="font-bold mr-2">Core Competencies:</span> {portfolio.data.skills.join(', ')}
+                      </div>
+                    </>
+                  )}
+
+                  {portfolio.data.projects?.length > 0 && (
+                    <>
+                      <h2 className="text-sm font-bold uppercase tracking-widest border-b border-gray-300 pb-1 mb-4">Projects & Experience</h2>
+                      <div className="flex flex-col gap-5">
+                        {portfolio.data.projects.map((p: any, i: number) => (
+                          <div key={i}>
+                            <h3 className="text-base font-bold font-sans">{p.title}</h3>
+                            <p className="text-sm text-gray-800 mt-1 leading-relaxed">{p.desc}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+            </div>
+          </div>
         )}
       </div>
 
+      <BottomNav className="print:hidden" />
     </div>
   );
 };
+
+// Dummy component just to fix the icon error if it isn't imported
+const XCircleIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+)
 
 export default PortfolioBuilder;

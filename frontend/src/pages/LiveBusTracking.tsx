@@ -2,117 +2,159 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, MapPin, Bus, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import { api } from '../lib/api';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix leaflet default icon issue in React
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom icons
+const busIcon = new L.DivIcon({
+  html: `<div class="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg border-2 border-blue-500 relative">
+           <div class="absolute -inset-1 bg-blue-500/30 rounded-full animate-ping"></div>
+           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
+         </div>`,
+  className: '',
+  iconSize: [40, 40],
+  iconAnchor: [20, 20]
+});
+
+const collegeIcon = new L.DivIcon({
+  html: `<div class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+         </div>`,
+  className: '',
+  iconSize: [32, 32],
+  iconAnchor: [16, 16]
+});
+
+interface BusData {
+  id: string;
+  bus_number: string;
+  route_name: string;
+  type: string;
+  position: [number, number];
+  next_stop: string;
+  eta: string;
+}
 
 const LiveBusTracking = () => {
   const navigate = useNavigate();
-  const [busPosition, setBusPosition] = useState({ x: 10, y: 10 });
-  const [eta, setEta] = useState(15);
+  const [buses, setBuses] = useState<BusData[]>([]);
+  const [selectedBus, setSelectedBus] = useState<BusData | null>(null);
 
-  // Simulate bus movement along a path
+  const veltechCoords: [number, number] = [13.1818, 80.0401];
+
+  const fetchBuses = () => {
+    api.get('/campus/buses/live').then(r => {
+      setBuses(r.data.buses || []);
+      if (!selectedBus && r.data.buses?.length > 0) {
+        setSelectedBus(r.data.buses[0]);
+      } else if (selectedBus) {
+        const updated = r.data.buses.find((b:any) => b.id === selectedBus.id);
+        if (updated) setSelectedBus(updated);
+      }
+    }).catch(console.error);
+  };
+
   useEffect(() => {
-    const path = [
-      {x: 10, y: 10}, {x: 20, y: 15}, {x: 30, y: 30}, 
-      {x: 50, y: 40}, {x: 70, y: 60}, {x: 80, y: 80}
-    ];
-    let step = 0;
-    
-    const interval = setInterval(() => {
-      step = (step + 1) % path.length;
-      setBusPosition(path[step]);
-      
-      // Update ETA
-      setEta(Math.max(1, 15 - (step * 3)));
-    }, 3000); // Move every 3 seconds
-
+    fetchBuses();
+    const interval = setInterval(fetchBuses, 3000); // Poll every 3 seconds for live simulation
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="min-h-full bg-slate-900 flex flex-col font-sans animate-fade-in relative pb-24">
-      
+    <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       {/* Header */}
-      <div className="p-6 pt-12 absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-slate-900 to-transparent">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/campus')} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg">
-              <ChevronLeft className="w-5 h-5 text-white" />
-            </button>
-            <div>
-              <h1 className="text-xl font-bold text-white shadow-sm">Live Bus Tracker</h1>
-              <p className="text-xs text-blue-200 shadow-sm font-medium">Route 4 • Main City to Campus</p>
-            </div>
+      <div className="p-4 pt-12 absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-slate-900/80 to-transparent pointer-events-none">
+        <div className="flex items-center gap-3 pointer-events-auto">
+          <button onClick={() => navigate('/campus')} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-colors">
+            <ChevronLeft className="w-5 h-5 text-white" />
+          </button>
+          <div>
+            <h1 className="text-lg font-bold text-white shadow-sm">Live Bus Tracker</h1>
+            <p className="text-[10px] text-blue-200 shadow-sm font-medium uppercase tracking-wider">Campus Shuttles</p>
           </div>
         </div>
       </div>
 
-      {/* Simulated Map Area */}
-      <div className="flex-1 relative bg-[#1e293b] overflow-hidden">
-        {/* Map Grid / Roads */}
-        <div className="absolute inset-0 opacity-20" 
-             style={{ backgroundImage: 'linear-gradient(#334155 2px, transparent 2px), linear-gradient(90deg, #334155 2px, transparent 2px)', backgroundSize: '40px 40px' }}>
-        </div>
+      {/* Map Area */}
+      <div className="flex-1 relative z-0">
+        <MapContainer center={veltechCoords} zoom={15} className="w-full h-full" zoomControl={false}>
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {/* College Marker */}
+          <Marker position={veltechCoords} icon={collegeIcon}>
+            <Popup>
+              <div className="font-bold text-slate-800">Vel Tech Campus</div>
+              <div className="text-xs text-slate-500">Main Gate</div>
+            </Popup>
+          </Marker>
 
-        {/* Animated Route Line */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 100">
-          <path d="M 10 10 L 20 15 L 30 30 L 50 40 L 70 60 L 80 80" 
-                fill="none" 
-                stroke="#3b82f6" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                className="opacity-50" />
-        </svg>
-
-        {/* Destination Pin */}
-        <div className="absolute transition-all" style={{ left: '80%', top: '80%', transform: 'translate(-50%, -100%)' }}>
-          <div className="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/50 animate-bounce">
-            <MapPin className="w-4 h-4 text-white" />
-          </div>
-          <div className="mt-1 text-center bg-slate-900/80 backdrop-blur-sm px-2 py-1 rounded-lg">
-            <p className="text-[10px] font-bold text-emerald-400">Campus</p>
-          </div>
-        </div>
-
-        {/* Moving Bus Pin */}
-        <div className="absolute transition-all duration-1000 ease-linear z-10" 
-             style={{ left: `${busPosition.x}%`, top: `${busPosition.y}%`, transform: 'translate(-50%, -50%)' }}>
-          <div className="relative">
-            <div className="absolute -inset-4 bg-blue-500/20 rounded-full animate-ping"></div>
-            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-2xl shadow-blue-500/50 border-4 border-blue-500">
-              <Bus className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
+          {/* Bus Markers */}
+          {buses.map(bus => (
+            <Marker key={bus.id} position={bus.position} icon={busIcon} eventHandlers={{ click: () => setSelectedBus(bus) }}>
+              <Popup>
+                <div className="font-bold text-slate-800">{bus.bus_number} - {bus.route_name}</div>
+                <div className="text-xs text-emerald-600 font-bold mt-1">ETA: {bus.eta}</div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
       </div>
 
-      {/* Info Panel Bottom */}
-      <div className="absolute bottom-[80px] left-4 right-4 z-20">
-        <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-5 shadow-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center shadow-inner">
-                <Bus className="w-6 h-6 text-white" />
+      {/* Selected Bus Info Panel */}
+      {selectedBus && (
+        <div className="absolute bottom-20 left-4 right-4 z-20 animate-slide-up">
+          <div className="bg-white/90 backdrop-blur-xl border border-white rounded-3xl p-5 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center border border-blue-200">
+                  <Bus className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-slate-900 font-black">{selectedBus.bus_number}</h3>
+                  <p className="text-slate-500 text-xs font-bold">{selectedBus.route_name}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-white font-bold">TN 01 AB 1234</h3>
-                <p className="text-blue-200 text-xs">Driver: Kumar</p>
+              <div className="text-right">
+                <div className="flex items-center gap-1 text-emerald-500 justify-end mb-1">
+                  <Clock className="w-4 h-4" />
+                  <span className="font-black text-xl">{selectedBus.eta.split(' ')[0]}</span>
+                  <span className="text-xs font-bold mt-1">min</span>
+                </div>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Next Stop: {selectedBus.next_stop}</p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="flex items-center gap-1 text-emerald-400 justify-end mb-1">
-                <Clock className="w-4 h-4" />
-                <span className="font-black text-xl">{eta}</span>
-                <span className="text-xs font-bold mt-1">min</span>
-              </div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide">Estimated Arrival</p>
+            
+            {/* Bus Picker */}
+            <div className="flex gap-2 overflow-x-auto pb-1 hide-scrollbar">
+              {buses.map(b => (
+                <button
+                  key={b.id}
+                  onClick={() => setSelectedBus(b)}
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    selectedBus.id === b.id 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                  }`}
+                >
+                  {b.bus_number}
+                </button>
+              ))}
             </div>
-          </div>
-          
-          <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${100 - (eta / 15 * 100)}%` }}></div>
           </div>
         </div>
-      </div>
+      )}
 
       <BottomNav />
     </div>

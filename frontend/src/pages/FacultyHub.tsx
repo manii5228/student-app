@@ -66,6 +66,7 @@ const FacultyHub = () => {
 
   // ── Campus Quick Access ──
   const campusFeatures = [
+    { name: 'Hostel Passes', icon: <CheckSquare className="w-5 h-5 text-indigo-600"/>, color: 'bg-indigo-100', path: '/faculty/hostel-passes' },
     { name: 'Canteen', icon: <Coffee className="w-5 h-5 text-orange-600"/>, color: 'bg-orange-100', path: '/campus/canteen' },
     { name: 'Indoor Map', icon: <MapPin className="w-5 h-5 text-emerald-600"/>, color: 'bg-emerald-100', path: '/campus/map' },
     { name: 'Events & Fests', icon: <Calendar className="w-5 h-5 text-pink-600"/>, color: 'bg-pink-100', path: '/campus/events' },
@@ -73,7 +74,6 @@ const FacultyHub = () => {
     { name: 'Anon Feedback', icon: <MessageSquare className="w-5 h-5 text-purple-600"/>, color: 'bg-purple-100', path: '/campus/feedback' },
     { name: 'Health Center', icon: <Heart className="w-5 h-5 text-red-600"/>, color: 'bg-red-100', path: '/utility/health' },
     { name: 'Emergency', icon: <AlertTriangle className="w-5 h-5 text-red-700"/>, color: 'bg-red-50', path: '/utility/emergency' },
-    { name: 'Sync & Offline', icon: <RefreshCw className="w-5 h-5 text-slate-600"/>, color: 'bg-slate-100', path: '/utility/sync' },
   ];
 
   // ── Career Management (Faculty adds/manages) ──

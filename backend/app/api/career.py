@@ -1,8 +1,9 @@
 """
 Career API — Job Portal, Eligibility Check, Interviews, Company Prep, Alumni, Referrals,
-              Project Reminders, Skill Badges
+              Project Reminders, Skill Badges, Team Finder, Portfolio Builder
 """
 
+import json as json_lib
 from datetime import datetime, timezone, date as dt_date
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -14,8 +15,10 @@ from ..models.career import (
     CompanyPrepQuestion, AlumniProfile,
     Project, Milestone, SkillBadge, EarnedBadge,
     Internship, MockTest, MockTestQuestion, MockTestAttempt,
+    TeamFinderProfile, TeamSwipe, TeamMatch, TeamMessage,
+    Portfolio,
 )
-from ..models.user import User
+from ..models.user import User, UserRole
 
 career_bp = Blueprint("career", __name__)
 
@@ -160,9 +163,18 @@ def referral_hub():
 @career_bp.route("/projects", methods=["GET"])
 @jwt_required()
 def my_projects():
-    """Get all projects for the logged-in student."""
-    projects = Project.query.filter_by(student_id=get_jwt_identity())\
-        .order_by(Project.created_at.desc()).all()
+    """Get projects — students see their own, faculty sees mentee projects."""
+    uid = get_jwt_identity()
+    user = db.session.get(User, uid)
+    if user and user.role == UserRole.FACULTY:
+        # Faculty sees projects from all mentees
+        mentees = User.query.filter_by(mentor_id=uid, role=UserRole.STUDENT).all()
+        mentee_ids = [m.id for m in mentees]
+        projects = Project.query.filter(Project.student_id.in_(mentee_ids))\
+            .order_by(Project.created_at.desc()).all()
+    else:
+        projects = Project.query.filter_by(student_id=uid)\
+            .order_by(Project.created_at.desc()).all()
     return jsonify({"projects": [p.to_dict() for p in projects]}), 200
 
 
@@ -210,6 +222,7 @@ def update_project(pid):
     if "title" in data: p.title = data["title"]
     if "description" in data: p.description = data["description"]
     if "status" in data: p.status = data["status"]
+    if "team_members" in data: p.team_members = data["team_members"]
     if "deadline" in data and data["deadline"]:
         p.deadline = dt_date.fromisoformat(data["deadline"].replace("Z", "").split("T")[0])
     db.session.commit()
@@ -256,6 +269,31 @@ def toggle_milestone(mid):
         return jsonify({"error": "Not found"}), 404
     ms.is_completed = not ms.is_completed
     ms.completed_at = datetime.now(timezone.utc) if ms.is_completed else None
+    ms.column = "done" if ms.is_completed else "todo"
+    db.session.commit()
+    _update_project_progress(ms.project)
+    return jsonify({"milestone": ms.to_dict(), "project": ms.project.to_dict()}), 200
+
+
+@career_bp.route("/milestones/<mid>", methods=["PUT"])
+@jwt_required()
+def update_milestone(mid):
+    """Update milestone fields — column (Kanban drag), assigned_to, title."""
+    ms = db.session.get(Milestone, mid)
+    if not ms:
+        return jsonify({"error": "Not found"}), 404
+    data = request.get_json()
+    if "column" in data:
+        ms.column = data["column"]
+        ms.is_completed = data["column"] == "done"
+        ms.completed_at = datetime.now(timezone.utc) if ms.is_completed else None
+    if "assigned_to" in data:
+        ms.assigned_to = data["assigned_to"]
+    if "title" in data:
+        ms.title = data["title"]
+    # Update project last-modified
+    ms.project.last_modified_by = get_jwt_identity()
+    ms.project.last_modified_at = datetime.now(timezone.utc)
     db.session.commit()
     _update_project_progress(ms.project)
     return jsonify({"milestone": ms.to_dict(), "project": ms.project.to_dict()}), 200
@@ -327,6 +365,238 @@ def award_badge(bid):
     db.session.add(earned)
     db.session.commit()
     return jsonify({"message": "Badge awarded", "earned": earned.to_dict()}), 201
+
+
+@career_bp.route("/badges/auto-award", methods=["POST"])
+@jwt_required()
+@role_required("admin", "faculty")
+def auto_award_badges():
+    """Bulk-award a badge to multiple students (e.g. after a workshop)."""
+    data = request.get_json()
+    badge_id = data.get("badge_id")
+    student_ids = data.get("student_ids", [])
+    note = data.get("note", "Auto-awarded")
+    awarded = []
+    for sid in student_ids:
+        existing = EarnedBadge.query.filter_by(student_id=sid, badge_id=badge_id).first()
+        if not existing:
+            e = EarnedBadge(student_id=sid, badge_id=badge_id, awarded_by=get_jwt_identity(), note=note)
+            db.session.add(e)
+            awarded.append(sid)
+    db.session.commit()
+    return jsonify({"message": f"{len(awarded)} badges awarded", "awarded_to": awarded}), 200
+
+
+@career_bp.route("/badges/<bid>/holders", methods=["GET"])
+@jwt_required()
+def badge_holders(bid):
+    """List all students who earned a specific badge."""
+    earned = EarnedBadge.query.filter_by(badge_id=bid).all()
+    holders = []
+    for e in earned:
+        u = db.session.get(User, e.student_id)
+        if u:
+            holders.append({
+                "student_id": u.id, "name": u.full_name, "department": u.department,
+                "earned_at": e.earned_at.isoformat() if e.earned_at else None,
+            })
+    return jsonify({"holders": holders}), 200
+
+
+# ── Team Finder ───────────────────────────────────────────────────
+
+@career_bp.route("/team-finder/profile", methods=["GET"])
+@jwt_required()
+def get_my_tf_profile():
+    """Get the current user's team finder profile."""
+    profile = TeamFinderProfile.query.filter_by(user_id=get_jwt_identity()).first()
+    return jsonify({"profile": profile.to_dict() if profile else None}), 200
+
+
+@career_bp.route("/team-finder/profile", methods=["POST"])
+@jwt_required()
+def upsert_tf_profile():
+    """Create or update the team finder profile."""
+    uid = get_jwt_identity()
+    data = request.get_json()
+    profile = TeamFinderProfile.query.filter_by(user_id=uid).first()
+    if not profile:
+        profile = TeamFinderProfile(user_id=uid)
+        db.session.add(profile)
+    if "skills" in data:
+        skills = data["skills"]
+        profile.skills = ",".join(skills) if isinstance(skills, list) else skills
+    if "looking_for" in data:
+        profile.looking_for = data["looking_for"]
+    if "bio" in data:
+        profile.bio = data["bio"]
+    if "is_active" in data:
+        profile.is_active = data["is_active"]
+    db.session.commit()
+    return jsonify({"profile": profile.to_dict()}), 200
+
+
+@career_bp.route("/team-finder/profiles", methods=["GET"])
+@jwt_required()
+def list_tf_profiles():
+    """Get profiles for swiping — excludes self and already-swiped users."""
+    uid = get_jwt_identity()
+    # Get IDs already swiped
+    swiped = db.session.query(TeamSwipe.target_id).filter_by(swiper_id=uid).subquery()
+    # Filter: active, not self, not swiped
+    query = TeamFinderProfile.query.filter(
+        TeamFinderProfile.user_id != uid,
+        TeamFinderProfile.is_active == True,
+        ~TeamFinderProfile.user_id.in_(swiped)
+    )
+    # Optional filters
+    dept = request.args.get("department")
+    skill = request.args.get("skill")
+    if dept:
+        user_ids = [u.id for u in User.query.filter_by(department=dept, role=UserRole.STUDENT).all()]
+        query = query.filter(TeamFinderProfile.user_id.in_(user_ids))
+    profiles = query.limit(20).all()
+    result = []
+    # Compute match percentage based on complementary skills
+    my_profile = TeamFinderProfile.query.filter_by(user_id=uid).first()
+    my_skills = set(s.strip().lower() for s in (my_profile.skills or "").split(",") if s.strip()) if my_profile else set()
+    for p in profiles:
+        d = p.to_dict()
+        their_skills = set(s.strip().lower() for s in (p.skills or "").split(",") if s.strip())
+        # Complementary: score higher for skills the user DOESN'T have
+        if my_skills and their_skills:
+            complementary = len(their_skills - my_skills)
+            overlap = len(their_skills & my_skills)
+            d["match_pct"] = min(95, 50 + complementary * 15 - overlap * 5)
+        else:
+            d["match_pct"] = 70
+        if skill and skill.lower() not in [s.lower() for s in d.get("skills", [])]:
+            continue
+        result.append(d)
+    result.sort(key=lambda x: x.get("match_pct", 0), reverse=True)
+    return jsonify({"profiles": result}), 200
+
+
+@career_bp.route("/team-finder/swipe", methods=["POST"])
+@jwt_required()
+def swipe_profile():
+    """Swipe right (like) or left (skip) on a profile."""
+    uid = get_jwt_identity()
+    data = request.get_json()
+    target_id = data["target_id"]
+    direction = data["direction"]  # "right" or "left"
+    # Prevent duplicate
+    existing = TeamSwipe.query.filter_by(swiper_id=uid, target_id=target_id).first()
+    if existing:
+        return jsonify({"message": "Already swiped"}), 200
+    swipe = TeamSwipe(swiper_id=uid, target_id=target_id, direction=direction)
+    db.session.add(swipe)
+    db.session.commit()
+    # Check for mutual match
+    is_match = False
+    if direction == "right":
+        reverse = TeamSwipe.query.filter_by(swiper_id=target_id, target_id=uid, direction="right").first()
+        if reverse:
+            # Create match!
+            match = TeamMatch(user1_id=uid, user2_id=target_id)
+            db.session.add(match)
+            db.session.commit()
+            is_match = True
+    return jsonify({"message": "Swiped", "is_match": is_match}), 200
+
+
+@career_bp.route("/team-finder/matches", methods=["GET"])
+@jwt_required()
+def my_matches():
+    """Get mutual matches for the current user."""
+    uid = get_jwt_identity()
+    matches = TeamMatch.query.filter(
+        (TeamMatch.user1_id == uid) | (TeamMatch.user2_id == uid)
+    ).order_by(TeamMatch.matched_at.desc()).all()
+    result = []
+    for m in matches:
+        d = m.to_dict()
+        # Add the "other" user for convenience
+        other_id = m.user2_id if m.user1_id == uid else m.user1_id
+        other = db.session.get(User, other_id)
+        profile = TeamFinderProfile.query.filter_by(user_id=other_id).first()
+        d["other_user"] = {
+            "id": other.id, "name": other.full_name,
+            "department": other.department,
+            "skills": profile.skills.split(",") if profile and profile.skills else [],
+        } if other else None
+        result.append(d)
+    return jsonify({"matches": result}), 200
+
+
+@career_bp.route("/team-finder/messages/<match_id>", methods=["GET"])
+@jwt_required()
+def get_messages(match_id):
+    """Get chat messages for a match."""
+    messages = TeamMessage.query.filter_by(match_id=match_id)\
+        .order_by(TeamMessage.sent_at.asc()).all()
+    return jsonify({"messages": [m.to_dict() for m in messages]}), 200
+
+
+@career_bp.route("/team-finder/messages/<match_id>", methods=["POST"])
+@jwt_required()
+def send_message(match_id):
+    """Send a chat message in a match."""
+    data = request.get_json()
+    msg = TeamMessage(
+        match_id=match_id, sender_id=get_jwt_identity(),
+        content=data["content"],
+    )
+    db.session.add(msg)
+    db.session.commit()
+    return jsonify({"message": msg.to_dict()}), 201
+
+
+# ── Portfolio Builder ─────────────────────────────────────────────
+
+@career_bp.route("/portfolio", methods=["GET"])
+@jwt_required()
+def get_portfolio():
+    """Get portfolio for the current user."""
+    p = Portfolio.query.filter_by(user_id=get_jwt_identity()).first()
+    return jsonify({"portfolio": p.to_dict() if p else None}), 200
+
+
+@career_bp.route("/portfolio", methods=["PUT"])
+@jwt_required()
+def save_portfolio():
+    """Save/update portfolio data."""
+    uid = get_jwt_identity()
+    data = request.get_json()
+    p = Portfolio.query.filter_by(user_id=uid).first()
+    if not p:
+        # Generate a slug from user name
+        user = db.session.get(User, uid)
+        slug = (user.full_name.lower().replace(" ", "-") + "-" + uid[:6]) if user else uid[:12]
+        p = Portfolio(user_id=uid, public_slug=slug)
+        db.session.add(p)
+    if "template" in data:
+        p.template = data["template"]
+    if "data" in data:
+        p.data_json = json_lib.dumps(data["data"])
+    if "is_public" in data:
+        p.is_public = data["is_public"]
+    db.session.commit()
+    return jsonify({"portfolio": p.to_dict()}), 200
+
+
+@career_bp.route("/portfolio/public/<slug>", methods=["GET"])
+def public_portfolio(slug):
+    """Public portfolio view — no auth required."""
+    p = Portfolio.query.filter_by(public_slug=slug, is_public=True).first()
+    if not p:
+        return jsonify({"error": "Portfolio not found"}), 404
+    p.view_count = (p.view_count or 0) + 1
+    db.session.commit()
+    user = db.session.get(User, p.user_id)
+    result = p.to_dict()
+    result["user_name"] = user.full_name if user else "Unknown"
+    return jsonify({"portfolio": result}), 200
 
 
 # ── Internship Tracker ────────────────────────────────────────────
@@ -488,3 +758,5 @@ def create_mock_test():
     db.session.add(t)
     db.session.commit()
     return jsonify({"message": "Test created", "test": t.to_dict()}), 201
+
+

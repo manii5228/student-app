@@ -1,15 +1,6 @@
 # Improvements: Campus Operations & Finance
 
-## 1. Digital Canteen
-### Frontend Improvements
-- **Real-time Queue Status:** Show estimated wait time visually (e.g., "5 orders ahead of you").
-- **Combo Offers & Upsells:** "Frequently bought together" suggestions at checkout.
-- **Dietary Badges:** Clear icons for Veg, Non-Veg, Vegan, Gluten-Free, and spicy levels.
 
-### Backend Improvements
-- **Payment Gateway Integration:** Razorpay or Stripe integration for wallet/UPI payments.
-- **Inventory Management:** Auto-disable items when stock hits zero to prevent unfulfillable orders.
-- **Analytics Dashboard:** For canteen owners to see peak hours and popular items.
 
 ## 2. Bus Tracking
 ### Frontend Improvements
@@ -20,23 +11,18 @@
 - **Geofencing:** Backend alerts if a bus deviates significantly from its assigned route.
 - **Hardware Integration:** Stable API endpoints to receive high-frequency coordinate data from GPS hardware on buses.
 
+for hostellers,dayscholersand dayscholer can be later
+for hostellers it need to have 3 sections leaders there will be 1-2 buses every 1 hour (sample timing 8:45 9:45 10:45 11:45 12:45 1:45 2:45 3:45 4:45 5:45 6:45 7:45),prince for prince every 2 hours (sample timing 8:30,10:30,12:30,2:30,4:30,6:30,8:30),kings every 4 hours (sample timing 8:30,12:30,4:30,8:30) the buses need to be shown has where it is near clg or hostel or on the way to the clg or hostel, from leadershostel there will be has 8:45,9:00 .... cleean and neat animation odf buses use veltech universtiy to leaders,kings,princes maps so that it is easy for student to see where is bus
+still balnk there is a screen shot upload it ,if not ask the images from me
 ## 3. Hostel Pass
 ### Frontend Improvements
 - **Dynamic QR Codes:** QR codes that refresh every 30 seconds to prevent screenshots and sharing.
 - **Parental Approval Flow:** UI for showing parent approval status with "Resend Request" buttons.
 
 ### Backend Improvements
-- **Warden Dashboard APIs:** Bulk approval/rejection endpoints for wardens.
-- **Integration with Biometrics:** Link the digital pass with turnstiles or gate hardware for automated checkout.
+- **Mentors Dashboard APIs:** Bulk approval/rejection endpoints for mentors.
 
-## 4. Library Portal
-### Frontend Improvements
-- **Barcode Scanning:** Use the device camera to scan a book's ISBN to check availability.
-- **Reading Lists:** Allow students to create and share custom reading lists or bookmarks.
 
-### Backend Improvements
-- **Late Fee Calculation:** Automated chronological engine to calculate and apply late fees to the student's account.
-- **RFID Integration:** APIs to support RFID-based self-checkout kiosks in the physical library.
 
 ## 5. Campus Map
 ### Frontend Improvements
@@ -46,3 +32,8 @@
 ### Backend Improvements
 - **Custom Tile Server:** Host custom Mapbox or Leaflet tiles for high-detail, offline-capable campus maps.
 - **Dynamic POIs:** Allow admins to temporarily add Points of Interest (e.g., "Medical Tent" during a fest).
+take veltech university map from gmaps, add all blocks as markers, with lab, departments, faculty rooms, canteens, rest rooms, dept blocks, admin block, blocks number, library
+
+nothing changed still blank th3e campus and bus tracking is blank
+
+

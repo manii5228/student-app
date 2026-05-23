@@ -77,9 +77,39 @@ def update_order_status(oid):
 @campus_bp.route("/buses", methods=["GET"])
 @jwt_required()
 def list_buses():
-    """Get all active buses with live GPS."""
+    """Get all active buses."""
     buses = Bus.query.filter_by(is_active=True).all()
     return jsonify({"buses": [b.to_dict() for b in buses]}), 200
+
+
+@campus_bp.route("/buses/live", methods=["GET"])
+@jwt_required()
+def list_live_buses():
+    """Simulated Live Bus Tracking for Hostellers."""
+    import time
+    import math
+    # VelTech coords: 13.1818, 80.0401
+    
+    # Leaders: 13.1850, 80.0350
+    # Princes: 13.1900, 80.0300
+    # Kings: 13.1800, 80.0450
+
+    t = time.time()
+    # Math magic to simulate back and forth movement between college and hostel
+    def get_pos(start, end, offset, speed_factor):
+        cycle = (t * speed_factor + offset) % 200
+        progress = cycle / 100.0 if cycle < 100 else (200 - cycle) / 100.0
+        lat = start[0] + (end[0] - start[0]) * progress
+        lng = start[1] + (end[1] - start[1]) * progress
+        return lat, lng
+
+    live_data = [
+        {"id": "b1", "bus_number": "L-1", "route_name": "Leaders Hostel", "type": "Leaders", "position": get_pos((13.1818, 80.0401), (13.1850, 80.0350), 0, 0.5), "next_stop": "College Gate", "eta": "2 mins"},
+        {"id": "b2", "bus_number": "L-2", "route_name": "Leaders Hostel", "type": "Leaders", "position": get_pos((13.1818, 80.0401), (13.1850, 80.0350), 50, 0.5), "next_stop": "Leaders Hostel", "eta": "5 mins"},
+        {"id": "b3", "bus_number": "P-1", "route_name": "Princes Hostel", "type": "Princes", "position": get_pos((13.1818, 80.0401), (13.1900, 80.0300), 20, 0.3), "next_stop": "Princes Hostel", "eta": "10 mins"},
+        {"id": "b4", "bus_number": "K-1", "route_name": "Kings Hostel", "type": "Kings", "position": get_pos((13.1818, 80.0401), (13.1800, 80.0450), 70, 0.2), "next_stop": "College Gate", "eta": "15 mins"}
+    ]
+    return jsonify({"buses": live_data}), 200
 
 
 @campus_bp.route("/buses/<bid>/location", methods=["PUT"])
@@ -403,6 +433,32 @@ def request_hostel_pass():
     db.session.add(new_pass)
     db.session.commit()
     return jsonify({"message": "Hostel pass requested successfully", "pass": new_pass.to_dict()}), 201
+
+@campus_bp.route("/hostel-pass/mentees", methods=["GET"])
+@jwt_required()
+@role_required("faculty", "admin")
+def get_mentees_hostel_passes():
+    """Get hostel passes for the faculty's mentees."""
+    from ..models.user import User, UserRole
+    uid = get_jwt_identity()
+    user = db.session.get(User, uid)
+    if user.role == UserRole.ADMIN:
+        passes = HostelPass.query.order_by(HostelPass.created_at.desc()).all()
+    else:
+        mentees = User.query.filter_by(mentor_id=uid, role=UserRole.STUDENT).all()
+        mentee_ids = [m.id for m in mentees]
+        passes = HostelPass.query.filter(HostelPass.student_id.in_(mentee_ids)).order_by(HostelPass.created_at.desc()).all()
+    
+    # attach student names
+    pass_data = []
+    for p in passes:
+        d = p.to_dict()
+        u = db.session.get(User, p.student_id)
+        d['student_name'] = u.full_name if u else "Unknown"
+        d['student_reg'] = u.registration_number if u else "N/A"
+        pass_data.append(d)
+
+    return jsonify({"passes": pass_data}), 200
 
 @campus_bp.route("/hostel-pass/<pid>/status", methods=["PUT"])
 @jwt_required()

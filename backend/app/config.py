@@ -52,7 +52,7 @@ class DevelopmentConfig(BaseConfig):
     DEBUG = True
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL",
-        "postgresql://superapp:superapp_pass@localhost:5432/superapp_dev"
+        "sqlite:///superapp.db"
     )
 
 

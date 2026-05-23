@@ -26,6 +26,7 @@ import TeamFinder from './pages/TeamFinder';
 import PortfolioBuilder from './pages/PortfolioBuilder';
 import CreditDashboard from './pages/CreditDashboard';
 import SystemHealth from './pages/SystemHealth';
+import MentorHostelPasses from './pages/MentorHostelPasses';
 import HostelPass from './pages/HostelPass';
 import NoticeBoard from './pages/NoticeBoard';
 import Results from './pages/Results';
@@ -190,6 +191,7 @@ function App() {
 
             {/* Faculty Management Layer — Faculty only */}
             <Route path="/faculty" element={<FacultyRoute><FacultyHub /></FacultyRoute>} />
+            <Route path="/faculty/hostel-passes" element={<FacultyRoute><MentorHostelPasses /></FacultyRoute>} />
             <Route path="/faculty/bulk-attendance" element={<FacultyRoute><FacultyBulkAttendance /></FacultyRoute>} />
             <Route path="/faculty/qr" element={<FacultyRoute><FacultyQRAttendance /></FacultyRoute>} />
             <Route path="/faculty/marks" element={<FacultyRoute><FacultyMarksEntry /></FacultyRoute>} />

@@ -35,3 +35,9 @@
 ### Backend Improvements
 - **Puppeteer/PDF Generation:** Robust server-side PDF generation using headless browsers to ensure the downloaded resume looks exactly like the preview.
 - **Public Links:** Generate unique, accessible public URLs for portfolios with analytics (e.g., "3 recruiters viewed your profile").
+
++task is not good change that like it is showing the direct popup instaed of make that in the edit option itself
+what is kanban board
+
+protfolio want to chnage we dicuss and do that
+how to achive the skill badges?
