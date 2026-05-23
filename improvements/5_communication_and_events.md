@@ -27,7 +27,7 @@
 ### Backend Improvements
 - **Role-Based Access Control (RBAC):** Complex permissions allowing Club Presidents to post notices, while Members can only read.
 so we need to add the club presidents list from the admin side, that club presidents will have the permissions to post notices will have the permissions to approve or reject the notices, club members will have the permissions to view the notices.
-Attdence is taken for the volunteering hours, if the volunteer complete the volunteering hours then the volunteer will get the certificate.and use same qr logic and here the time is set by the culb presidents and we need to able to download the excle file for the records.
+Attdence is taken for the volunteering hours, if the volunteer complete the volunteering hours then the volunteer will get the certificate.and use same qr logic and here the time is set by the culb presidents and we need to able to download the excle file for the records. there willl backstage,decor work which cant be publicly shown so we will be needing a thing after joining into club there u cna see what club president post and there u need a qr scanner for scanning the attdendace.
 
 ## 7. Anonymous Feedback
 ### Frontend Improvements
@@ -37,3 +37,6 @@ Attdence is taken for the volunteering hours, if the volunteer complete the volu
 ### Backend Improvements
 - **NLP Filtering:** AI-based filtering to flag abusive or inappropriate language before it reaches admins, and remove those words before storing in database
 - **Topic Clustering:** Automatically group similar feedback (e.g., clustering all complaints about "canteen food").
+
+
+instead of a long pile of things toscroll lets make it as event section and it contains events & Fests,Volunteer protal,Clubs Hub, lavaza section (admin want to addded the images or vedios or any highlights and they images need to scroll),in eveny hub also same 

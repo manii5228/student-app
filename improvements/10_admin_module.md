@@ -1,4 +1,5 @@
 # Improvements: Admin Module
+adin need to set faculties for the repsetive tasksare some faculties take care ofthe jobs , some faculties  for the clubs, some faculties as course coordinators 
 
 ## 1. User Management
 ### Frontend Improvements

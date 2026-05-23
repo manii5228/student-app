@@ -29,3 +29,7 @@
 - **Data Export (GDPR Compliance):** A backend worker process that compiles all data associated with a user into a downloadable ZIP file when they request a data export.
 - **Preference Syncing:** Store user preferences in the cloud so their customized experience is preserved even if they switch devices.
 
+
+
+a qr scanner that is accesible for both class and club attdences
+from the campus bring teh health center,emergency Sync offline and usage sats  to profile section

@@ -1,7 +1,5 @@
 # Improvements: Campus Operations & Finance
 
-
-
 ## 2. Bus Tracking
 ### Frontend Improvements
 - **Live Map Animation:** Smooth marker animation for bus movement instead of jarring jumps.

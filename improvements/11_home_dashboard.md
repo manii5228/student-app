@@ -2,7 +2,7 @@
 
 ## 1. Personalized Feed (The "For You" Page)
 ### Frontend Improvements
-- **Dynamic Widgets:** A masonry layout where users can drag, drop, and resize widgets (e.g., Timetable, Upcoming Assignments, Recent Notices) based on their priorities.
+- **Dynamic Widgets:** A masonry layout where users can drag, drop, and resize widgets (e.g., Timetable, Upcoming Assignments, Recent Notices,bues tarcking ,etc) based on their priorities.
 - **Greeting & Day Overview:** A contextual morning/afternoon greeting that highlights the immediate next action (e.g., "Good morning! Your first class is in 20 minutes at Block A").
 - **Quick Action Bar:** A floating action button (FAB) or a sticky bottom menu for rapid access to the top 3 most used features (like scanning a QR code for attendance).
 

@@ -89,3 +89,6 @@
 ### Backend Improvements
 - **OCR/Indexing:** Run uploaded PDFs through OCR to make the content within the question papers searchable.
 
+
+from campus brng the GPA predictor, ,AI Study Bot to academic 
+

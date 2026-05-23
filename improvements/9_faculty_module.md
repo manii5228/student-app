@@ -88,3 +88,8 @@
 ### Backend Improvements
 - **CDN Integration:** Serve uploaded materials via a Content Delivery Network for faster global access.
 - **Automatic Compression:** Compress large PDFs and images on upload to save storage space.
+
+
+
+## 10. Club Management
+culb are just printed by according to my college these are not the culbs im having assigned faculty can create culbs there cna be technicla nad non techincal culbs so they can create it,assigning culb presidents can be done by the faculty 
