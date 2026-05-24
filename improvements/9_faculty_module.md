@@ -88,8 +88,11 @@
 ### Backend Improvements
 - **CDN Integration:** Serve uploaded materials via a Content Delivery Network for faster global access.
 - **Automatic Compression:** Compress large PDFs and images on upload to save storage space.
-
-
+the bittom navigation bar is clashing and here make it as what faculty is adding pyqs or class notes if pyqs connect it respective pyqs page,if class notes connect it resource uploader page.
 
 ## 10. Club Management
 culb are just printed by according to my college these are not the culbs im having assigned faculty can create culbs there cna be technicla nad non techincal culbs so they can create it,assigning culb presidents can be done by the faculty 
+clicking back is directly taking to normal campus instaed of faculty dashboard campus secure all back navigation routes to respective roles 
+
+
+see here we have boardcast,leave apporaval,meeting schulder all these are we have to make it as faculty of respective class can see these, faculty can control it only if it is asigned to them else they cant and students need to see only their respective faculty's broadcast,leave apporaval,meeting schulder. and one more thing is each faculty is assigned to a class so make it as if 2nd sem CSE faculty is assigned to 2nd sem CSE class then he can see only 2nd sem CSE students broadcast,leave apporaval,meeting schulder. also faculty should not be able to see the details of the students who are not in their class or batch.

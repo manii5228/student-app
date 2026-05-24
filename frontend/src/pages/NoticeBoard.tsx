@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Bell, Pin, Clock, AlertTriangle, Plus, Filter } from 'lucide-react';
+import { ChevronLeft, Bell, Pin, Clock, AlertTriangle, Plus, Filter, CheckCheck, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -12,6 +12,8 @@ interface Notice {
   target_audience: string;
   is_pinned: boolean;
   created_at: string;
+  is_read?: boolean;
+  read_count?: number;
 }
 
 const NoticeBoard = () => {
@@ -63,6 +65,19 @@ const NoticeBoard = () => {
     return true;
   });
 
+  const handleMarkAsRead = async (noticeId: string) => {
+    const notice = notices.find(n => n.id === noticeId);
+    if (!notice || notice.is_read) return;
+
+    // Optimistic update
+    setNotices(prev => prev.map(n => n.id === noticeId ? { ...n, is_read: true, read_count: (n.read_count || 0) + 1 } : n));
+    try {
+        await api.post(`/campus/notices/${noticeId}/read`);
+    } catch (err) {
+        console.error('Failed to mark as read', err);
+    }
+  };
+
   const getPriorityColor = (priority: string) => {
     if (priority === 'high') return 'bg-red-100 text-red-600 border-red-200';
     if (priority === 'low') return 'bg-emerald-100 text-emerald-600 border-emerald-200';
@@ -76,7 +91,7 @@ const NoticeBoard = () => {
         <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/campus')} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors shadow-sm">
+            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors shadow-sm">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <div>
@@ -124,7 +139,7 @@ const NoticeBoard = () => {
         ) : (
           <div className="flex flex-col gap-4">
             {filteredNotices.map((notice) => (
-              <div key={notice.id} className={`bg-white rounded-[24px] p-5 shadow-sm border ${notice.is_pinned ? 'border-amber-300 shadow-amber-100' : 'border-slate-100'} flex flex-col relative animate-slide-up`}>
+              <div key={notice.id} onClick={() => handleMarkAsRead(notice.id)} className={`bg-white rounded-[24px] p-5 shadow-sm border ${notice.is_pinned ? 'border-amber-300 shadow-amber-100' : 'border-slate-100'} flex flex-col relative animate-slide-up cursor-pointer transition-all active:scale-[0.98]`}>
                 
                 {/* Pinned Badge */}
                 {notice.is_pinned && (
@@ -148,6 +163,16 @@ const NoticeBoard = () => {
                 <p className="text-sm text-slate-600 font-medium whitespace-pre-wrap leading-relaxed">
                   {notice.content}
                 </p>
+
+                <div className="flex justify-end mt-2">
+                    {isFacultyOrAdmin ? (
+                        <div className="text-[10px] flex items-center gap-1 text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded-md">
+                            <Eye className="w-3 h-3" /> {notice.read_count || 0}
+                        </div>
+                    ) : (
+                        <CheckCheck className={`w-4 h-4 ${notice.is_read ? 'text-[#0080c7]' : 'text-slate-300'}`} />
+                    )}
+                </div>
               </div>
             ))}
           </div>

@@ -231,6 +231,7 @@ class Internship(db.Model):
     certificate_url = db.Column(db.String(500), nullable=True)
     status = db.Column(db.String(20), default="ongoing")  # ongoing, completed
     skills_learned = db.Column(db.Text, nullable=True)  # comma-separated
+    is_verified = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
@@ -243,6 +244,7 @@ class Internship(db.Model):
             "stipend": self.stipend, "mode": self.mode,
             "certificate_url": self.certificate_url, "status": self.status,
             "skills_learned": self.skills_learned,
+            "is_verified": self.is_verified,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -360,6 +362,13 @@ class JobApplication(db.Model):
                 "status": self.status, "applied_at": self.applied_at.isoformat() if self.applied_at else None}
 
 
+class SavedJob(db.Model):
+    __tablename__ = "saved_jobs"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    posting_id = db.Column(db.String(36), db.ForeignKey("job_postings.id", ondelete="CASCADE"), nullable=False)
+    saved_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
 class InterviewSchedule(db.Model):
     __tablename__ = "interview_schedules"
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -385,11 +394,12 @@ class CompanyPrepQuestion(db.Model):
     category = db.Column(db.String(50), default="technical")  # technical, aptitude, hr
     year = db.Column(db.Integer, nullable=True)
     added_by = db.Column(db.String(36), nullable=True)
+    upvotes = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {"id": self.id, "company_name": self.company_name,
-                "question_text": self.question_text, "category": self.category, "year": self.year}
+                "question_text": self.question_text, "category": self.category, "year": self.year, "upvotes": self.upvotes}
 
 
 class AlumniProfile(db.Model):

@@ -13,7 +13,7 @@ from ..middleware.auth_middleware import role_required
 from ..models.career import (
     JobPosting, JobApplication, InterviewSchedule,
     CompanyPrepQuestion, AlumniProfile,
-    Project, Milestone, SkillBadge, EarnedBadge,
+    Project, Milestone, SkillBadge, EarnedBadge, SavedJob,
     Internship, MockTest, MockTestQuestion, MockTestAttempt,
     TeamFinderProfile, TeamSwipe, TeamMatch, TeamMessage,
     Portfolio,
@@ -67,15 +67,28 @@ def create_job():
 @jwt_required()
 @role_required("student")
 def check_eligibility(jid):
-    """Auto Yes/No based on CGPA."""
+    """Auto Yes/No based on CGPA and advanced rules."""
     job = db.session.get(JobPosting, jid)
     if not job:
         return jsonify({"error": "Job not found"}), 404
     user = db.session.get(User, get_jwt_identity())
-    eligible = (user.cgpa or 0) >= (job.min_cgpa or 0)
+    
+    reasons = []
+    cgpa_ok = (user.cgpa or 0) >= (job.min_cgpa or 0)
+    if not cgpa_ok:
+        reasons.append(f"You need {(job.min_cgpa or 0) - (user.cgpa or 0):.1f} more CGPA")
+        
     dept_ok = job.eligible_departments == "all" or (user.department or "") in job.eligible_departments
+    if not dept_ok:
+        reasons.append("Your department is not eligible")
+
+    eligible = cgpa_ok and dept_ok
+    match_pct = 100 if eligible else (50 if cgpa_ok or dept_ok else 10)
+    
     return jsonify({
-        "eligible": eligible and dept_ok,
+        "eligible": eligible,
+        "match_percentage": match_pct,
+        "reasons": reasons,
         "your_cgpa": user.cgpa, "required_cgpa": job.min_cgpa,
         "department_match": dept_ok,
     }), 200
@@ -108,6 +121,38 @@ def my_applications():
     return jsonify({"applications": [a.to_dict() for a in apps]}), 200
 
 
+@career_bp.route("/jobs/<jid>/save", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def save_job(jid):
+    """Bookmark a job posting."""
+    uid = get_jwt_identity()
+    existing = SavedJob.query.filter_by(student_id=uid, posting_id=jid).first()
+    if existing:
+        db.session.delete(existing)
+        db.session.commit()
+        return jsonify({"message": "Job removed from saved", "saved": False}), 200
+    
+    sj = SavedJob(student_id=uid, posting_id=jid)
+    db.session.add(sj)
+    db.session.commit()
+    return jsonify({"message": "Job saved", "saved": True}), 201
+
+
+@career_bp.route("/jobs/saved", methods=["GET"])
+@jwt_required()
+@role_required("student")
+def saved_jobs():
+    """List saved jobs."""
+    uid = get_jwt_identity()
+    saved = SavedJob.query.filter_by(student_id=uid).all()
+    postings = []
+    for s in saved:
+        p = db.session.get(JobPosting, s.posting_id)
+        if p: postings.append(p.to_dict())
+    return jsonify({"saved_jobs": postings}), 200
+
+
 # ── Interview Scheduler ───────────────────────────────────────────
 
 @career_bp.route("/interviews", methods=["GET"])
@@ -120,6 +165,47 @@ def my_interviews():
     return jsonify({"interviews": [s.to_dict() for s in schedules]}), 200
 
 
+@career_bp.route("/jobs/<jid>/interview-slots", methods=["GET"])
+@jwt_required()
+def get_interview_slots(jid):
+    """Return available interview slots for a job."""
+    # Mocking slots for Calendly style UI
+    import datetime
+    now = datetime.datetime.now()
+    slots = []
+    for i in range(1, 4):
+        slot_time = now + datetime.timedelta(days=i, hours=2)
+        slots.append({
+            "id": f"slot-{i}",
+            "time": slot_time.isoformat(),
+            "available": True
+        })
+    return jsonify({"slots": slots}), 200
+
+
+@career_bp.route("/jobs/<jid>/book-interview", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def book_interview(jid):
+    """Book an interview slot."""
+    data = request.get_json()
+    uid = get_jwt_identity()
+    
+    # Conflict check
+    existing = InterviewSchedule.query.filter_by(student_id=uid).all()
+    # Simple mock check - in reality, parse and compare dates
+    
+    sch = InterviewSchedule(
+        posting_id=jid,
+        student_id=uid,
+        round_name=data.get("round_name", "Technical Round 1"),
+        scheduled_at=datetime.fromisoformat(data["time"].replace("Z", "").split(".")[0])
+    )
+    db.session.add(sch)
+    db.session.commit()
+    return jsonify({"message": "Slot booked successfully", "schedule": sch.to_dict()}), 201
+
+
 # ── Company Prep ───────────────────────────────────────────────────
 
 @career_bp.route("/prep/<company>", methods=["GET"])
@@ -128,8 +214,33 @@ def company_prep(company):
     """Get previous years' interview questions."""
     questions = CompanyPrepQuestion.query.filter(
         CompanyPrepQuestion.company_name.ilike(f"%{company}%")
-    ).order_by(CompanyPrepQuestion.year.desc()).all()
+    ).order_by(CompanyPrepQuestion.upvotes.desc()).all()
     return jsonify({"questions": [q.to_dict() for q in questions]}), 200
+
+@career_bp.route("/prep/<company>/question", methods=["POST"])
+@jwt_required()
+def add_prep_question(company):
+    data = request.get_json()
+    q = CompanyPrepQuestion(
+        company_name=company,
+        question_text=data["question_text"],
+        category=data.get("category", "technical"),
+        year=data.get("year"),
+        added_by=get_jwt_identity()
+    )
+    db.session.add(q)
+    db.session.commit()
+    return jsonify({"message": "Question added", "question": q.to_dict()}), 201
+
+@career_bp.route("/prep/question/<qid>/upvote", methods=["POST"])
+@jwt_required()
+def upvote_question(qid):
+    q = db.session.get(CompanyPrepQuestion, qid)
+    if not q:
+        return jsonify({"error": "Not found"}), 404
+    q.upvotes += 1
+    db.session.commit()
+    return jsonify({"message": "Upvoted", "upvotes": q.upvotes}), 200
 
 
 # ── Alumni / Referral Hub ─────────────────────────────────────────
@@ -156,6 +267,31 @@ def referral_hub():
     alumni = AlumniProfile.query.filter_by(is_open_to_referral=True)\
         .order_by(AlumniProfile.company).all()
     return jsonify({"referral_alumni": [a.to_dict() for a in alumni]}), 200
+
+
+# ── Internships ───────────────────────────────────────────────────
+
+@career_bp.route("/internships/export", methods=["GET"])
+@jwt_required()
+@role_required("admin")
+def export_internships():
+    import csv
+    from io import StringIO
+    from flask import Response
+    
+    internships = Internship.query.all()
+    si = StringIO()
+    cw = csv.writer(si)
+    cw.writerow(['student_id', 'company_name', 'role_title', 'start_date', 'end_date', 'stipend', 'mode', 'status', 'is_verified'])
+    for i in internships:
+        cw.writerow([i.student_id, i.company_name, i.role_title, i.start_date, i.end_date, i.stipend, i.mode, i.status, i.is_verified])
+    
+    output = si.getvalue()
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=internships.csv"}
+    )
 
 
 # ── Project Reminders ─────────────────────────────────────────────

@@ -76,7 +76,7 @@ const QuestionPapers = () => {
       {/* Header */}
       <div className="bg-purple-600 rounded-b-[40px] p-6 pt-12">
         <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => navigate('/academic')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
           <h1 className="text-xl font-bold text-white">Question Papers</h1>

@@ -61,3 +61,5 @@
 ### Backend Improvements
 - **Question Bank Randomization:** Dynamic generation of tests pulling random questions from specific difficulty buckets.
 - **Performance Scaling:** Ensure the testing engine can handle 1000+ simultaneous submissions without crashing.
+
+in company prep i cant see any flash cards just make a tab for flash cards,community questions,company questions(which should be editable by admin and respective faculites),we should be able to add our own quetions and share them,also same for the mock tests we should be able to create our own mock tests and share them,and admin and respective faculties should be able to see all the mock tests and should be able to delete or edit them.

@@ -148,11 +148,23 @@ class Notice(db.Model):
     attachment_url = db.Column(db.String(500), nullable=True)
     expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    reads = db.relationship("NoticeRead", backref="notice", lazy="dynamic", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {"id": self.id, "title": self.title, "content": self.content,
                 "priority": self.priority, "target_audience": self.target_audience,
                 "is_pinned": self.is_pinned, "created_at": self.created_at.isoformat() if self.created_at else None}
+
+
+class NoticeRead(db.Model):
+    __tablename__ = "notice_reads"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    notice_id = db.Column(db.String(36), db.ForeignKey("notices.id", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    read_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {"id": self.id, "notice_id": self.notice_id, "user_id": self.user_id, "read_at": self.read_at.isoformat()}
 
 
 class Club(db.Model):
@@ -162,15 +174,18 @@ class Club(db.Model):
     description = db.Column(db.Text, nullable=True)
     club_type = db.Column(db.String(50), default="technical")
     faculty_advisor_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
+    president_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
     member_count = db.Column(db.Integer, default=0)
     logo_url = db.Column(db.String(500), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     memberships = db.relationship("ClubMembership", backref="club", lazy="dynamic", cascade="all, delete-orphan")
+    posts = db.relationship("ClubPost", backref="club", lazy="dynamic", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {"id": self.id, "name": self.name, "description": self.description,
-                "club_type": self.club_type, "member_count": self.member_count, "is_active": self.is_active}
+                "club_type": self.club_type, "member_count": self.member_count, 
+                "is_active": self.is_active, "president_id": self.president_id}
 
 
 class ClubMembership(db.Model):
@@ -185,6 +200,35 @@ class ClubMembership(db.Model):
         return {"id": self.id, "club_id": self.club_id, "student_id": self.student_id, "role": self.role}
 
 
+class ClubPost(db.Model):
+    __tablename__ = "club_posts"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    club_id = db.Column(db.String(36), db.ForeignKey("clubs.id", ondelete="CASCADE"), nullable=False)
+    author_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    image_url = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {"id": self.id, "club_id": self.club_id, "author_id": self.author_id,
+                "content": self.content, "image_url": self.image_url,
+                "created_at": self.created_at.isoformat()}
+
+
+class ClubAttendance(db.Model):
+    __tablename__ = "club_attendance"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    club_id = db.Column(db.String(36), db.ForeignKey("clubs.id", ondelete="CASCADE"), nullable=False)
+    student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    event_title = db.Column(db.String(200), nullable=False)
+    hours = db.Column(db.Float, default=1.0)
+    scanned_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {"id": self.id, "club_id": self.club_id, "student_id": self.student_id,
+                "event_title": self.event_title, "hours": self.hours, "scanned_at": self.scanned_at.isoformat()}
+
+
 class Feedback(db.Model):
     __tablename__ = "feedbacks"
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -195,12 +239,14 @@ class Feedback(db.Model):
     status = db.Column(db.String(20), default="open")
     admin_response = db.Column(db.Text, nullable=True)
     upvotes = db.Column(db.Integer, default=0)
+    sentiment = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
         return {"id": self.id, "content": self.content, "category": self.category,
                 "is_anonymous": self.is_anonymous, "status": self.status,
-                "admin_response": self.admin_response, "upvotes": self.upvotes}
+                "admin_response": self.admin_response, "upvotes": self.upvotes,
+                "sentiment": self.sentiment}
 
 
 class MarketListing(db.Model):

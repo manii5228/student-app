@@ -110,7 +110,7 @@ const PortfolioBuilder = () => {
       <div className="bg-slate-900 p-6 pt-12 shadow-md relative z-20 print:hidden">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
               <ChevronLeft className="w-5 h-5" />
             </button>
             <div>

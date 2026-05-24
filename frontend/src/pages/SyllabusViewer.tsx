@@ -68,7 +68,7 @@ const SyllabusViewer = () => {
       <div className="bg-purple-600 p-6 pt-12 shadow-md relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center gap-3 relative z-10 mb-4">
-          <button onClick={() => navigate('/academic')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
           <div>

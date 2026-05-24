@@ -40,3 +40,9 @@ Attdence is taken for the volunteering hours, if the volunteer complete the volu
 
 
 instead of a long pile of things toscroll lets make it as event section and it contains events & Fests,Volunteer protal,Clubs Hub, lavaza section (admin want to addded the images or vedios or any highlights and they images need to scroll),in eveny hub also same 
+
+culb scan attdence isnot working,we cant directly join either culb president or culb caoordinating fcaulty can adduse and make like description for joining whatsapp,instagram
+
+each highligths should handle multiple images and vedios in a single slider
+
+notice should be able to edit after publishing,can able to add files(pdfs,excles,ppts,etc)and that file also should be scrollable,even admin cant able to edit after publishing.

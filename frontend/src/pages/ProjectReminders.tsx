@@ -102,7 +102,7 @@ const ProjectReminders = () => {
         <div className="absolute right-20 bottom-0 w-24 h-24 bg-white/5 rounded-full blur-xl"></div>
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <button onClick={()=> activeProject ? setActiveProject(null) : nav('/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+            <button onClick={()=> activeProject ? setActiveProject(null) : nav(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
               <ChevronLeft className="w-5 h-5 text-white"/>
             </button>
             <div>

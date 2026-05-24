@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Briefcase, Calendar, DollarSign, MapPin, Trash2, X, Award } from 'lucide-react';
+import { ChevronLeft, Plus, Briefcase, Calendar, DollarSign, MapPin, Trash2, X, Award, CheckCircle2, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 
-interface InternshipT { id:string; company_name:string; role_title:string; description:string|null; start_date:string|null; end_date:string|null; stipend:number|null; mode:string; certificate_url:string|null; status:string; skills_learned:string|null; }
+interface InternshipT { id:string; company_name:string; role_title:string; description:string|null; start_date:string|null; end_date:string|null; stipend:number|null; mode:string; certificate_url:string|null; status:string; skills_learned:string|null; is_verified?: boolean; }
 
 const InternshipTracker = () => {
   const nav = useNavigate();
@@ -34,16 +34,32 @@ const InternshipTracker = () => {
   const completed = list.filter(i=>i.status==='completed');
   const modeColors:Record<string,string> = { onsite:'bg-blue-100 text-blue-700', remote:'bg-emerald-100 text-emerald-700', hybrid:'bg-purple-100 text-purple-700' };
 
+  const handleExport = async () => {
+    try {
+        const response = await api.get('/career/internships/export', { responseType: 'blob' });
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'internships.csv');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    } catch {}
+  };
+
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       <div className="bg-gradient-to-br from-teal-600 to-emerald-700 p-6 pt-12 shadow-md relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <button onClick={()=>nav('/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"><ChevronLeft className="w-5 h-5 text-white"/></button>
+            <button onClick={()=>nav(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"><ChevronLeft className="w-5 h-5 text-white"/></button>
             <div><h1 className="text-xl font-bold text-white">Internship Tracker</h1><p className="text-xs text-teal-100">{list.length} internships recorded</p></div>
           </div>
-          <button onClick={()=>setShowAdd(true)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30"><Plus className="w-5 h-5"/></button>
+          <div className="flex items-center gap-2">
+            <button onClick={handleExport} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30"><Download className="w-5 h-5"/></button>
+            <button onClick={()=>setShowAdd(true)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30"><Plus className="w-5 h-5"/></button>
+          </div>
         </div>
         {/* Stats */}
         <div className="flex gap-3 relative z-10 mt-4">
@@ -62,7 +78,10 @@ const InternshipTracker = () => {
               <div key={i.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900">{i.role_title}</h3>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                        {i.role_title}
+                        {i.is_verified && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                    </h3>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">{i.company_name}</p>
                   </div>
                   <div className="flex gap-1.5">

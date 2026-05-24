@@ -57,7 +57,7 @@ const DigitalCanteen = () => {
       <div className="bg-orange-500 p-6 pt-12 shadow-md">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/campus')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <div>

@@ -69,7 +69,7 @@ const SkillBadges = () => {
         <div className="absolute left-10 -bottom-10 w-32 h-32 bg-white/5 rounded-full blur-xl"></div>
         <div className="flex items-center justify-between relative z-10 mb-4">
           <div className="flex items-center gap-3">
-            <button onClick={()=>nav('/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"><ChevronLeft className="w-5 h-5 text-white"/></button>
+            <button onClick={()=>nav(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"><ChevronLeft className="w-5 h-5 text-white"/></button>
             <div><h1 className="text-xl font-bold text-white">Skill Badges</h1><p className="text-xs text-indigo-200">Verifiable Credentials</p></div>
           </div>
         </div>

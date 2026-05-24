@@ -89,7 +89,7 @@ const ClubsSocieties = () => {
     <div className="min-h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       <div className="bg-[#27bcd1] p-6 pt-12 rounded-b-[36px] shadow-md text-white">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/campus')} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  Coffee, Bus, Map as MapIcon, Calendar, Bell, 
+import {
+  Coffee, Bus, Map as MapIcon, Calendar, Bell,
   Users, MessageSquare, ClipboardCheck, BookOpen,
   Heart, AlertTriangle, RefreshCw, Sparkles, Calculator, Camera, Activity, Lock
 } from 'lucide-react';
@@ -12,7 +12,7 @@ import { api } from '../lib/api';
 const Campus = () => {
   const navigate = useNavigate();
   const [upsellOpen, setUpsellOpen] = useState(false);
-  
+
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
   const isGuest = user?.is_guest || user?.role === 'guest';
@@ -39,16 +39,14 @@ const Campus = () => {
       }
     }
   };
-  
+
   const features = [
     { name: 'Canteen Pre-order', icon: <Coffee className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Skip the line, order now.', path: '/campus/canteen', restricted: true },
     { name: 'Hostel Out-Pass', icon: <Calendar className="w-6 h-6 text-teal-600" />, color: 'bg-teal-100', text: 'QR-based exit pass system.', path: '/campus/hostel-pass', restricted: true },
     { name: 'Bus Tracker', icon: <Bus className="w-6 h-6 text-blue-600" />, color: 'bg-blue-100', text: 'Live GPS of college buses.', path: '/campus/bus', restricted: false },
     { name: 'Indoor Map', icon: <MapIcon className="w-6 h-6 text-emerald-600" />, color: 'bg-emerald-100', text: 'Navigate labs and POIs.', path: '/campus/map', restricted: false },
-    { name: 'Events & Fests', icon: <Calendar className="w-6 h-6 text-pink-600" />, color: 'bg-pink-100', text: 'Register and follow live schedules.', path: '/campus/events', restricted: false },
+    { name: 'Events & Comm Hub', icon: <Calendar className="w-6 h-6 text-pink-600" />, color: 'bg-pink-100', text: 'Fests, clubs, and highlights.', path: '/campus/events', restricted: false },
     { name: 'Notice Board', icon: <Bell className="w-6 h-6 text-red-600" />, color: 'bg-red-100', text: 'Important announcements.', path: '/campus/notices', restricted: false },
-    { name: 'Volunteer Portal', icon: <ClipboardCheck className="w-6 h-6 text-cyan-700" />, color: 'bg-cyan-100', text: 'Apply for organizing committees.', path: '/campus/volunteer', restricted: true },
-    { name: 'Clubs Hub', icon: <Users className="w-6 h-6 text-indigo-600" />, color: 'bg-indigo-100', text: 'Join technical/cultural clubs.', path: '/campus/clubs', restricted: true },
     { name: 'Anon Feedback', icon: <MessageSquare className="w-6 h-6 text-purple-600" />, color: 'bg-purple-100', text: 'Voice your concerns safely.', path: '/campus/feedback', restricted: true },
     { name: 'Library Portal', icon: <BookOpen className="w-6 h-6 text-amber-700" />, color: 'bg-amber-100', text: 'Search, borrow & renew books.', path: '/campus/library', restricted: true },
     { name: 'Health Center', icon: <Heart className="w-6 h-6 text-red-600" />, color: 'bg-red-100', text: 'Book clinic appointments.', path: '/utility/health', restricted: true },
@@ -62,14 +60,14 @@ const Campus = () => {
 
   return (
     <div className="h-full bg-app-bg flex flex-col font-sans animate-fade-in relative pb-24">
-      
+
       {/* Header */}
       <div className="bg-orange-500 rounded-b-[40px] p-8 pt-12 shadow-md">
         <h1 className="text-3xl font-bold text-white mb-2">Campus Life</h1>
         <p className="text-orange-100 text-sm">Everything outside the classroom.</p>
-        
+
         {/* Featured Event Card overlaying the header */}
-        <div 
+        <div
           onClick={() => {
             if (isGuest) {
               logGuestAction('featured_lavaza_click');
@@ -91,7 +89,7 @@ const Campus = () => {
       <div className="px-6 pt-20 flex-1 overflow-y-auto">
         <div className="flex flex-col gap-4">
           {features.map((feature, idx) => (
-            <button key={idx} 
+            <button key={idx}
               onClick={() => handleFeatureClick(feature)}
               className={`bg-white rounded-[24px] p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-all active:scale-95 text-left border ${isGuest && feature.restricted ? 'border-dashed border-slate-200 opacity-90' : 'border-transparent'}`}
             >

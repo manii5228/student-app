@@ -1,9 +1,9 @@
 # Improvements: Admin Module
-adin need to set faculties for the repsetive tasksare some faculties take care ofthe jobs , some faculties  for the clubs, some faculties as course coordinators 
+admin need to set faculties for the repsetive tasks - some faculties take care ofthe jobs , some faculties  for the clubs, some faculties as course coordinators 
 
 ## 1. User Management
 ### Frontend Improvements
-- **Bulk Upload UI:** A drag-and-drop interface for uploading CSVs of new student intakes, with a preview and error-mapping step before final import.
+- **Bulk Upload UI:** A drag-and-drop interface for uploading CSVs of new student ,faculites,with a preview and error-mapping step before final import.
 - **Impersonation Mode:** A "Log in as user" button (with strict visual indicators) to help admins troubleshoot specific user issues.
 
 ### Backend Improvements
@@ -37,14 +37,6 @@ adin need to set faculties for the repsetive tasksare some faculties take care o
 - **Prometheus Integration:** Expose a `/metrics` endpoint for comprehensive application monitoring.
 - **Automated Scaling Triggers:** Webhooks that trigger auto-scaling groups based on traffic spikes (e.g., during result declarations).
 
-## 5. Fee Defaulter Dashboard
-### Frontend Improvements
-- **Communication History:** View a timeline of all warnings and emails sent to a specific defaulter.
-- **Payment Link Generation:** Generate unique, one-click payment links directly from the dashboard.
-
-### Backend Improvements
-- **ERP Integration:** Secure API bridges to synchronize data directly with the university's legacy accounting software.
-- **Automated Workflows:** Rules engine to automatically disable specific app features (like exam hall ticket downloads) if fees are unpaid by a certain date.
 
 ## 6. Access Control System
 ### Frontend Improvements
@@ -81,3 +73,9 @@ adin need to set faculties for the repsetive tasksare some faculties take care o
 ### Backend Improvements
 - **Data Warehousing:** Move heavy analytical queries to a separate read-replica or data warehouse (like Snowflake or BigQuery) to avoid impacting transactional database performance.
 - **Predictive Placement Modeling:** ML models predicting the likelihood of a student getting placed based on their current academic and skill profile.
+
+
+see admin need to able to assign respective roles to respective faculites cause admin cant handle all the jobs and works at a time for all 25k students so work need to be divided according to the faculites , so and give roles to faculites and it should also contain admin role , the roles for faculites need to have curd opertions.
+
+admin can add some mini admins as they will not have all the powers but they will have some limited powers like example course coordinartors can only access the course related things and placements co ordinator can only access the placement related things, similarly for clubs and other things the respective presidents and faculty will have the permissions to do things.so will assingning the roles we need some button powers something simialr which we cna see in the aws but it need to be easy adn faster use visulas things.
+

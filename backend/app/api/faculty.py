@@ -21,8 +21,18 @@ faculty_bp = Blueprint("faculty", __name__)
 @role_required("faculty", "admin")
 def pending_leaves():
     """Faculty dashboard to review student leave applications."""
-    # In a real system, you might filter by department or faculty advising groups
-    leaves = LeaveRequest.query.filter_by(status="pending").order_by(LeaveRequest.created_at).all()
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    
+    query = LeaveRequest.query.filter_by(status="pending")
+    
+    if user.role.value == "faculty":
+        query = query.join(User, LeaveRequest.student_id == User.id).filter(
+            User.department == user.department,
+            User.semester == user.semester
+        )
+        
+    leaves = query.order_by(LeaveRequest.created_at).all()
     return jsonify({"leaves": [l.to_dict() for l in leaves]}), 200
 
 
@@ -149,15 +159,25 @@ def list_resources():
 
 @faculty_bp.route("/broadcast", methods=["POST"])
 @jwt_required()
-@role_required("faculty")
+@role_required("faculty", "admin")
 def broadcast_message():
     """Send a notification to a specific class/batch."""
     # In a full implementation, this would trigger a push notification via Firebase/Celery
     data = request.get_json()
-    # Log the broadcast (simplified)
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    
+    target = data.get("target_class")
+    
+    # Enforce faculty can only broadcast to their assigned class
+    if user.role.value == "faculty":
+        assigned_target = f"{user.department}-{user.section} Sem {user.semester}"
+        if target != assigned_target and target != "All Students": # UI sends these formats
+            return jsonify({"error": f"You are only authorized to broadcast to your assigned class ({assigned_target})."}), 403
+
     return jsonify({
         "message": "Broadcast sent",
-        "target": data.get("target_class"),
+        "target": target,
         "content": data.get("message")
     }), 200
 

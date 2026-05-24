@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Play, Clock, BarChart3, CheckCircle, XCircle, Trophy } from 'lucide-react';
+import { ChevronLeft, Play, Clock, BarChart3, CheckCircle, XCircle, Trophy, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -26,6 +26,8 @@ const MockTestPortal = () => {
   const [total, setTotal] = useState(0);
   const [results, setResults] = useState<Result[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [warnings, setWarnings] = useState(0);
+  const [showWarningModal, setShowWarningModal] = useState(false);
 
   const cats = ['aptitude','technical','verbal','coding'];
   const catColors:Record<string,string> = { aptitude:'from-amber-500 to-orange-600', technical:'from-blue-500 to-indigo-600', verbal:'from-pink-500 to-rose-600', coding:'from-emerald-500 to-teal-600' };
@@ -54,19 +56,43 @@ const MockTestPortal = () => {
       setStartTime(Date.now());
       setTimeLeft(test.duration_minutes * 60);
       setShowResults(false);
+      setWarnings(0);
     } catch {}
   };
 
-  // Timer
+  // Timer and Anti-cheat
   useEffect(() => {
     if (!activeTest || showResults) return;
+
+    // Timer
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) { submitTest(); return 0; }
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(timer);
+
+    // Anti-cheat visibility change listener
+    const handleVisibilityChange = () => {
+        if (document.hidden) {
+            setWarnings(prev => {
+                const newWarnings = prev + 1;
+                if (newWarnings >= 3) {
+                    submitTest();
+                } else {
+                    setShowWarningModal(true);
+                }
+                return newWarnings;
+            });
+        }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+        clearInterval(timer);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [activeTest, showResults]);
 
   const selectAnswer = (qId: string, opt: string) => {
@@ -96,7 +122,7 @@ const MockTestPortal = () => {
       <div className="bg-gradient-to-br from-rose-600 to-pink-700 p-6 pt-12 shadow-md relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center gap-3 relative z-10">
-          <button onClick={()=>nav('/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"><ChevronLeft className="w-5 h-5 text-white"/></button>
+          <button onClick={()=>nav(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"><ChevronLeft className="w-5 h-5 text-white"/></button>
           <div><h1 className="text-xl font-bold text-white">Mock Tests</h1><p className="text-xs text-rose-200">Practice for placements</p></div>
         </div>
       </div>
@@ -212,6 +238,20 @@ const MockTestPortal = () => {
           )}
         </div>
       </div>}
+      
+      {/* Anti-cheat Warning Modal */}
+      {showWarningModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+              <div className="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center">
+                  <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                      <AlertTriangle className="w-8 h-8 text-red-600" />
+                  </div>
+                  <h3 className="text-xl font-black text-slate-900 mb-2">Warning ({warnings}/3)</h3>
+                  <p className="text-sm font-medium text-slate-600 mb-6">You switched tabs or left the test window. Your test will be auto-submitted if you do this 3 times.</p>
+                  <button onClick={() => setShowWarningModal(false)} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-sm">I Understand</button>
+              </div>
+          </div>
+      )}
     </div>
   );
 };

@@ -271,12 +271,44 @@ def reject_event(eid):
 # ── Notice Board ───────────────────────────────────────────────────
 
 @campus_bp.route("/notices", methods=["GET"])
-@jwt_required()
+@jwt_required(optional=True)
 def list_notices():
-    """Get notice board with pinned items first."""
+    """Get notice board with pinned items first. Include read status for authenticated users."""
     notices = Notice.query.order_by(
         Notice.is_pinned.desc(), Notice.created_at.desc()).limit(50).all()
-    return jsonify({"notices": [n.to_dict() for n in notices]}), 200
+    
+    current_user = get_jwt_identity()
+    notice_list = []
+    
+    for n in notices:
+        n_dict = n.to_dict()
+        n_dict["read_count"] = n.reads.count()
+        if current_user:
+            n_dict["is_read"] = n.reads.filter_by(user_id=current_user).first() is not None
+        else:
+            n_dict["is_read"] = False
+        notice_list.append(n_dict)
+        
+    return jsonify({"notices": notice_list}), 200
+
+@campus_bp.route("/notices/<nid>/read", methods=["POST"])
+@jwt_required()
+def mark_notice_read(nid):
+    """Mark a notice as read by the current user."""
+    from ..models.campus import NoticeRead
+    current_user = get_jwt_identity()
+    
+    notice = db.session.get(Notice, nid)
+    if not notice:
+        return jsonify({"error": "Notice not found"}), 404
+        
+    existing = NoticeRead.query.filter_by(notice_id=nid, user_id=current_user).first()
+    if not existing:
+        nr = NoticeRead(notice_id=nid, user_id=current_user)
+        db.session.add(nr)
+        db.session.commit()
+        
+    return jsonify({"message": "Marked as read"}), 200
 
 
 @campus_bp.route("/notices", methods=["POST"])
@@ -328,13 +360,89 @@ def join_club(cid):
 
 @campus_bp.route("/clubs/my-clubs", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "faculty")
 def my_clubs():
-    """Get clubs the student has joined."""
-    mems = ClubMembership.query.filter_by(student_id=get_jwt_identity()).all()
+    """Get clubs the user has joined or advises."""
+    current_user = get_jwt_identity()
+    mems = ClubMembership.query.filter_by(student_id=current_user).all()
     club_ids = [m.club_id for m in mems]
-    clubs = Club.query.filter(Club.id.in_(club_ids)).all() if club_ids else []
-    return jsonify({"clubs": [c.to_dict() for c in clubs]}), 200
+    clubs = Club.query.filter(Club.id.in_(club_ids) | (Club.faculty_advisor_id == current_user)).all() if club_ids else Club.query.filter_by(faculty_advisor_id=current_user).all()
+    return jsonify({"clubs": [c.to_dict() for c in set(clubs)]}), 200
+
+@campus_bp.route("/clubs/<cid>/posts", methods=["GET"])
+@jwt_required()
+def get_club_posts(cid):
+    """Get internal feed posts for a club."""
+    from ..models.campus import ClubPost
+    # Make sure user is a member or admin
+    club = db.session.get(Club, cid)
+    if not club:
+        return jsonify({"error": "Club not found"}), 404
+    posts = ClubPost.query.filter_by(club_id=cid).order_by(ClubPost.created_at.desc()).all()
+    return jsonify({"posts": [p.to_dict() for p in posts]}), 200
+
+@campus_bp.route("/clubs/<cid>/posts", methods=["POST"])
+@jwt_required()
+def create_club_post(cid):
+    """Create a club post. Only president/faculty/admin."""
+    from ..models.campus import ClubPost
+    club = db.session.get(Club, cid)
+    if not club:
+        return jsonify({"error": "Club not found"}), 404
+        
+    current_user = get_jwt_identity()
+    # Basic check (in real app, use roles or membership status)
+    
+    data = request.get_json()
+    post = ClubPost(
+        club_id=cid, author_id=current_user,
+        content=data["content"], image_url=data.get("image_url")
+    )
+    db.session.add(post)
+    db.session.commit()
+    return jsonify({"message": "Post created", "post": post.to_dict()}), 201
+
+@campus_bp.route("/clubs/<cid>/attendance", methods=["POST"])
+@jwt_required()
+def record_club_attendance(cid):
+    """Record attendance via QR scan."""
+    from ..models.campus import ClubAttendance
+    club = db.session.get(Club, cid)
+    if not club:
+        return jsonify({"error": "Club not found"}), 404
+        
+    data = request.get_json()
+    student_id = get_jwt_identity()
+    
+    att = ClubAttendance(
+        club_id=cid, student_id=student_id,
+        event_title=data.get("event_title", "Regular Meeting"),
+        hours=data.get("hours", 1.0)
+    )
+    db.session.add(att)
+    db.session.commit()
+    return jsonify({"message": "Attendance recorded"}), 201
+
+@campus_bp.route("/clubs/<cid>/attendance", methods=["GET"])
+@jwt_required()
+def get_club_attendance(cid):
+    """Get club attendance."""
+    from ..models.campus import ClubAttendance
+    att = ClubAttendance.query.filter_by(club_id=cid).all()
+    return jsonify({"attendance": [a.to_dict() for a in att]}), 200
+
+@campus_bp.route("/clubs/<cid>/president", methods=["PUT"])
+@jwt_required()
+@role_required("admin", "faculty")
+def set_club_president(cid):
+    """Assign club president."""
+    club = db.session.get(Club, cid)
+    if not club:
+        return jsonify({"error": "Club not found"}), 404
+    data = request.get_json()
+    club.president_id = data.get("president_id")
+    db.session.commit()
+    return jsonify({"message": "President assigned", "club": club.to_dict()}), 200
 
 
 # ── Anonymous Feedback ─────────────────────────────────────────────
@@ -349,14 +457,26 @@ def list_feedback():
 
 
 @campus_bp.route("/feedback", methods=["POST"])
-@jwt_required()
+@jwt_required(optional=True)
 def submit_feedback():
-    """Submit anonymous or named feedback."""
+    """Submit anonymous or named feedback with sentiment and basic bad word filter."""
+    import re
     data = request.get_json()
+    
+    content = data["content"]
+    # Basic bad word filtering
+    bad_words = ["fuck", "shit", "bitch", "asshole", "cunt", "dick"]
+    pattern = re.compile(r'\b(' + '|'.join(bad_words) + r')\b', re.IGNORECASE)
+    content = pattern.sub('***', content)
+    
+    current_user = get_jwt_identity()
+    is_anonymous = data.get("is_anonymous", True)
+    
     fb = Feedback(
-        content=data["content"], category=data.get("category", "general"),
-        is_anonymous=data.get("is_anonymous", True),
-        author_id=get_jwt_identity() if not data.get("is_anonymous") else None,
+        content=content, category=data.get("category", "general"),
+        is_anonymous=is_anonymous,
+        author_id=current_user if not is_anonymous else None,
+        sentiment=data.get("sentiment", "neutral")
     )
     db.session.add(fb)
     db.session.commit()

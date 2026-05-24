@@ -134,7 +134,7 @@ const TeamFinder = () => {
 
       {/* Header */}
       <div className="flex justify-between items-center p-6 pt-12 relative z-20">
-        <button onClick={() => nav('/career')} className="w-12 h-12 rounded-full border border-slate-100 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors bg-white">
+        <button onClick={() => nav(-1)} className="w-12 h-12 rounded-full border border-slate-100 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors bg-white">
           <ChevronLeft className="w-5 h-5 text-slate-600" />
         </button>
         <h1 className="text-xl font-bold text-slate-900 tracking-tight">Team Finder</h1>
@@ -337,7 +337,7 @@ const TeamFinder = () => {
                 <textarea value={setupForm.bio} onChange={e=>setSetupForm({...setupForm,bio:e.target.value})} placeholder="Tell people about yourself..." rows={2} className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400 resize-none"/>
               </div>
               <button onClick={saveProfile} disabled={!setupForm.skills.trim()} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3.5 rounded-2xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40">Start Finding Teammates</button>
-              <button onClick={()=>{setShowSetup(false); nav('/career');}} className="text-xs font-bold text-slate-400 text-center hover:text-slate-600 transition-colors">Skip for now</button>
+              <button onClick={()=>{setShowSetup(false); nav(-1);}} className="text-xs font-bold text-slate-400 text-center hover:text-slate-600 transition-colors">Skip for now</button>
             </div>
           </div>
         </div>

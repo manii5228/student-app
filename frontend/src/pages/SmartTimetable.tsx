@@ -192,7 +192,7 @@ const SmartTimetable = () => {
         <div className="absolute top-0 right-0 w-44 h-44 bg-[#a91f23]/10 rounded-bl-[120px] pointer-events-none"></div>
         <div className="flex items-center justify-between mb-4 relative z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/academic')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all">
+            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <h1 className="text-xl font-black text-white tracking-tight">Smart Timetable</h1>

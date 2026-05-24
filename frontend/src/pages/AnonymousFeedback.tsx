@@ -13,6 +13,7 @@ interface FeedbackItem {
   status: string;
   admin_response?: string | null;
   upvotes: number;
+  sentiment?: string;
 }
 
 const FALLBACK_FEEDBACK: FeedbackItem[] = [
@@ -41,6 +42,7 @@ const AnonymousFeedback = () => {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('general');
   const [isAnonymous, setIsAnonymous] = useState(true);
+  const [sentiment, setSentiment] = useState('neutral');
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
@@ -67,14 +69,16 @@ const AnonymousFeedback = () => {
       is_anonymous: isAnonymous,
       status: 'open',
       upvotes: 0,
+      sentiment,
     };
 
     setFeedbacks((current) => [newFeedback, ...current]);
     setSubmitted(true);
     setContent('');
+    setSentiment('neutral');
 
     try {
-      await api.post('/campus/feedback', { content, category, is_anonymous: isAnonymous });
+      await api.post('/campus/feedback', { content, category, is_anonymous: isAnonymous, sentiment });
     } catch (error) {
       console.warn('Saved feedback locally:', error);
     }
@@ -88,7 +92,7 @@ const AnonymousFeedback = () => {
     <div className="min-h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       <div className="bg-[#c9503d] p-6 pt-12 rounded-b-[36px] shadow-md text-white">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/campus')} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
+          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>
@@ -132,6 +136,30 @@ const AnonymousFeedback = () => {
             placeholder="Write a clear suggestion for campus improvement."
           />
 
+          <div className="mt-4 mb-2">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">How are you feeling about this?</p>
+            <div className="flex justify-between items-center bg-slate-50 border border-slate-100 rounded-2xl p-2">
+              {[
+                { emoji: '😠', value: 'angry' },
+                { emoji: '😕', value: 'confused' },
+                { emoji: '😐', value: 'neutral' },
+                { emoji: '🙂', value: 'happy' },
+                { emoji: '😁', value: 'awesome' },
+              ].map(mood => (
+                <button
+                  key={mood.value}
+                  type="button"
+                  onClick={() => setSentiment(mood.value)}
+                  className={`text-2xl w-10 h-10 flex items-center justify-center rounded-full transition-all ${
+                    sentiment === mood.value ? 'bg-white shadow-md scale-110' : 'opacity-50 hover:opacity-100 grayscale hover:grayscale-0'
+                  }`}
+                >
+                  {mood.emoji}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-[1fr_auto] gap-3 mt-3">
             <select
               value={category}
@@ -171,9 +199,22 @@ const AnonymousFeedback = () => {
             <div key={item.id} className="bg-white rounded-[24px] p-4 shadow-sm border border-slate-100">
               <div className="flex items-center justify-between gap-3 mb-2">
                 <span className="text-[10px] font-black px-2 py-1 rounded-full bg-slate-100 text-slate-600 uppercase">{item.category}</span>
-                <span className={`text-[10px] font-black px-2 py-1 rounded-full ${item.status === 'reviewed' ? 'bg-emerald-50 text-emerald-600' : 'bg-[#27bcd1]/15 text-[#0080c7]'}`}>
-                  {item.status}
-                </span>
+                <div className="flex items-center gap-2">
+                    <span className="text-lg" title={item.sentiment}>{
+                        item.sentiment === 'angry' ? '😠' : 
+                        item.sentiment === 'confused' ? '😕' : 
+                        item.sentiment === 'happy' ? '🙂' : 
+                        item.sentiment === 'awesome' ? '😁' : '😐'
+                    }</span>
+                    <div className="flex gap-1 items-center bg-slate-50 px-2 py-1 rounded-full border border-slate-100">
+                        {['open', 'reviewed', 'resolved'].map((step, i) => {
+                            const currentIdx = ['open', 'reviewed', 'resolved'].indexOf(item.status);
+                            return (
+                                <div key={step} className={`w-1.5 h-1.5 rounded-full ${i <= currentIdx ? 'bg-[#c9503d]' : 'bg-slate-200'}`} title={step} />
+                            );
+                        })}
+                    </div>
+                </div>
               </div>
               <p className="text-sm font-medium text-slate-700 leading-relaxed">{item.content}</p>
               {item.admin_response && (
