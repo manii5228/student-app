@@ -58,7 +58,8 @@ const SyllabusViewer = () => {
     units.filter(u =>
       u.subject_name.toLowerCase().includes(search.toLowerCase()) ||
       u.subject_code.toLowerCase().includes(search.toLowerCase()) ||
-      u.unit_title.toLowerCase().includes(search.toLowerCase())
+      u.unit_title.toLowerCase().includes(search.toLowerCase()) ||
+      (u.topics && u.topics.toLowerCase().includes(search.toLowerCase()))
     )
   );
 

@@ -216,6 +216,63 @@ def get_notifications():
         },
     ]
 
+    # Dynamic Project Reminders Aggregation
+    try:
+        from ..models.user import User
+        from ..models.career import Project, Milestone
+        from ..middleware.auth_middleware import resolve_student_identity
+        
+        real_uid = resolve_student_identity(user_id)
+        user_obj = db.session.get(User, real_uid)
+        if user_obj:
+            fullname = user_obj.full_name
+            query = Project.query.filter(
+                (Project.student_id == real_uid) | 
+                (Project.team_members.ilike(f"%{fullname}%"))
+            )
+            projects_list = query.all()
+            
+            now_date = datetime.now(timezone.utc).date()
+            seven_days_later = now_date + timedelta(days=7)
+            
+            due_milestones = []
+            for p in projects_list:
+                for m in p.milestones:
+                    if not m.is_completed and m.due_date:
+                        if m.due_date <= seven_days_later:
+                            due_milestones.append({
+                                "project_title": p.title,
+                                "milestone_title": m.title,
+                                "due_date": m.due_date,
+                                "is_overdue": m.due_date < now_date
+                            })
+            
+            if due_milestones:
+                overdue_count = sum(1 for m in due_milestones if m["is_overdue"])
+                unique_projects = len(set(m["project_title"] for m in due_milestones))
+                
+                if len(due_milestones) == 1:
+                    m = due_milestones[0]
+                    status = "overdue" if m["is_overdue"] else "due soon"
+                    msg = f"Task '{m['milestone_title']}' in project '{m['project_title']}' is {status} (due {m['due_date']})."
+                    title = "Project Task Due" if not m["is_overdue"] else "Project Task Overdue"
+                else:
+                    msg = f"You have {len(due_milestones)} tasks due this week across {unique_projects} project(s)."
+                    title = "Aggregated Project Reminders"
+                
+                notifications.insert(0, {
+                    "id": "proj_aggregated",
+                    "category": "academic",
+                    "urgency": "critical" if overdue_count > 0 else "normal",
+                    "title": title,
+                    "message": msg,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "read": False,
+                    "path": "/career/projects"
+                })
+    except Exception:
+        pass
+
     if category != "all":
         notifications = [n for n in notifications if n["category"] == category]
 

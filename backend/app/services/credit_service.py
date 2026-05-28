@@ -6,6 +6,7 @@ validating prerequisites, and generating official Degree Audit PDF reports.
 """
 
 import io
+import hashlib
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional
 from sqlalchemy.orm import Session
@@ -597,7 +598,6 @@ class CreditService:
         story.append(sig_table)
 
         # Build Document using NumberedCanvas
-        import hashlib
         doc.build(story, canvasmaker=NumberedCanvas)
         buffer.seek(0)
         return buffer

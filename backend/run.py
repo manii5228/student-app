@@ -433,6 +433,80 @@ def seed_db():
     db.session.commit()
     print("Projects with Kanban milestones seeded!")
 
+    # ── Timetables and Slots Seeding ──────────────────────────────
+    from app.models.timetable import Timetable, TimetableSlot, DayOfWeek, SlotType
+    from datetime import time as dt_time
+    print("Seeding Timetable and Slots...")
+    
+    tt = Timetable(
+        name="CSE Semester-4 Section A",
+        department="CSE",
+        semester=4,
+        section="A",
+        academic_year="2025-2026",
+        is_active=True,
+        is_published=True
+    )
+    db.session.add(tt)
+    db.session.flush()
+    
+    timetable_slots = [
+        # Monday
+        {"day": DayOfWeek.MONDAY, "period": 1, "start": dt_time(9, 0), "end": dt_time(9, 50), "type": SlotType.LECTURE, "sub": "CS301", "name": "Data Structures", "room": "LH-101", "bld": "CSE Block"},
+        {"day": DayOfWeek.MONDAY, "period": 2, "start": dt_time(10, 0), "end": dt_time(10, 50), "type": SlotType.LECTURE, "sub": "CS302", "name": "Digital Logic", "room": "LH-101", "bld": "CSE Block"},
+        {"day": DayOfWeek.MONDAY, "period": 3, "start": dt_time(11, 0), "end": dt_time(11, 50), "type": SlotType.LECTURE, "sub": "MA301", "name": "Mathematics III", "room": "LH-102", "bld": "Main Block"},
+        {"day": DayOfWeek.MONDAY, "period": 4, "start": dt_time(12, 0), "end": dt_time(12, 50), "type": SlotType.BREAK, "sub": "", "name": "Lunch Break", "room": "Canteen", "bld": "Student Hub"},
+        {"day": DayOfWeek.MONDAY, "period": 5, "start": dt_time(14, 0), "end": dt_time(14, 50), "type": SlotType.LECTURE, "sub": "CS303", "name": "Operating Systems", "room": "LH-101", "bld": "CSE Block"},
+        
+        # Tuesday
+        {"day": DayOfWeek.TUESDAY, "period": 1, "start": dt_time(9, 0), "end": dt_time(9, 50), "type": SlotType.LECTURE, "sub": "CS303", "name": "Operating Systems", "room": "LH-101", "bld": "CSE Block"},
+        {"day": DayOfWeek.TUESDAY, "period": 2, "start": dt_time(10, 0), "end": dt_time(10, 50), "type": SlotType.LECTURE, "sub": "CS301", "name": "Data Structures", "room": "LH-101", "bld": "CSE Block"},
+        {"day": DayOfWeek.TUESDAY, "period": 3, "start": dt_time(11, 0), "end": dt_time(11, 50), "type": SlotType.LECTURE, "sub": "HU301", "name": "English", "room": "LH-103", "bld": "Main Block"},
+        {"day": DayOfWeek.TUESDAY, "period": 4, "start": dt_time(12, 0), "end": dt_time(12, 50), "type": SlotType.BREAK, "sub": "", "name": "Lunch Break", "room": "Canteen", "bld": "Student Hub"},
+        {"day": DayOfWeek.TUESDAY, "period": 5, "start": dt_time(14, 0), "end": dt_time(15, 40), "type": SlotType.LAB, "sub": "CS301", "name": "Data Structures Lab", "room": "Lab-201", "bld": "Lab Block"},
+        
+        # Wednesday
+        {"day": DayOfWeek.WEDNESDAY, "period": 1, "start": dt_time(9, 0), "end": dt_time(9, 50), "type": SlotType.LECTURE, "sub": "CS302", "name": "Digital Logic", "room": "LH-101", "bld": "CSE Block"},
+        {"day": DayOfWeek.WEDNESDAY, "period": 2, "start": dt_time(10, 0), "end": dt_time(10, 50), "type": SlotType.LECTURE, "sub": "MA301", "name": "Mathematics III", "room": "LH-102", "bld": "Main Block"},
+        {"day": DayOfWeek.WEDNESDAY, "period": 3, "start": dt_time(11, 0), "end": dt_time(11, 50), "type": SlotType.LECTURE, "sub": "CS303", "name": "Operating Systems", "room": "LH-101", "bld": "CSE Block"},
+        {"day": DayOfWeek.WEDNESDAY, "period": 4, "start": dt_time(12, 0), "end": dt_time(12, 50), "type": SlotType.BREAK, "sub": "", "name": "Lunch Break", "room": "Canteen", "bld": "Student Hub"},
+        {"day": DayOfWeek.WEDNESDAY, "period": 5, "start": dt_time(14, 0), "end": dt_time(14, 50), "type": SlotType.LECTURE, "sub": "HU301", "name": "English", "room": "LH-103", "bld": "Main Block"},
+        
+        # Thursday
+        {"day": DayOfWeek.THURSDAY, "period": 1, "start": dt_time(9, 0), "end": dt_time(9, 50), "type": SlotType.LECTURE, "sub": "MA301", "name": "Mathematics III", "room": "LH-102", "bld": "Main Block"},
+        {"day": DayOfWeek.THURSDAY, "period": 2, "start": dt_time(10, 0), "end": dt_time(10, 50), "type": SlotType.LECTURE, "sub": "CS303", "name": "Operating Systems", "room": "LH-101", "bld": "CSE Block"},
+        {"day": DayOfWeek.THURSDAY, "period": 3, "start": dt_time(11, 0), "end": dt_time(11, 50), "type": SlotType.LECTURE, "sub": "CS301", "name": "Data Structures", "room": "LH-101", "bld": "CSE Block"},
+        {"day": DayOfWeek.THURSDAY, "period": 4, "start": dt_time(12, 0), "end": dt_time(12, 50), "type": SlotType.BREAK, "sub": "", "name": "Lunch Break", "room": "Canteen", "bld": "Student Hub"},
+        {"day": DayOfWeek.THURSDAY, "period": 5, "start": dt_time(14, 0), "end": dt_time(15, 40), "type": SlotType.LAB, "sub": "CS302", "name": "Digital Logic Lab", "room": "Lab-202", "bld": "Lab Block"},
+        
+        # Friday
+        {"day": DayOfWeek.FRIDAY, "period": 1, "start": dt_time(9, 0), "end": dt_time(9, 50), "type": SlotType.LECTURE, "sub": "HU301", "name": "English", "room": "LH-103", "bld": "Main Block"},
+        {"day": DayOfWeek.FRIDAY, "period": 2, "start": dt_time(10, 0), "end": dt_time(10, 50), "type": SlotType.LECTURE, "sub": "CS302", "name": "Digital Logic", "room": "LH-101", "bld": "CSE Block"},
+        {"day": DayOfWeek.FRIDAY, "period": 3, "start": dt_time(11, 0), "end": dt_time(11, 50), "type": SlotType.LECTURE, "sub": "CS301", "name": "Data Structures", "room": "LH-101", "bld": "CSE Block"},
+        {"day": DayOfWeek.FRIDAY, "period": 4, "start": dt_time(12, 0), "end": dt_time(12, 50), "type": SlotType.BREAK, "sub": "", "name": "Lunch Break", "room": "Canteen", "bld": "Student Hub"},
+        {"day": DayOfWeek.FRIDAY, "period": 5, "start": dt_time(14, 0), "end": dt_time(14, 50), "type": SlotType.FREE, "sub": "", "name": "Library/Self Study", "room": "Library", "bld": "Student Hub"}
+    ]
+    
+    for s_info in timetable_slots:
+        slot = TimetableSlot(
+            timetable_id=tt.id,
+            day=s_info["day"],
+            period_number=s_info["period"],
+            start_time=s_info["start"],
+            end_time=s_info["end"],
+            slot_type=s_info["type"],
+            subject_code=s_info["sub"],
+            subject_name=s_info["name"],
+            faculty_id=faculty_user.id if s_info["sub"] else None,
+            faculty_name=faculty_user.full_name if s_info["sub"] else None,
+            room_number=s_info["room"],
+            building=s_info["bld"]
+        )
+        db.session.add(slot)
+    
+    db.session.commit()
+    print("Timetable and Slots seeded!")
+
     # ── Portfolio for student1 ─────────────────────────────────────
     portfolio_data = {
         "name": students[0].full_name,

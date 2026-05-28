@@ -52,8 +52,6 @@ const Campus = () => {
     { name: 'Health Center', icon: <Heart className="w-6 h-6 text-red-600" />, color: 'bg-red-100', text: 'Book clinic appointments.', path: '/utility/health', restricted: true },
     { name: 'Emergency', icon: <AlertTriangle className="w-6 h-6 text-red-700" />, color: 'bg-red-50', text: 'One-tap security alert.', path: '/utility/emergency', restricted: false },
     { name: 'Sync & Offline', icon: <RefreshCw className="w-6 h-6 text-slate-600" />, color: 'bg-slate-100', text: 'Manage cached data.', path: '/utility/sync', restricted: false },
-    { name: 'AI Study Bot', icon: <Sparkles className="w-6 h-6 text-violet-600" />, color: 'bg-violet-100', text: 'Ask anything academic.', path: '/ai/study-assistant', restricted: true },
-    { name: 'GPA Predictor', icon: <Calculator className="w-6 h-6 text-cyan-600" />, color: 'bg-cyan-100', text: 'Calculate & predict grades.', path: '/ai/gpa-predictor', restricted: true },
     { name: 'Doc Scanner', icon: <Camera className="w-6 h-6 text-slate-700" />, color: 'bg-slate-100', text: 'Scan notes to digital.', path: '/ai/scanner', restricted: true },
     { name: 'Usage Stats', icon: <Activity className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Track your study time.', path: '/ai/usage', restricted: true },
   ];

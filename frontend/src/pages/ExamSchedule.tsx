@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Calendar, Clock, MapPin, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Calendar, Clock, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -21,6 +21,7 @@ const ExamSchedule = () => {
   const navigate = useNavigate();
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
 
   useEffect(() => {
     fetchExams();
@@ -37,6 +38,48 @@ const ExamSchedule = () => {
     }
   };
 
+  const getNextExam = () => {
+    if (exams.length === 0) return null;
+    const now = new Date();
+    const upcoming = exams.filter(e => {
+      const examDateTime = new Date(`${e.exam_date}T${e.start_time}`);
+      return examDateTime > now;
+    });
+    if (upcoming.length === 0) return null;
+    return upcoming.sort((a, b) => {
+      return new Date(`${a.exam_date}T${a.start_time}`).getTime() - new Date(`${b.exam_date}T${b.start_time}`).getTime();
+    })[0];
+  };
+
+  const nextExam = getNextExam();
+
+  useEffect(() => {
+    if (!nextExam) {
+      setTimeLeft(null);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const target = new Date(`${nextExam.exam_date}T${nextExam.start_time}`).getTime();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setTimeLeft(null);
+      } else {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft({ days, hours, minutes, seconds });
+      }
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [nextExam]);
+
   // Check if an exam is today or in the past
   const getExamStatus = (dateStr: string) => {
     const today = new Date();
@@ -46,7 +89,6 @@ const ExamSchedule = () => {
 
     if (examDate.getTime() === today.getTime()) return 'today';
     if (examDate < today) return 'past';
-    // Within 3 days
     const diffDays = Math.ceil((examDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     if (diffDays <= 3) return 'soon';
     return 'upcoming';
@@ -70,11 +112,6 @@ const ExamSchedule = () => {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-  };
-
   const examTypeLabel = (t: string) => {
     switch (t) {
       case 'cat1': return 'CAT-1';
@@ -85,7 +122,6 @@ const ExamSchedule = () => {
     }
   };
 
-  // Count upcoming exams
   const upcomingCount = exams.filter(e => {
     const s = getExamStatus(e.exam_date);
     return s === 'today' || s === 'soon' || s === 'upcoming';
@@ -107,7 +143,37 @@ const ExamSchedule = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        {/* Prominent Countdown Timer Card */}
+        {nextExam && timeLeft && (
+          <div className="bg-slate-900 rounded-[28px] p-6 text-white shadow-xl relative overflow-hidden border border-slate-800">
+            <div className="absolute top-0 right-0 w-36 h-36 bg-rose-500/10 rounded-full blur-2xl"></div>
+            <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">NEXT EXAM COUNTDOWN</p>
+            <h2 className="text-base font-bold text-white leading-tight truncate">{nextExam.subject_name}</h2>
+            <p className="text-xs text-slate-400 mt-1 font-semibold">{nextExam.subject_code} · Room {nextExam.room_number}</p>
+            
+            {/* Time Blocks */}
+            <div className="grid grid-cols-4 gap-2 mt-5">
+              <div className="bg-white/5 rounded-2xl p-3 flex flex-col items-center border border-white/5">
+                <span className="text-2xl font-black text-white">{timeLeft.days}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Days</span>
+              </div>
+              <div className="bg-white/5 rounded-2xl p-3 flex flex-col items-center border border-white/5">
+                <span className="text-2xl font-black text-white">{timeLeft.hours}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Hours</span>
+              </div>
+              <div className="bg-white/5 rounded-2xl p-3 flex flex-col items-center border border-white/5">
+                <span className="text-2xl font-black text-white">{timeLeft.minutes}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Mins</span>
+              </div>
+              <div className="bg-white/5 rounded-2xl p-3 flex flex-col items-center border border-white/5">
+                <span className="text-2xl font-black text-rose-400">{timeLeft.seconds}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Secs</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-16">
             <span className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></span>

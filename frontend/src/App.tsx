@@ -136,7 +136,7 @@ function App() {
 
             {/* Main Hubs */}
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/academic" element={<AuthenticatedRoute><Academic /></AuthenticatedRoute>} />
+            <Route path="/academic" element={<ProtectedRoute><Academic /></ProtectedRoute>} />
             <Route path="/campus" element={<ProtectedRoute><Campus /></ProtectedRoute>} />
             <Route path="/career" element={<AuthenticatedRoute><Career /></AuthenticatedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -149,10 +149,10 @@ function App() {
             <Route path="/academic/question-papers" element={<AuthenticatedRoute><QuestionPapers /></AuthenticatedRoute>} />
             <Route path="/academic/credits" element={<AuthenticatedRoute><CreditDashboard /></AuthenticatedRoute>} />
             <Route path="/academic/results" element={<ProtectedRoute><Results /></ProtectedRoute>} />
-            <Route path="/academic/syllabus" element={<AuthenticatedRoute><SyllabusViewer /></AuthenticatedRoute>} />
-            <Route path="/academic/faculty" element={<AuthenticatedRoute><FacultyDirectory /></AuthenticatedRoute>} />
+            <Route path="/academic/syllabus" element={<ProtectedRoute><SyllabusViewer /></ProtectedRoute>} />
+            <Route path="/academic/faculty" element={<ProtectedRoute><FacultyDirectory /></ProtectedRoute>} />
             <Route path="/academic/internal-marks" element={<ProtectedRoute><InternalMarks /></ProtectedRoute>} />
-            <Route path="/academic/exams" element={<AuthenticatedRoute><ExamSchedule /></AuthenticatedRoute>} />
+            <Route path="/academic/exams" element={<ProtectedRoute><ExamSchedule /></ProtectedRoute>} />
 
             {/* Campus Operations — Map & Notices are guest-accessible */}
             <Route path="/campus/canteen" element={<ProtectedRoute><DigitalCanteen /></ProtectedRoute>} />

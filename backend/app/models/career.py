@@ -185,6 +185,21 @@ class TeamMessage(db.Model):
             "content": self.content,
             "sent_at": self.sent_at.isoformat() if self.sent_at else None,
         }
+class TeamReport(db.Model):
+    """Abuse reports in Team Finder."""
+    __tablename__ = "team_reports"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    reporter_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    reported_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
+    reason = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id, "reporter_id": self.reporter_id,
+            "reported_id": self.reported_id, "reason": self.reason,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
 
 
 # ── Portfolio Builder ──────────────────────────────────────────────

@@ -55,10 +55,9 @@
 
 ## 💬 Remarks & Feedback
 again the clutter is here move portfolio to the home page
-we no need of export my data completeremove that feature
+we no need of export my data complete remove that feature
 Prefs the themes ,accent colour nothing is working 
-i do not have idea about the offline  cause there isno  database and offline and online we will od this later
-change thename of teh security to accoung and add the bio features to it 
+we have sync and offline then why again offile feature ?
+change thename of the security to accoung and add the bio features to it 
 if i want to chage the look of the id to my college id ,i should be able to change it
-
-- 
+profile can be able to add their linkedin,github,google scholar

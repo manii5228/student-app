@@ -2,7 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   CalendarDays, CheckCircle2, FileText, Award, 
-  Map, Users, BookOpen, GraduationCap, ClipboardList
+  Compass, Users, BookOpen, GraduationCap, ClipboardList,
+  Sparkles, Calculator
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 
@@ -14,12 +15,14 @@ const Academic = () => {
     { name: 'Attendance', icon: <CheckCircle2 className="w-6 h-6 text-green-500" />, color: 'bg-green-50', path: '/academic/attendance' },
     { name: 'Assignments', icon: <FileText className="w-6 h-6 text-blue-500" />, color: 'bg-blue-50', path: '/academic/assignments' },
     { name: 'Results/Grades', icon: <Award className="w-6 h-6 text-yellow-500" />, color: 'bg-yellow-50', path: '/academic/results' },
-    { name: 'Syllabus Map', icon: <Map className="w-6 h-6 text-purple-500" />, color: 'bg-purple-50', path: '/academic/syllabus' },
+    { name: 'Syllabus Map', icon: <Compass className="w-6 h-6 text-purple-500" />, color: 'bg-purple-50', path: '/academic/syllabus' },
     { name: 'Faculty Dir.', icon: <Users className="w-6 h-6 text-orange-500" />, color: 'bg-orange-50', path: '/academic/faculty' },
     { name: 'Internal Marks', icon: <BookOpen className="w-6 h-6 text-pink-500" />, color: 'bg-pink-50', path: '/academic/internal-marks' },
     { name: 'Credit Hub', icon: <GraduationCap className="w-6 h-6 text-emerald-500" />, color: 'bg-emerald-50', path: '/academic/credits' },
     { name: 'PYQ Papers', icon: <ClipboardList className="w-6 h-6 text-violet-500" />, color: 'bg-violet-50', path: '/academic/question-papers' },
     { name: 'Exam Schedule', icon: <CalendarDays className="w-6 h-6 text-rose-500" />, color: 'bg-rose-50', path: '/academic/exams' },
+    { name: 'AI Study Bot', icon: <Sparkles className="w-6 h-6 text-violet-600" />, color: 'bg-violet-50', path: '/ai/study-assistant' },
+    { name: 'GPA Predictor', icon: <Calculator className="w-6 h-6 text-cyan-600" />, color: 'bg-cyan-50', path: '/ai/gpa-predictor' },
   ];
 
   return (

@@ -4,7 +4,7 @@ Career API — Job Portal, Eligibility Check, Interviews, Company Prep, Alumni, 
 """
 
 import json as json_lib
-from datetime import datetime, timezone, date as dt_date
+from datetime import datetime, timezone, timedelta, date as dt_date
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -16,7 +16,7 @@ from ..models.career import (
     Project, Milestone, SkillBadge, EarnedBadge, SavedJob,
     Internship, MockTest, MockTestQuestion, MockTestAttempt,
     TeamFinderProfile, TeamSwipe, TeamMatch, TeamMessage,
-    Portfolio,
+    Portfolio, TeamReport,
 )
 from ..models.user import User, UserRole
 
@@ -296,6 +296,69 @@ def export_internships():
 
 # ── Project Reminders ─────────────────────────────────────────────
 
+@career_bp.route("/projects/reminders/aggregated", methods=["GET"])
+@jwt_required()
+def get_aggregated_reminders():
+    """Get aggregated upcoming milestones due in the next 7 days or overdue."""
+    uid = get_jwt_identity()
+    user = db.session.get(User, uid)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    
+    fullname = user.full_name
+    query = Project.query.filter(
+        (Project.student_id == uid) | 
+        (Project.team_members.ilike(f"%{fullname}%"))
+    )
+    projects = query.all()
+    
+    now = datetime.now(timezone.utc).date()
+    seven_days_later = now + timedelta(days=7)
+    
+    due_milestones = []
+    for p in projects:
+        for m in p.milestones:
+            if not m.is_completed and m.due_date:
+                if m.due_date <= seven_days_later:
+                    due_milestones.append({
+                        "project_id": p.id,
+                        "project_title": p.title,
+                        "milestone_id": m.id,
+                        "milestone_title": m.title,
+                        "due_date": str(m.due_date),
+                        "is_overdue": m.due_date < now
+                    })
+                    
+    if not due_milestones:
+        return jsonify({"has_reminders": False, "reminders": []}), 200
+        
+    if len(due_milestones) == 1:
+        m = due_milestones[0]
+        status = "overdue" if m["is_overdue"] else "due soon"
+        message = f"Task '{m['milestone_title']}' in project '{m['project_title']}' is {status} (due {m['due_date']})."
+        return jsonify({
+            "has_reminders": True,
+            "summary": f"1 task {status}",
+            "message": message,
+            "reminders": due_milestones
+        }), 200
+        
+    overdue_count = sum(1 for m in due_milestones if m["is_overdue"])
+    unique_projects = len(set(m["project_title"] for m in due_milestones))
+    
+    summary = f"{len(due_milestones)} tasks due"
+    if overdue_count > 0:
+        summary += f" ({overdue_count} overdue)"
+        
+    message = f"You have {len(due_milestones)} tasks due this week across {unique_projects} project(s)."
+    return jsonify({
+        "has_reminders": True,
+        "summary": summary,
+        "message": message,
+        "reminders": due_milestones
+    }), 200
+
+
 @career_bp.route("/projects", methods=["GET"])
 @jwt_required()
 def my_projects():
@@ -389,6 +452,8 @@ def add_milestone(pid):
         project_id=pid,
         title=data["title"],
         due_date=dt_date.fromisoformat(data["due_date"].replace("Z", "").split("T")[0]) if data.get("due_date") else None,
+        assigned_to=data.get("assigned_to"),
+        column=data.get("column", "todo"),
     )
     db.session.add(ms)
     db.session.commit()
@@ -523,6 +588,47 @@ def auto_award_badges():
     return jsonify({"message": f"{len(awarded)} badges awarded", "awarded_to": awarded}), 200
 
 
+@career_bp.route("/badges/webhook/workshop", methods=["POST"])
+def webhook_award_badge():
+    """
+    Automated webhook endpoint from external workshop attendance systems.
+    Accepts: { "workshop_id": "...", "badge_id": "...", "student_emails": [...] }
+    """
+    data = request.get_json() or {}
+    badge_id = data.get("badge_id")
+    student_emails = data.get("student_emails", [])
+    workshop_id = data.get("workshop_id", "Unknown Workshop")
+    
+    badge = db.session.get(SkillBadge, badge_id)
+    if not badge:
+        return jsonify({"error": "Badge not found"}), 404
+        
+    awarded_count = 0
+    awarded_students = []
+    
+    for email in student_emails:
+        student = User.query.filter_by(email=email, role=UserRole.STUDENT).first()
+        if student:
+            existing = EarnedBadge.query.filter_by(student_id=student.id, badge_id=badge_id).first()
+            if not existing:
+                e = EarnedBadge(
+                    student_id=student.id,
+                    badge_id=badge_id,
+                    note=f"Automatically awarded via workshop sync for {workshop_id}."
+                )
+                db.session.add(e)
+                awarded_count += 1
+                awarded_students.append(student.full_name)
+                
+    db.session.commit()
+    return jsonify({
+        "status": "success",
+        "message": f"Successfully processed workshop webhook. Awarded {awarded_count} badges.",
+        "awarded_count": awarded_count,
+        "awarded_students": awarded_students
+    }), 200
+
+
 @career_bp.route("/badges/<bid>/holders", methods=["GET"])
 @jwt_required()
 def badge_holders(bid):
@@ -588,27 +694,55 @@ def list_tf_profiles():
     # Optional filters
     dept = request.args.get("department")
     skill = request.args.get("skill")
+    year = request.args.get("year")  # "1", "2", "3", "4"
+    complementary_only = request.args.get("complementary") == "true"
+    
     if dept:
         user_ids = [u.id for u in User.query.filter_by(department=dept, role=UserRole.STUDENT).all()]
         query = query.filter(TeamFinderProfile.user_id.in_(user_ids))
-    profiles = query.limit(20).all()
+        
+    if year:
+        # Semester bounds for year
+        # 1st Year: sem 1-2, 2nd Year: sem 3-4, 3rd Year: sem 5-6, 4th Year: sem 7-8
+        try:
+            y = int(year)
+            min_sem = (y * 2) - 1
+            max_sem = y * 2
+            user_ids = [u.id for u in User.query.filter(
+                User.semester >= min_sem, User.semester <= max_sem, User.role == UserRole.STUDENT
+            ).all()]
+            query = query.filter(TeamFinderProfile.user_id.in_(user_ids))
+        except ValueError:
+            pass
+
+    profiles = query.limit(40).all()
     result = []
     # Compute match percentage based on complementary skills
     my_profile = TeamFinderProfile.query.filter_by(user_id=uid).first()
     my_skills = set(s.strip().lower() for s in (my_profile.skills or "").split(",") if s.strip()) if my_profile else set()
+    
     for p in profiles:
         d = p.to_dict()
         their_skills = set(s.strip().lower() for s in (p.skills or "").split(",") if s.strip())
+        
         # Complementary: score higher for skills the user DOESN'T have
+        complementary_score = 0
         if my_skills and their_skills:
-            complementary = len(their_skills - my_skills)
+            complementary_diff = their_skills - my_skills
+            complementary_score = len(complementary_diff)
             overlap = len(their_skills & my_skills)
-            d["match_pct"] = min(95, 50 + complementary * 15 - overlap * 5)
+            d["match_pct"] = min(95, 50 + complementary_score * 15 - overlap * 5)
         else:
             d["match_pct"] = 70
+            
         if skill and skill.lower() not in [s.lower() for s in d.get("skills", [])]:
             continue
+            
+        if complementary_only and complementary_score == 0:
+            continue
+            
         result.append(d)
+        
     result.sort(key=lambda x: x.get("match_pct", 0), reverse=True)
     return jsonify({"profiles": result}), 200
 
@@ -616,15 +750,26 @@ def list_tf_profiles():
 @career_bp.route("/team-finder/swipe", methods=["POST"])
 @jwt_required()
 def swipe_profile():
-    """Swipe right (like) or left (skip) on a profile."""
+    """Swipe right (like) or left (skip) on a profile. Rate-limited to 20 swipes per hour."""
     uid = get_jwt_identity()
     data = request.get_json()
     target_id = data["target_id"]
     direction = data["direction"]  # "right" or "left"
+    
+    # Rate limit check: max 20 swipes in the last hour
+    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+    swipe_count = TeamSwipe.query.filter_by(swiper_id=uid).filter(TeamSwipe.created_at >= one_hour_ago).count()
+    if swipe_count >= 20:
+        return jsonify({
+            "error": "Swipe limit reached",
+            "message": "You have reached the maximum limit of 20 swipes per hour. Please try again later."
+        }), 429
+        
     # Prevent duplicate
     existing = TeamSwipe.query.filter_by(swiper_id=uid, target_id=target_id).first()
     if existing:
         return jsonify({"message": "Already swiped"}), 200
+        
     swipe = TeamSwipe(swiper_id=uid, target_id=target_id, direction=direction)
     db.session.add(swipe)
     db.session.commit()
@@ -639,6 +784,32 @@ def swipe_profile():
             db.session.commit()
             is_match = True
     return jsonify({"message": "Swiped", "is_match": is_match}), 200
+
+
+@career_bp.route("/team-finder/report", methods=["POST"])
+@jwt_required()
+def report_user():
+    """Report a user for inappropriate behavior in Team Finder."""
+    uid = get_jwt_identity()
+    data = request.get_json()
+    reported_id = data["reported_id"]
+    reason = data["reason"]
+    
+    if not reported_id or not reason:
+        return jsonify({"error": "Missing reported_id or reason"}), 400
+        
+    # Save the report
+    report = TeamReport(reporter_id=uid, reported_id=reported_id, reason=reason)
+    db.session.add(report)
+    
+    # Auto-swipe left to remove from discover stack
+    existing_swipe = TeamSwipe.query.filter_by(swiper_id=uid, target_id=reported_id).first()
+    if not existing_swipe:
+        swipe = TeamSwipe(swiper_id=uid, target_id=reported_id, direction="left")
+        db.session.add(swipe)
+        
+    db.session.commit()
+    return jsonify({"message": "Report submitted successfully. The user has been flagged and blocked."}), 201
 
 
 @career_bp.route("/team-finder/matches", methods=["GET"])
