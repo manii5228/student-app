@@ -41,7 +41,7 @@ const Campus = () => {
   };
 
   const features = [
-    { name: 'Canteen Pre-order', icon: <Coffee className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Skip the line, order now.', path: '/campus/canteen', restricted: true },
+    { name: 'Canteen Pre-order', icon: <Coffee className="w-6 h-6 text-orange-600" />, color: 'bg-orange-100', text: 'Skip the line, order now.', path: '/campus/canteen', restricted: false },
     { name: 'Hostel Out-Pass', icon: <Calendar className="w-6 h-6 text-teal-600" />, color: 'bg-teal-100', text: 'QR-based exit pass system.', path: '/campus/hostel-pass', restricted: true },
     { name: 'Bus Tracker', icon: <Bus className="w-6 h-6 text-blue-600" />, color: 'bg-blue-100', text: 'Live GPS of college buses.', path: '/campus/bus', restricted: false },
     { name: 'Indoor Map', icon: <MapIcon className="w-6 h-6 text-emerald-600" />, color: 'bg-emerald-100', text: 'Navigate labs and POIs.', path: '/campus/map', restricted: false },

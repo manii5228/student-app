@@ -325,7 +325,7 @@ const Dashboard = () => {
               <button
                 key={action.name}
                 onClick={() => {
-                  if (isGuest && ['Attendance', 'Assignments', 'Results'].includes(action.name)) {
+                  if (isGuest && ['Assignments', 'Jobs', 'Library'].includes(action.name)) {
                     setUpsellOpen(true);
                   } else {
                     navigate(action.path);
@@ -418,12 +418,6 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-            {isGuest && (
-              <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-[24px]">
-                <Lock className="w-5 h-5 text-slate-400 mb-1" />
-                <span className="text-xs font-bold text-slate-600">Sign in to track attendance</span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -432,7 +426,7 @@ const Dashboard = () => {
           <div className="px-5 mt-6">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Upcoming Deadlines</h2>
-              <button onClick={() => navigate('/academic/assignments')} className="text-[10px] font-bold text-indigo-500 flex items-center gap-0.5">
+              <button onClick={() => { if (isGuest) { setUpsellOpen(true); } else { navigate('/academic/assignments'); } }} className="text-[10px] font-bold text-indigo-500 flex items-center gap-0.5">
                 View All <ChevronRight className="w-3 h-3" />
               </button>
             </div>
@@ -440,7 +434,7 @@ const Dashboard = () => {
               {feed.upcoming_assignments.map((a, i) => (
                 <button
                   key={a.id || i}
-                  onClick={() => navigate('/academic/assignments')}
+                  onClick={() => { if (isGuest) { setUpsellOpen(true); } else { navigate('/academic/assignments'); } }}
                   className="bg-white rounded-[18px] p-4 shadow-sm border border-slate-100 flex items-center gap-3 text-left hover:shadow-md active:scale-[0.98] transition-all"
                 >
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${

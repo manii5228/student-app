@@ -12,7 +12,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..services.credit_service import CreditService
 
 from ..extensions import db
-from ..middleware.auth_middleware import role_required
+from ..middleware.auth_middleware import role_required, resolve_student_identity
 from ..models.academic import (
     Assignment, AssignmentSubmission, Result, Syllabus,
     ExamSchedule, CreditProgress, InternalMark, AssignmentStatus,
@@ -215,10 +215,10 @@ def grade_assignment(aid):
 
 @academic_bp.route("/results", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def my_results():
     """Get semester-wise results with SGPA/CGPA."""
-    sid = get_jwt_identity()
+    sid = resolve_student_identity(get_jwt_identity())
     semester = request.args.get("semester", type=int)
     query = Result.query.filter_by(student_id=sid, published=True)
     if semester:
@@ -229,13 +229,13 @@ def my_results():
 
 @academic_bp.route("/results/analytics", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def results_analytics():
     """
     Get statistical insights and percentile ranking for examination results.
     Also returns cryptographic signature verification.
     """
-    sid = get_jwt_identity()
+    sid = resolve_student_identity(get_jwt_identity())
     semester = request.args.get("semester", type=int)
     
     if not semester:
@@ -512,10 +512,10 @@ def download_degree_audit():
 
 @academic_bp.route("/internal-marks", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def my_internal_marks():
     """Get internal marks (CAT1, CAT2, Model, Lab)."""
-    sid = get_jwt_identity()
+    sid = resolve_student_identity(get_jwt_identity())
     sem = request.args.get("semester", type=int)
     query = InternalMark.query.filter_by(student_id=sid)
     if sem:
@@ -526,13 +526,13 @@ def my_internal_marks():
 
 @academic_bp.route("/internal-marks/analytics", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def internal_marks_analytics():
     """
     Calculate average internal marks per subject to identify struggling subjects.
     A subject is flagged as struggling if the class-wide average is below 60%.
     """
-    sid = get_jwt_identity()
+    sid = resolve_student_identity(get_jwt_identity())
     student = db.session.get(User, sid)
     if not student:
         return jsonify({"error": "Student not found"}), 404

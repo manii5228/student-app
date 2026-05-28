@@ -11,7 +11,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 
 from ..services.attendance_service import AttendanceService
-from ..middleware.auth_middleware import role_required
+from ..middleware.auth_middleware import role_required, resolve_student_identity
 
 attendance_bp = Blueprint("attendance", __name__)
 attendance_service = AttendanceService()
@@ -165,13 +165,13 @@ def sync_offline():
 
 @attendance_bp.route("/bunk-o-meter", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def bunk_o_meter():
     """
     Get attendance summary and bunkable classes.
     Query params: ?subject_code=CS301 (optional)
     """
-    student_id = get_jwt_identity()
+    student_id = resolve_student_identity(get_jwt_identity())
     subject_code = request.args.get("subject_code")
 
     result = attendance_service.get_bunk_o_meter(student_id, subject_code)
@@ -229,10 +229,10 @@ def get_class_students():
 
 @attendance_bp.route("/trends", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def get_trends():
     """Get overall and subject-wise cumulative attendance trends."""
-    student_id = get_jwt_identity()
+    student_id = resolve_student_identity(get_jwt_identity())
     result = attendance_service.get_attendance_trends(student_id)
     return jsonify(result), 200
 
@@ -241,10 +241,10 @@ def get_trends():
 
 @attendance_bp.route("/my-records", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def get_my_records():
     """Get all attendance records for the logged-in student."""
-    student_id = get_jwt_identity()
+    student_id = resolve_student_identity(get_jwt_identity())
     subject_code = request.args.get("subject_code")
     result = attendance_service.get_student_records(student_id, subject_code)
     return jsonify({"records": result}), 200

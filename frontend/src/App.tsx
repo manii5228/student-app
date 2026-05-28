@@ -143,19 +143,19 @@ function App() {
             <Route path="/change-password" element={<AuthenticatedRoute><ChangePassword /></AuthenticatedRoute>} />
 
             {/* Academic Core Features — Authenticated only (no guests) */}
-            <Route path="/academic/timetable" element={<AuthenticatedRoute><SmartTimetable /></AuthenticatedRoute>} />
-            <Route path="/academic/attendance" element={<AuthenticatedRoute><BunkOMeter /></AuthenticatedRoute>} />
+            <Route path="/academic/timetable" element={<ProtectedRoute><SmartTimetable /></ProtectedRoute>} />
+            <Route path="/academic/attendance" element={<ProtectedRoute><BunkOMeter /></ProtectedRoute>} />
             <Route path="/academic/assignments" element={<AuthenticatedRoute><Assignments /></AuthenticatedRoute>} />
             <Route path="/academic/question-papers" element={<AuthenticatedRoute><QuestionPapers /></AuthenticatedRoute>} />
             <Route path="/academic/credits" element={<AuthenticatedRoute><CreditDashboard /></AuthenticatedRoute>} />
-            <Route path="/academic/results" element={<AuthenticatedRoute><Results /></AuthenticatedRoute>} />
+            <Route path="/academic/results" element={<ProtectedRoute><Results /></ProtectedRoute>} />
             <Route path="/academic/syllabus" element={<AuthenticatedRoute><SyllabusViewer /></AuthenticatedRoute>} />
             <Route path="/academic/faculty" element={<AuthenticatedRoute><FacultyDirectory /></AuthenticatedRoute>} />
-            <Route path="/academic/internal-marks" element={<AuthenticatedRoute><InternalMarks /></AuthenticatedRoute>} />
+            <Route path="/academic/internal-marks" element={<ProtectedRoute><InternalMarks /></ProtectedRoute>} />
             <Route path="/academic/exams" element={<AuthenticatedRoute><ExamSchedule /></AuthenticatedRoute>} />
 
             {/* Campus Operations — Map & Notices are guest-accessible */}
-            <Route path="/campus/canteen" element={<AuthenticatedRoute><DigitalCanteen /></AuthenticatedRoute>} />
+            <Route path="/campus/canteen" element={<ProtectedRoute><DigitalCanteen /></ProtectedRoute>} />
             <Route path="/campus/bus" element={<ProtectedRoute><LiveBusTracking /></ProtectedRoute>} />
             <Route path="/campus/map" element={<ProtectedRoute><IndoorMap /></ProtectedRoute>} />
             <Route path="/campus/hostel-pass" element={<AuthenticatedRoute><HostelPass /></AuthenticatedRoute>} />

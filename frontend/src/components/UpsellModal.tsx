@@ -58,12 +58,14 @@ const UpsellModal: React.FC<UpsellModalProps> = ({ isOpen, onClose }) => {
             
             <div className="space-y-2.5">
               {[
-                { name: "Timetables & Class Attendance", guest: false, student: true },
-                { name: "Canteen Ordering & Payments", guest: false, student: true },
-                { name: "Hostel Passes & Gate Clearance", guest: false, student: true },
+                { name: "Canteen Pre-order & Map Guides", guest: true, student: true },
+                { name: "Timetables, Attendance & Results", guest: true, student: true },
+                { name: "Campus Map, Notices & Bus Tracking", guest: true, student: true },
+                { name: "Events & Fests Information", guest: true, student: true },
+                { name: "Internal Marks & Performance", guest: true, student: true },
+                { name: "Hostel Passes & Gate Clearances", guest: false, student: true },
                 { name: "AI Study Mentor & GPA Predictor", guest: false, student: true },
-                { name: "Job board, Placements & Referrals", guest: false, student: true },
-                { name: "Campus Map & Notices", guest: true, student: true },
+                { name: "Job Boards, Placements & Referrals", guest: false, student: true },
               ].map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between py-1 border-b border-slate-50 last:border-0 text-xs">
                   <span className="text-slate-700 font-medium">{item.name}</span>
@@ -88,20 +90,10 @@ const UpsellModal: React.FC<UpsellModalProps> = ({ isOpen, onClose }) => {
         {/* CTA Actions */}
         <div className="p-5 bg-slate-50 border-t border-slate-100 flex flex-col gap-2.5">
           <button
-            onClick={() => {
-              onClose();
-              window.location.href = '/login';
-            }}
-            className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all text-sm transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Log In / Register
-          </button>
-          
-          <button
             onClick={onClose}
-            className="w-full bg-white hover:bg-slate-100 text-slate-600 font-semibold py-2 px-4 rounded-xl text-xs border border-slate-200 transition-all"
+            className="w-full bg-slate-900 text-white font-bold py-3 px-4 rounded-xl text-xs hover:bg-slate-800 transition-all shadow-md transform active:scale-95"
           >
-            Continue as Guest
+            Go Back
           </button>
         </div>
       </div>

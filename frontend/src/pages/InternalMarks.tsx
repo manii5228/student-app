@@ -53,7 +53,7 @@ const InternalMarks = () => {
 
       // Auto-detect semester if not set
       if (selectedSem === 0 && data.marks?.length > 0) {
-        const sems = [...new Set(data.marks.map((m: Mark) => m.semester))];
+        const sems = [...new Set(data.marks.map((m: Mark) => m.semester))] as number[];
         setSelectedSem(Math.max(...sems));
       }
     } catch (err) {

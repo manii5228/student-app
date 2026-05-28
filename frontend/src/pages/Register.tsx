@@ -7,6 +7,17 @@ const Register = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1 = basic info, 2 = academic info
   const [showPw, setShowPw] = useState(false);
+
+  // Lock guests in guest mode
+  React.useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      if (u.role === 'guest' || u.is_guest) {
+        navigate('/');
+      }
+    }
+  }, [navigate]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 

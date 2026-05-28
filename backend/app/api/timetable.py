@@ -9,7 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 import json
 
 from ..services.timetable_service import TimetableService
-from ..middleware.auth_middleware import role_required
+from ..middleware.auth_middleware import role_required, resolve_student_identity
 from ..extensions import db, redis_client
 
 timetable_bp = Blueprint("timetable", __name__)
@@ -18,11 +18,11 @@ timetable_service = TimetableService()
 
 @timetable_bp.route("/my-timetable", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def my_timetable():
     """Get timetable for logged-in student (Redis cached)."""
     from ..repositories.user_repo import UserRepository
-    user = UserRepository().get_by_id(get_jwt_identity())
+    user = UserRepository().get_by_id(resolve_student_identity(get_jwt_identity()))
     if not user:
         return jsonify({"error": "User not found"}), 404
     if not all([user.department, user.semester, user.section]):
@@ -60,11 +60,11 @@ def faculty_timetable():
 
 @timetable_bp.route("/now", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def current_class():
     """Get current live / next upcoming class."""
     from ..repositories.user_repo import UserRepository
-    user = UserRepository().get_by_id(get_jwt_identity())
+    user = UserRepository().get_by_id(resolve_student_identity(get_jwt_identity()))
     if not user:
         return jsonify({"error": "User not found"}), 404
     result = timetable_service.get_current_class(user.department, user.semester, user.section)

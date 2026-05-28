@@ -54,6 +54,11 @@
 ---
 
 ## 💬 Remarks & Feedback
-*Please add your remarks, corrections, or notes below:*
+again the clutter is here move portfolio to the home page
+we no need of export my data completeremove that feature
+Prefs the themes ,accent colour nothing is working 
+i do not have idea about the offline  cause there isno  database and offline and online we will od this later
+change thename of teh security to accoung and add the bio features to it 
+if i want to chage the look of the id to my college id ,i should be able to change it
 
 - 

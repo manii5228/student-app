@@ -4,10 +4,10 @@ import {
   ChevronLeft, Smartphone, Monitor, Tablet, Wifi,
   Trash2, LogOut, Fingerprint, Shield, Key,
   Plus, X, CheckCircle, Clock, AlertTriangle, ChevronRight,
-  CreditCard, QrCode, Award, Star, Heart, Activity,
+  CreditCard, QrCode, Award, Star, Heart,
   Download, RefreshCw, Camera, Sun, Moon, Palette,
-  WifiOff, BarChart3, Zap, Trophy, BookOpen,
-  Users, ThumbsUp, ExternalLink
+  WifiOff, BarChart3, Zap, Trophy,
+  Users, ThumbsUp, ExternalLink, Bus, MapPin, Bell
 } from 'lucide-react';
 import { api } from '../lib/api';
 import BottomNav from '../components/BottomNav';
@@ -184,8 +184,15 @@ const Profile = () => {
 
   const revokeSession = async (sessionId: string) => {
     setSessionLoading(sessionId);
+    const sessionToRevoke = sessions.find(s => s.id === sessionId);
     try {
       await api.delete(`/auth/sessions/${sessionId}`);
+      if (sessionToRevoke?.is_current) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+        return;
+      }
       setSessions(prev => prev.filter(s => s.id !== sessionId));
     } catch {}
     setSessionLoading(null);
@@ -411,15 +418,33 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Guest Warning */}
+      {/* Guest Warning & Action Grid */}
       {isGuest && (
-        <div className="mx-6 mt-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
-          <Shield className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-bold text-amber-800">Guest Mode Active</p>
-            <p className="text-xs text-amber-700 mt-1">
-              Access is limited. <button onClick={() => navigate('/login')} className="text-indigo-600 font-bold underline ml-1">Sign in</button> for full access.
+        <div className="mx-6 mt-6 flex flex-col gap-5">
+          <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl text-center shadow-sm relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-bl-[80px] pointer-events-none" />
+            <Shield className="w-10 h-10 text-slate-400 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-900">Guest Visitor Mode</h3>
+            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed max-w-xs mx-auto">
+              You are browsing with parent/visitor permissions. Active student records and credentials are secure.
             </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { name: 'Emergency Support', icon: Zap, color: 'text-red-700 bg-red-50', path: '/utility/emergency' },
+              { name: 'Live Bus Tracking', icon: Bus, color: 'text-blue-600 bg-blue-50', path: '/campus/bus' },
+              { name: 'Indoor Map Guide', icon: MapPin, color: 'text-emerald-600 bg-emerald-50', path: '/campus/map' },
+              { name: 'Notice Board', icon: Bell, color: 'text-purple-600 bg-purple-50', path: '/campus/notices' },
+            ].map(item => (
+              <button key={item.name} onClick={() => navigate(item.path)}
+                className="bg-slate-50 rounded-[20px] p-4 flex items-center gap-3 text-left hover:bg-slate-100 active:scale-95 transition-all border border-slate-100">
+                <div className={`w-10 h-10 rounded-xl ${item.color} flex items-center justify-center shrink-0`}>
+                  <item.icon className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-bold text-slate-700">{item.name}</span>
+              </button>
+            ))}
           </div>
         </div>
       )}

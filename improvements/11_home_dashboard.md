@@ -27,3 +27,4 @@
 
 ### Backend Improvements
 - **Notification Routing:** Intelligent routing that determines whether an alert should be an in-app notification, a push notification, or an email, based on the user's preference and the alert's priority.
+

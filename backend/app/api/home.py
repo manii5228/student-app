@@ -10,6 +10,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from ..extensions import db
+from ..middleware.auth_middleware import resolve_student_identity
 
 home_bp = Blueprint("home", __name__)
 
@@ -28,6 +29,7 @@ def home_feed():
     All fetched in parallel for sub-100ms response.
     """
     user_id = get_jwt_identity()
+    real_user_id = resolve_student_identity(user_id)
     now = datetime.now(timezone.utc)
     today = now.date()
     day_name = today.strftime("%A")
@@ -81,7 +83,7 @@ def home_feed():
     attendance_summary = {"total_classes": 0, "present": 0, "percentage": 0}
     try:
         from ..models.attendance import AttendanceRecord
-        records = AttendanceRecord.query.filter_by(student_id=user_id).all()
+        records = AttendanceRecord.query.filter_by(student_id=real_user_id).all()
         total = len(records)
         present = sum(1 for r in records if r.status == "present")
         attendance_summary = {
@@ -111,15 +113,24 @@ def home_feed():
     user_info = {}
     try:
         from ..models.user import User
-        user = User.query.get(user_id)
-        if user:
+        if isinstance(user_id, str) and user_id.startswith("guest_"):
             user_info = {
-                "first_name": user.first_name,
-                "last_name": user.last_name,
-                "department": user.department,
-                "semester": user.semester,
-                "role": user.role.value if user.role else "student",
+                "first_name": "Guest",
+                "last_name": "Visitor",
+                "department": "CSE",
+                "semester": 3,
+                "role": "guest",
             }
+        else:
+            user = User.query.get(user_id)
+            if user:
+                user_info = {
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "department": user.department,
+                    "semester": user.semester,
+                    "role": user.role.value if user.role else "student",
+                }
     except Exception:
         pass
 

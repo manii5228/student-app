@@ -91,15 +91,19 @@ const ChangePassword = () => {
           <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-6 animate-scale-in">
             <CheckCircle className="w-12 h-12 text-emerald-600" />
           </div>
-          <h2 className="text-2xl font-black text-slate-900 mb-2">Password Changed</h2>
+          <h2 className="text-2xl font-black text-slate-900 mb-2">Password Updated</h2>
           <p className="text-sm text-slate-500 text-center mb-8">
-            Your password has been updated successfully. All other active sessions remain valid.
+            Your password has been changed successfully. For your security, you have been signed out of all devices. Please sign in again.
           </p>
           <button
-            onClick={() => navigate('/profile')}
+            onClick={() => {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              navigate('/login');
+            }}
             className="w-full bg-slate-900 text-white py-4 rounded-[20px] font-bold text-sm shadow-xl hover:bg-slate-800 active:scale-[0.98] transition-all"
           >
-            Back to Profile
+            Sign In Again
           </button>
         </div>
         <BottomNav />

@@ -412,6 +412,9 @@ class AuthService:
         user.set_password(new_password)
         user.last_password_change = datetime.now(timezone.utc)
         self.user_repo.commit()
+        
+        # Revoke all sessions so all devices are logged out (including current one)
+        self.revoke_all_sessions(user_id)
         return True, None
 
     # ── Guest Mode ─────────────────────────────────────────────────

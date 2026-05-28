@@ -35,3 +35,16 @@ def role_required(*allowed_roles):
             return fn(*args, **kwargs)
         return wrapper
     return decorator
+
+
+def resolve_student_identity(user_id):
+    """
+    If the user_id is a transient guest ID, resolve it to student1's database ID
+    so the guest can view mock student records.
+    """
+    if isinstance(user_id, str) and user_id.startswith("guest_"):
+        from ..models.user import User
+        student = User.query.filter_by(email="student1@veltech.edu.in").first()
+        if student:
+            return student.id
+    return user_id

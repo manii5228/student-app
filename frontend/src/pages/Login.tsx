@@ -20,6 +20,17 @@ const Login = () => {
   const [ssoProcessingMsg, setSsoProcessingMsg] = useState('');
   const [highlightPassword, setHighlightPassword] = useState(false);
 
+  // Lock guests in guest mode
+  React.useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const u = JSON.parse(userStr);
+      if (u.role === 'guest' || u.is_guest) {
+        navigate('/');
+      }
+    }
+  }, [navigate]);
+
   // ── Email/Password Login ──
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

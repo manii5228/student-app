@@ -414,7 +414,9 @@ const PortfolioBuilder = () => {
         )}
       </div>
 
-      <BottomNav className="print:hidden" />
+      <div className="print:hidden">
+        <BottomNav />
+      </div>
     </div>
   );
 };
