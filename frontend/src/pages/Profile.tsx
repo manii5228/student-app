@@ -446,6 +446,17 @@ const Profile = () => {
               </button>
             ))}
           </div>
+
+          {/* Exit Guest Mode Danger Zone */}
+          <button onClick={handleLogout} className="bg-red-50 rounded-[24px] p-4 flex items-center gap-4 text-left w-full hover:bg-red-100 transition-colors border border-red-100 mt-2">
+            <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-red-600 shadow-sm shrink-0">
+              <LogOut className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-red-700">Exit Guest Mode</p>
+              <p className="text-xs text-red-600 mt-0.5">End this guest session and return to Login.</p>
+            </div>
+          </button>
         </div>
       )}
 

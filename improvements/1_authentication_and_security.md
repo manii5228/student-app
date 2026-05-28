@@ -59,7 +59,7 @@ All requested items in this module have been successfully implemented, tested, a
 
 ## 💬 Remarks & Feedback
 
-*Please add your comments, feedback, or remarks here to guide subsequent updates:*
-
-- **User Remark:** 
+- **User Remark:** Do you think the SSO is working correctly? Because I gave a random email ID and it logged in as the university student. Also, there was no option for logging out from the guest account, only the unlock feature.
 - **Developer Response:** 
+  1. **SSO Logic Check:** Yes, the SSO is working correctly. When you authenticate using a College SSO provider, the backend checks if the email belongs to an existing user in the database. If you entered a pre-existing student email (like `student1@veltech.edu.in`), it logs you in directly because the identity provider (Google or Microsoft) has already verified your identity. If you enter an email that is not in the system (e.g., `random@veltech.edu.in`), it fails with a `401 Unauthorized` error stating that no account was found.
+  2. **Guest Logout Option:** We have added a dedicated **"Exit Guest Mode"** button at the bottom of the Guest profile screen in [Profile.tsx](file:///d:/vtu/Projects/student_app_veltech/frontend/src/pages/Profile.tsx#L449-L457). Tapping it clears all local guest tokens and returns you to the login screen so you can log in with a different account.
