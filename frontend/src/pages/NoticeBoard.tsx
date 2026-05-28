@@ -91,7 +91,11 @@ const NoticeBoard = () => {
         <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors shadow-sm">
+            <button onClick={() => {
+              const role = JSON.parse(localStorage.getItem('user') || '{}').role;
+              if (window.history.length > 2) { navigate(-1); }
+              else { navigate(role === 'faculty' ? '/faculty' : role === 'admin' ? '/admin' : '/campus'); }
+            }} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors shadow-sm">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <div>

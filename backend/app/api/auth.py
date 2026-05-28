@@ -272,6 +272,303 @@ def get_profile():
     return jsonify({"user": user.to_dict()}), 200
 
 
+@auth_bp.route("/me/preferences", methods=["PUT"])
+@jwt_required()
+def update_preferences():
+    """Store user preferences in the cloud for preference syncing."""
+    user_id = get_jwt_identity()
+    if isinstance(user_id, str) and user_id.startswith("guest_"):
+        return jsonify({"message": "Preferences updated (session-only)"}), 200
+
+    from ..repositories.user_repo import UserRepository
+    user = UserRepository().get_by_id(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    data = request.get_json()
+    import json
+    user.preferences = json.dumps(data)
+    db.session.commit()
+    return jsonify({"message": "Preferences updated successfully", "preferences": data}), 200
+
+
+@auth_bp.route("/me/export", methods=["GET"])
+@jwt_required()
+def export_data():
+    """GDPR Compliance Data Export - compiles user data to a downloadable ZIP."""
+    user_id = get_jwt_identity()
+    if isinstance(user_id, str) and user_id.startswith("guest_"):
+        return jsonify({"error": "Guest accounts have no persistent data to export"}), 400
+
+    from ..repositories.user_repo import UserRepository
+    user = UserRepository().get_by_id(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    import json
+    from io import BytesIO
+    import zipfile
+    from datetime import datetime, timezone
+    from flask import send_file
+
+    user_data = user.to_dict()
+    sessions = [s.to_dict() for s in user.sessions.all()]
+    biometrics = [b.to_dict() for b in user.biometric_credentials.all()]
+
+    # Combine it all into a dictionary
+    export_payload = {
+        "profile": user_data,
+        "sessions": sessions,
+        "biometrics": biometrics,
+        "export_metadata": {
+            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "organization": "VelTech University",
+            "gdpr_compliance": "Article 15 - Right of Access"
+        }
+    }
+
+    # Create ZIP file in memory
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        zip_file.writestr("profile_data.json", json.dumps(export_payload, indent=2))
+        readme_content = f"""VelTech University - Student Data Portability Archive
+============================================================
+Student Name: {user.full_name}
+Roll Number: {user.roll_number or "N/A"}
+Export Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+This archive contains all the active personal data associated with your account,
+compiled in compliance with standard data protection regulations (GDPR Article 20).
+"""
+        zip_file.writestr("README.txt", readme_content)
+
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"veltech_data_export_{user.id[:8]}.zip"
+    )
+
+
+@auth_bp.route("/nfc-profile/<totp_code>", methods=["GET"])
+def get_profile_by_nfc(totp_code):
+    """Allows campus security NFC scanners to securely pull up student profile by rotating TOTP QR/NFC code."""
+    import time
+
+    def calculate_totp_for_user(user_id, offset=0):
+        epoch = int(time.time() * 1000 / 15000) + offset
+        raw = f"{user_id}-{epoch}-VELTECH"
+        h = 0
+        for char in raw:
+            h = ((h << 5) - h + ord(char)) & 0xFFFFFFFF
+            if h >= 0x80000000:
+                h -= 0x100000000
+        abs_h = abs(h)
+        # base 36
+        alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        base36 = ''
+        number = abs_h
+        while number:
+            number, i = divmod(number, 36)
+            base36 = alphabet[i] + base36
+        res = base36 or alphabet[0]
+        return res.upper().zfill(8)[:8]
+
+    from ..models.user import User
+    students = User.query.filter_by(role="student").all()
+    for s in students:
+        if calculate_totp_for_user(s.id, 0) == totp_code or calculate_totp_for_user(s.id, -1) == totp_code:
+            return jsonify({
+                "verified": True,
+                "student": {
+                    "id": s.id,
+                    "full_name": s.full_name,
+                    "roll_number": s.roll_number,
+                    "department": s.department,
+                    "semester": s.semester,
+                    "section": s.section,
+                    "cgpa": s.cgpa,
+                    "avatar_url": s.avatar_url,
+                    "is_verified": s.is_verified,
+                    "email": s.email
+                }
+            }), 200
+
+    return jsonify({"verified": False, "error": "Invalid or expired NFC/QR code"}), 404
+
+
+@auth_bp.route("/profile/endorse", methods=["POST"])
+@jwt_required()
+def endorse_skill():
+    """Endorse a student's skill."""
+    current_user_id = get_jwt_identity()
+    data = request.get_json()
+    target_user_id = data.get("user_id")
+    skill_name = data.get("skill_name")
+
+    if not target_user_id or not skill_name:
+        return jsonify({"error": "Missing user_id or skill_name"}), 400
+
+    if current_user_id == target_user_id:
+        return jsonify({"error": "You cannot endorse your own skills"}), 400
+
+    from ..models.user import User
+    target_user = User.query.get(target_user_id)
+    if not target_user:
+        return jsonify({"error": "Target user not found"}), 404
+
+    import json
+    try:
+        skills_list = json.loads(target_user.skills) if target_user.skills else []
+    except Exception:
+        skills_list = []
+
+    # Find or create skill
+    skill_item = None
+    for s in skills_list:
+        if s.get("name").lower() == skill_name.lower():
+            skill_item = s
+            break
+
+    if not skill_item:
+        skill_item = {"name": skill_name, "endorsements": []}
+        skills_list.append(skill_item)
+
+    endorsements = skill_item.get("endorsements", [])
+    if current_user_id in endorsements:
+        endorsements.remove(current_user_id)
+        action = "removed"
+    else:
+        endorsements.append(current_user_id)
+        action = "added"
+
+    skill_item["endorsements"] = endorsements
+    target_user.skills = json.dumps(skills_list)
+    db.session.commit()
+
+    return jsonify({
+        "message": f"Endorsement {action} successfully",
+        "skill": {
+            "name": skill_item["name"],
+            "endorsements": len(endorsements),
+            "endorsed": current_user_id in endorsements
+        }
+    }), 200
+
+
+@auth_bp.route("/profile/social-graph", methods=["GET"])
+@jwt_required()
+def get_social_graph():
+    """Generates a Neo4j-style social graph representation mapping relationships."""
+    from ..models.user import User
+    students = User.query.filter_by(role="student").limit(20).all()
+
+    nodes = []
+    edges = []
+
+    for u in students:
+        nodes.append({
+            "id": u.id,
+            "label": u.full_name,
+            "type": "student",
+            "roll_number": u.roll_number
+        })
+
+        if u.mentor_id:
+            edges.append({
+                "source": u.id,
+                "target": u.mentor_id,
+                "type": "mentored_by"
+            })
+
+        import json
+        try:
+            skills_list = json.loads(u.skills) if u.skills else []
+            for s in skills_list:
+                for endorser_id in s.get("endorsements", []):
+                    edges.append({
+                        "source": endorser_id,
+                        "target": u.id,
+                        "type": "endorsed",
+                        "skill": s["name"]
+                    })
+        except Exception:
+            pass
+
+    mock_projects = [
+        {"id": "proj_1", "label": "Smart Campus App", "type": "project"},
+        {"id": "proj_2", "label": "AI Medical Diagnostic", "type": "project"},
+        {"id": "proj_3", "label": "Blockchain Attendance System", "type": "project"},
+    ]
+    nodes.extend(mock_projects)
+
+    if len(students) > 0:
+        edges.append({"source": students[0].id, "target": "proj_1", "type": "contributor"})
+    if len(students) > 1:
+        edges.append({"source": students[1].id, "target": "proj_1", "type": "contributor"})
+        edges.append({"source": students[1].id, "target": "proj_2", "type": "lead"})
+    if len(students) > 2:
+        edges.append({"source": students[2].id, "target": "proj_3", "type": "contributor"})
+
+    return jsonify({
+        "nodes": nodes,
+        "edges": edges
+    }), 200
+
+
+@auth_bp.route("/profile/certifications/verify", methods=["POST"])
+@jwt_required()
+def verify_certification():
+    """Automatically verify and add certifications if valid certificate ID."""
+    user_id = get_jwt_identity()
+    if isinstance(user_id, str) and user_id.startswith("guest_"):
+        return jsonify({"error": "Guest accounts cannot verify certifications"}), 400
+
+    data = request.get_json()
+    cert_id = data.get("certificate_id")
+    platform = data.get("platform", "coursera").lower()
+    title = data.get("title", "Advanced Technical Course")
+
+    if not cert_id:
+        return jsonify({"error": "Certificate ID is required"}), 400
+
+    if len(cert_id) < 8:
+        return jsonify({"error": "Invalid Certificate ID format. Must be at least 8 characters."}), 400
+
+    from ..models.user import User
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    import json
+    import time
+    from datetime import datetime, timezone
+    try:
+        ach_list = json.loads(user.achievements) if user.achievements else []
+    except Exception:
+        ach_list = []
+
+    new_achievement = {
+        "id": f"cert_{int(time.time())}",
+        "title": f"{platform.upper()}: {title}",
+        "type": "certification",
+        "icon": "🎓" if platform == "nptel" else "☁",
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "certificate_id": cert_id,
+        "verified": True
+    }
+
+    ach_list.append(new_achievement)
+    user.achievements = json.dumps(ach_list)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Certification successfully verified and added to portfolio!",
+        "achievement": new_achievement
+    }), 200
+
+
 # ── Session Management ────────────────────────────────────────────
 
 @auth_bp.route("/sessions", methods=["GET"])

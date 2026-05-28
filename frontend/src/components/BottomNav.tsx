@@ -31,9 +31,17 @@ const BottomNav = () => {
     return (
       <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-slate-100 px-6 py-4 rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
         <div className="flex justify-around items-center">
-          <NavLink to="/faculty" className={`flex flex-col items-center gap-1 ${path.startsWith('/faculty') ? 'text-indigo-500' : 'text-slate-400 hover:text-slate-600'}`}>
-            <Home className={`w-6 h-6 ${path.startsWith('/faculty') ? 'fill-indigo-500/20' : ''}`} />
-            <span className="text-[10px] font-bold">Faculty Hub</span>
+          <NavLink to="/faculty" className={`flex flex-col items-center gap-1 ${path === '/faculty' || path === '/faculty/' ? 'text-indigo-500' : 'text-slate-400 hover:text-slate-600'}`}>
+            <Home className={`w-6 h-6 ${path === '/faculty' || path === '/faculty/' ? 'fill-indigo-500/20' : ''}`} />
+            <span className="text-[10px] font-bold">Hub</span>
+          </NavLink>
+          <NavLink to="/faculty/question-bank" className={`flex flex-col items-center gap-1 ${path.startsWith('/faculty/question-bank') ? 'text-blue-500' : 'text-slate-400 hover:text-slate-600'}`}>
+            <BookOpen className={`w-6 h-6 ${path.startsWith('/faculty/question-bank') ? 'fill-blue-500/20' : ''}`} />
+            <span className="text-[10px] font-bold">PYQs</span>
+          </NavLink>
+          <NavLink to="/faculty/resources" className={`flex flex-col items-center gap-1 ${path.startsWith('/faculty/resources') ? 'text-orange-500' : 'text-slate-400 hover:text-slate-600'}`}>
+            <Briefcase className={`w-6 h-6 ${path.startsWith('/faculty/resources') ? 'fill-orange-500/20' : ''}`} />
+            <span className="text-[10px] font-bold">Notes</span>
           </NavLink>
           <NavLink to="/profile" className={`flex flex-col items-center gap-1 ${path === '/profile' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>
             <User className={`w-6 h-6 ${path === '/profile' ? 'fill-slate-900/20' : ''}`} />

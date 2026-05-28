@@ -233,7 +233,11 @@ const EventHub = () => {
       {/* Header */}
       <div className="bg-[#0080c7] p-6 pt-12 rounded-b-[36px] shadow-md text-white shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
+          <button onClick={() => {
+              const role = JSON.parse(localStorage.getItem('user') || '{}').role;
+              if (window.history.length > 2) { navigate(-1); }
+              else { navigate(role === 'faculty' ? '/faculty' : role === 'admin' ? '/admin' : '/campus'); }
+            }} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>

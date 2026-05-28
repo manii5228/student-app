@@ -6,17 +6,18 @@ load_dotenv()
 from app import create_app
 from app.extensions import db
 
-# 1. Add last_password_change column if not present
+# 1. Add missing columns if not present
 db_path = 'instance/superapp.db'
 if os.path.exists(db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN last_password_change DATETIME")
-        conn.commit()
-        print("Column last_password_change added successfully.")
-    except sqlite3.OperationalError as e:
-        print("Column last_password_change already exists or could not be added:", e)
+    for col in [("last_password_change", "DATETIME"), ("preferences", "TEXT"), ("achievements", "TEXT"), ("skills", "TEXT")]:
+        try:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col[0]} {col[1]}")
+            conn.commit()
+            print(f"Column {col[0]} added successfully.")
+        except sqlite3.OperationalError as e:
+            print(f"Column {col[0]} already exists or could not be added: {e}")
     conn.close()
 else:
     print("Database file does not exist yet.")

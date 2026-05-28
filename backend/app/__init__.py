@@ -45,6 +45,7 @@ def create_app(config_name=None):
     from .api.career import career_bp
     from .api.faculty import faculty_bp
     from .api.health_utility import utility_bp
+    from .api.home import home_bp
 
     app.register_blueprint(health_bp, url_prefix="/api/v1")
     app.register_blueprint(auth_bp, url_prefix="/api/v1/auth")
@@ -56,6 +57,7 @@ def create_app(config_name=None):
     app.register_blueprint(career_bp, url_prefix="/api/v1/career")
     app.register_blueprint(faculty_bp, url_prefix="/api/v1/faculty")
     app.register_blueprint(utility_bp, url_prefix="/api/v1/utility")
+    app.register_blueprint(home_bp, url_prefix="/api/v1/home")
 
     # ── JWT Error Handlers ─────────────────────────────────────────
     @jwt.token_in_blocklist_loader

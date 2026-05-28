@@ -18,6 +18,7 @@ from .career import (
     AuditLog, FeeRecord,
 )
 
+
 __all__ = [
     "User", "UserSession",
     "Attendance", "AttendanceRecord", "AttendanceDiscrepancy",

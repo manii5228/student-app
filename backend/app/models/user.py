@@ -5,6 +5,7 @@ Supports three roles: Student, Faculty, Admin.
 Includes password hashing, session tracking, and profile fields.
 """
 
+import json
 import uuid
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
@@ -40,6 +41,11 @@ class User(db.Model):
     last_name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(20), nullable=True)
     avatar_url = db.Column(db.String(500), nullable=True)
+
+    # ── Custom profile extensions (Phase 12) ────────────────────────
+    preferences = db.Column(db.Text, nullable=True, default='{}')
+    achievements = db.Column(db.Text, nullable=True, default='[]')
+    skills = db.Column(db.Text, nullable=True, default='[]')
 
     # ── Student-specific fields ────────────────────────────────────
     roll_number = db.Column(db.String(30), unique=True, nullable=True, index=True)
@@ -113,6 +119,9 @@ class User(db.Model):
             "is_active": self.is_active,
             "is_verified": self.is_verified,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "preferences": json.loads(self.preferences) if self.preferences else {},
+            "achievements": json.loads(self.achievements) if self.achievements else [],
+            "skills": json.loads(self.skills) if self.skills else [],
         }
 
         if self.role == UserRole.STUDENT:
