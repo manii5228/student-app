@@ -58,9 +58,10 @@ const MentorHostelPasses = () => {
     if (selected.size === 0) return;
     setIsSubmitting(true);
     try {
-      await Promise.all(Array.from(selected).map(id => 
-        api.put(`/campus/hostel-pass/${id}/status`, { status })
-      ));
+      await api.put('/campus/hostel-pass/bulk-status', {
+        ids: Array.from(selected),
+        status
+      });
       setSelected(new Set());
       await fetchPasses();
     } catch (err) {

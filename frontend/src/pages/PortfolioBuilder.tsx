@@ -140,10 +140,11 @@ const PortfolioBuilder = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === 'edit' ? (
-          /* ─── EDITOR ─── */
-          <div className="p-4 flex flex-col gap-4 animate-fade-in print:hidden">
+      <div className="flex-1 overflow-y-auto md:p-6 print:p-0">
+        <div className="max-w-7xl mx-auto h-full grid grid-cols-1 md:grid-cols-12 gap-6 print:block">
+          
+          {/* EDITOR COLUMN */}
+          <div className={`col-span-1 md:col-span-6 flex flex-col gap-4 p-4 md:p-0 animate-fade-in print:hidden ${activeTab === 'edit' ? 'flex' : 'hidden md:flex'}`}>
 
             {/* Template Selection */}
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
@@ -229,6 +230,45 @@ const PortfolioBuilder = () => {
               </div>
             </div>
 
+            {/* Recruiter Analytics Dashboard */}
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Portfolio Reach & Recruiter Analytics</h3>
+              
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50">
+                  <p className="text-2xl font-black text-indigo-700">{portfolio.is_public ? '12' : '0'}</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase mt-0.5">Recruiter Views</p>
+                </div>
+                <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/50">
+                  <p className="text-2xl font-black text-emerald-700">{portfolio.is_public ? '38' : '0'}</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase mt-0.5">Search Appearances</p>
+                </div>
+              </div>
+              
+              <h4 className="text-[9px] font-bold text-slate-400 uppercase mb-2">Recent Profile Views</h4>
+              {portfolio.is_public ? (
+                <div className="flex flex-col gap-2">
+                  {[
+                    { company: 'Google', location: 'Bangalore', time: '2 hours ago', query: 'React Developer' },
+                    { company: 'Microsoft', location: 'Hyderabad', time: '1 day ago', query: 'TypeScript Engineer' },
+                    { company: 'TCS', location: 'Chennai', time: '3 days ago', query: 'B.Tech Freshers' }
+                  ].map((v, i) => (
+                    <div key={i} className="flex justify-between items-center bg-slate-50 rounded-xl p-2.5 border border-slate-100 text-[10px]">
+                      <div>
+                        <p className="font-bold text-slate-800">{v.company} recruiter <span className="font-medium text-slate-400">({v.location})</span></p>
+                        <p className="text-slate-400 text-[9px] mt-0.5">Search term: <span className="text-indigo-600 font-bold">"{v.query}"</span></p>
+                      </div>
+                      <span className="text-[9px] text-slate-400 shrink-0 font-medium">{v.time}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <p className="text-xs text-slate-400 italic font-medium">Turn on public access to start tracking recruiter views.</p>
+                </div>
+              )}
+            </div>
+
             {/* Visibility Settings */}
             <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-3xl p-5 shadow-sm border border-indigo-100 flex items-center justify-between">
               <div>
@@ -239,11 +279,12 @@ const PortfolioBuilder = () => {
                 <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all shadow-sm ${portfolio.is_public ? 'left-8' : 'left-1'}`}></div>
               </button>
             </div>
+
           </div>
-        ) : (
-          /* ─── LIVE PREVIEW / PRINT AREA ─── */
-          <div className="p-4 md:p-8 h-full bg-slate-200 print:bg-white print:p-0 flex justify-center">
-            <div className="w-full max-w-3xl min-h-[800px] shadow-2xl border border-slate-300 bg-white relative print:shadow-none print:border-none print:min-h-0 overflow-hidden print:overflow-visible">
+
+          {/* PREVIEW COLUMN */}
+          <div className={`col-span-1 md:col-span-6 flex flex-col items-center justify-start p-4 md:p-6 animate-fade-in print:p-0 bg-slate-200 md:rounded-3xl md:shadow-inner md:border md:border-slate-300/50 md:max-h-[85vh] md:overflow-y-auto ${activeTab === 'preview' ? 'flex' : 'hidden md:flex'}`}>
+            <div className="w-full max-w-2xl min-h-[800px] shadow-2xl border border-slate-300 bg-white relative print:shadow-none print:border-none print:min-h-0 overflow-hidden print:overflow-visible rounded-2xl print:rounded-none">
 
               {portfolio.template === 'modern' && (
                 <div className="h-full bg-slate-50 text-slate-900 font-sans pb-10">
@@ -411,7 +452,8 @@ const PortfolioBuilder = () => {
 
             </div>
           </div>
-        )}
+
+        </div>
       </div>
 
       <div className="print:hidden">

@@ -575,7 +575,7 @@ def get_mentees_hostel_passes():
         d = p.to_dict()
         u = db.session.get(User, p.student_id)
         d['student_name'] = u.full_name if u else "Unknown"
-        d['student_reg'] = u.registration_number if u else "N/A"
+        d['student_reg'] = u.roll_number if u else "N/A"
         pass_data.append(d)
 
     return jsonify({"passes": pass_data}), 200
@@ -596,6 +596,48 @@ def update_hostel_pass_status(pid):
         # If approved, generate a mock QR code URL
         if status == "approved":
             h_pass.qr_code_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-{h_pass.id}"
+            h_pass.parent_status = "approved"
+        else:
+            h_pass.parent_status = "rejected"
         db.session.commit()
         return jsonify({"message": f"Hostel pass {status}", "pass": h_pass.to_dict()}), 200
     return jsonify({"error": "Invalid status"}), 400
+
+@campus_bp.route("/hostel-pass/bulk-status", methods=["PUT"])
+@jwt_required()
+@role_required("admin", "faculty")
+def bulk_update_hostel_pass_status():
+    """Bulk update status of hostel passes (approve/reject)."""
+    data = request.get_json()
+    pids = data.get("ids", [])
+    status = data.get("status")
+    if status not in ["approved", "rejected"]:
+        return jsonify({"error": "Invalid status"}), 400
+    
+    passes = HostelPass.query.filter(HostelPass.id.in_(pids)).all()
+    for h_pass in passes:
+        h_pass.status = status
+        # If approved, generate a mock QR code URL and approve parent status
+        if status == "approved":
+            h_pass.qr_code_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-{h_pass.id}"
+            h_pass.parent_status = "approved"
+        else:
+            h_pass.parent_status = "rejected"
+            
+    db.session.commit()
+    return jsonify({"message": f"Successfully updated {len(passes)} passes to {status}"}), 200
+
+@campus_bp.route("/hostel-pass/<pid>/resend-parent", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def resend_parent_notification(pid):
+    """Simulate resending SMS/email notification to parent for hostel pass."""
+    h_pass = db.session.get(HostelPass, pid)
+    if not h_pass or h_pass.student_id != get_jwt_identity():
+        return jsonify({"error": "Hostel pass not found"}), 404
+        
+    return jsonify({
+        "message": "Out-pass approval request link resent to parent via SMS",
+        "parent_contact": "+91 ******8932"
+    }), 200
+

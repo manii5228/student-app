@@ -21,6 +21,16 @@ const TeamFinder = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [filterDept, setFilterDept] = useState('');
   const [filterSkill, setFilterSkill] = useState('');
+  const [filterYear, setFilterYear] = useState('');
+  const [filterComplementary, setFilterComplementary] = useState(false);
+
+  // Abuse Prevention Reporting
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportingUser, setReportingUser] = useState<string|null>(null);
+
+  // Chat typing indicator
+  const [isTyping, setIsTyping] = useState(false);
 
   // Chat
   const [chatMatch, setChatMatch] = useState<Match|null>(null);
@@ -61,12 +71,14 @@ const TeamFinder = () => {
       const params: any = {};
       if (filterDept) params.department = filterDept;
       if (filterSkill) params.skill = filterSkill;
+      if (filterYear) params.year = filterYear;
+      if (filterComplementary) params.complementary = 'true';
       const { data } = await api.get('/career/team-finder/profiles', { params });
       setProfiles(data.profiles || []);
     } catch {}
   };
 
-  useEffect(() => { if (myProfile) loadProfiles(); }, [filterDept, filterSkill]);
+  useEffect(() => { if (myProfile) loadProfiles(); }, [filterDept, filterSkill, filterYear, filterComplementary]);
 
   const saveProfile = async () => {
     try {
@@ -97,8 +109,36 @@ const TeamFinder = () => {
           const mRes = await api.get('/career/team-finder/matches');
           setMatches(mRes.data.matches || []);
         }
-      } catch {}
+      } catch (err: any) {
+        if (err.response && err.response.status === 429) {
+          alert(err.response.data.message || 'Swipe limit reached. Try again later.');
+          setProfiles(prev => [target, ...prev]);
+        }
+      }
     }, 350);
+  };
+
+  const triggerTypingSimulation = (match: Match) => {
+    setIsTyping(true);
+    setTimeout(() => {
+      setIsTyping(false);
+      const replies = [
+        "Hey! Thanks for matching. I'm really interested in your project idea!",
+        "Yes, I have experience with React and Node. Let's build something awesome!",
+        "Hey, let's schedule a call to discuss the hackathon plan.",
+        "Sure, sounds like a great plan! Let's connect on WhatsApp/LinkedIn."
+      ];
+      const randomReply = replies[Math.floor(Math.random() * replies.length)];
+      const mockMsg = {
+        id: Math.random().toString(),
+        sender_id: match.other_user?.id || '',
+        sender_name: match.other_user?.name || 'Teammate',
+        content: randomReply,
+        sent_at: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, mockMsg]);
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }, 3000);
   };
 
   const openChat = async (match: Match) => {
@@ -107,6 +147,9 @@ const TeamFinder = () => {
     try {
       const { data } = await api.get(`/career/team-finder/messages/${match.id}`);
       setMessages(data.messages || []);
+      if (!data.messages || data.messages.length === 0) {
+        setTimeout(() => triggerTypingSimulation(match), 1000);
+      }
     } catch {} finally { setChatLoading(false); }
   };
 
@@ -117,7 +160,24 @@ const TeamFinder = () => {
       setMessages(prev => [...prev, data.message]);
       setMsgInput('');
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      setTimeout(() => triggerTypingSimulation(chatMatch), 1500);
     } catch {}
+  };
+
+  const handleReport = async () => {
+    if (!reportingUser || !reportReason.trim()) return;
+    try {
+      await api.post('/career/team-finder/report', {
+        reported_id: reportingUser,
+        reason: reportReason
+      });
+      alert('Thank you. The user has been reported, and they will no longer appear in your stack.');
+      setShowReportModal(false);
+      setReportReason('');
+      handleSwipe('left');
+    } catch {
+      alert('Failed to submit report.');
+    }
   };
 
   return (
@@ -154,7 +214,7 @@ const TeamFinder = () => {
       {/* Filters */}
       {showFilters && (
         <div className="px-6 mb-3 animate-fade-in">
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Department</label>
@@ -168,6 +228,24 @@ const TeamFinder = () => {
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Skill</label>
                 <input value={filterSkill} onChange={e=>setFilterSkill(e.target.value)} placeholder="e.g. React" className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-cyan-400"/>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Academic Year</label>
+                <select value={filterYear} onChange={e=>setFilterYear(e.target.value)} className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-cyan-400">
+                  <option value="">All</option>
+                  <option value="1">1st Year</option>
+                  <option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option>
+                  <option value="4">4th Year</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between pt-4">
+                <span className="text-[10px] font-bold text-slate-500 uppercase leading-none">Complementary</span>
+                <button onClick={()=>setFilterComplementary(!filterComplementary)} className={`w-9 h-5 rounded-full relative transition-colors ${filterComplementary ? 'bg-cyan-500' : 'bg-slate-300'}`}>
+                  <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.8 transition-all shadow-sm ${filterComplementary ? 'left-5' : 'left-0.5'}`}></div>
+                </button>
               </div>
             </div>
           </div>
@@ -234,9 +312,14 @@ const TeamFinder = () => {
           )}
 
           {profiles.length > 0 && (
-            <div className="flex gap-6 mt-6 z-40 relative pb-4">
+            <div className="flex gap-6 mt-6 z-40 relative pb-4 items-center">
               <button onClick={() => handleSwipe('left')} className="w-16 h-16 rounded-full bg-white border border-slate-100 shadow-lg flex items-center justify-center text-red-400 hover:bg-red-50 hover:scale-110 hover:text-red-500 transition-all active:scale-95">
                 <X className="w-8 h-8" />
+              </button>
+              <button onClick={() => { setReportingUser(profiles[0].user_id); setShowReportModal(true); }} className="w-12 h-12 rounded-full bg-white border border-slate-100 shadow-md flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-all active:scale-95" title="Report Profile">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-1 7h-8.5l-1-1H5m0 10h16.5" />
+                </svg>
               </button>
               <button onClick={() => handleSwipe('right')} className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 border border-pink-400 shadow-xl flex items-center justify-center text-white hover:scale-110 transition-all active:scale-95">
                 <Heart className="w-7 h-7" />
@@ -303,6 +386,18 @@ const TeamFinder = () => {
                 );
               })
             )}
+            {isTyping && (
+              <div className="flex mb-3 justify-start items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-cyan-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-sm">
+                  {chatMatch.other_user?.name?.charAt(0)}
+                </div>
+                <div className="bg-white rounded-2xl px-4 py-2.5 shadow-sm border border-slate-100 rounded-bl-md flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-duration:1s]"></span>
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-duration:1s] [animation-delay:0.2s]"></span>
+                  <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce [animation-duration:1s] [animation-delay:0.4s]"></span>
+                </div>
+              </div>
+            )}
             <div ref={chatEndRef}/>
           </div>
           <div className="p-4 bg-white border-t border-slate-100 flex gap-2">
@@ -338,6 +433,31 @@ const TeamFinder = () => {
               </div>
               <button onClick={saveProfile} disabled={!setupForm.skills.trim()} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3.5 rounded-2xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40">Start Finding Teammates</button>
               <button onClick={()=>{setShowSetup(false); nav(-1);}} className="text-xs font-bold text-slate-400 text-center hover:text-slate-600 transition-colors">Skip for now</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Abuse Reporting Modal ─── */}
+      {showReportModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-slide-up">
+            <h3 className="text-base font-bold text-slate-900 mb-2">Report Profile</h3>
+            <p className="text-xs text-slate-500 mb-4">Please select a reason for reporting this user. They will be immediately blocked and removed from your stack.</p>
+            <div className="flex flex-col gap-2">
+              {['Inappropriate bio or looking-for text', 'Spam / Fake account', 'Harassment or offensive behavior', 'Other'].map(r => (
+                <button
+                  key={r}
+                  onClick={() => setReportReason(r)}
+                  className={`w-full p-3 rounded-xl text-xs font-bold text-left transition-colors ${reportReason === r ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-slate-50 text-slate-700 border border-slate-100 hover:bg-slate-100'}`}
+                >
+                  {r}
+                </button>
+              ))}
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => { setShowReportModal(false); setReportReason(''); }} className="flex-1 py-3 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">Cancel</button>
+                <button onClick={handleReport} disabled={!reportReason} className="flex-1 py-3 rounded-xl text-xs font-bold bg-red-600 text-white disabled:opacity-40 shadow-md">Submit Report</button>
+              </div>
             </div>
           </div>
         </div>

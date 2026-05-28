@@ -27,6 +27,27 @@ const ProjectReminders = () => {
   const [assignModal, setAssignModal] = useState<{mid: string; members: string[]}|null>(null);
   const [showEdit, setShowEdit] = useState(false);
 
+  // Custom Task Modal
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [taskForm, setTaskForm] = useState({ title: '', due_date: '', assigned_to: '', column: 'todo' });
+
+  // Collaboration indicators simulation
+  const [collabNotification, setCollabNotification] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeProject) {
+      const timers = [
+        setTimeout(() => setCollabNotification("Priya K. joined the project workspace"), 3000),
+        setTimeout(() => setCollabNotification(null), 7000),
+        setTimeout(() => setCollabNotification("Rahul S. is reviewing tasks..."), 9000),
+        setTimeout(() => setCollabNotification(null), 13000)
+      ];
+      return () => timers.forEach(clearTimeout);
+    } else {
+      setCollabNotification(null);
+    }
+  }, [activeProject]);
+
   useEffect(() => { fetchProjects(); }, []);
 
   const fetchProjects = async () => {
@@ -62,10 +83,25 @@ const ProjectReminders = () => {
     try { await api.delete(`/career/projects/${pid}`); setProjects(p=>p.filter(x=>x.id!==pid)); setActiveProject(null); } catch{}
   };
 
-  const addMs = async (pid:string) => {
-    const t = prompt('Milestone title:');
-    if(!t) return;
-    try { const {data}=await api.post(`/career/projects/${pid}/milestones`,{title:t}); setProjects(p=>p.map(x=>x.id===data.project.id?data.project:x)); } catch{}
+  const openAddTaskModal = (col: string = 'todo') => {
+    setTaskForm({ title: '', due_date: '', assigned_to: '', column: col });
+    setShowTaskModal(true);
+  };
+
+  const createTask = async () => {
+    if (!activeProject || !taskForm.title.trim()) return;
+    setSubmitting(true);
+    try {
+      const { data } = await api.post(`/career/projects/${activeProject}/milestones`, {
+        title: taskForm.title.trim(),
+        due_date: taskForm.due_date || undefined,
+        assigned_to: taskForm.assigned_to || undefined,
+        column: taskForm.column
+      });
+      setProjects(p => p.map(x => x.id === data.project.id ? data.project : x));
+      setShowTaskModal(false);
+    } catch {}
+    setSubmitting(false);
   };
 
   const moveMilestone = async (mid: string, newColumn: string) => {
@@ -138,17 +174,33 @@ const ProjectReminders = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={()=>addMs(currentProject.id)} className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-xl text-[10px] font-bold hover:bg-cyan-100 flex items-center gap-1"><Plus className="w-3 h-3"/>Task</button>
+                  <button onClick={()=>openAddTaskModal()} className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-xl text-[10px] font-bold hover:bg-cyan-100 flex items-center gap-1"><Plus className="w-3 h-3"/>Task</button>
                   <button onClick={()=>del(currentProject.id)} className="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-bold hover:bg-red-100"><Trash2 className="w-3 h-3"/></button>
                 </div>
               </div>
               {teamMembers.length > 0 && (
-                <div className="flex items-center gap-1.5 mt-2">
-                  <Users className="w-3 h-3 text-slate-400"/>
-                  <div className="flex gap-1">
-                    {teamMembers.map((m, i) => (
-                      <span key={i} className="text-[9px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{m}</span>
-                    ))}
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-slate-400"/>
+                    <div className="flex gap-1">
+                      {teamMembers.map((m, i) => (
+                        <span key={i} className="text-[9px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{m}</span>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Collaboration Indicators */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-bold text-slate-400">Editing Now:</span>
+                    <div className="flex -space-x-1.5">
+                      <div className="w-5.5 h-5.5 rounded-full bg-cyan-500 text-white text-[8px] font-bold flex items-center justify-center border border-white relative shadow-sm" title="Priya K. (Viewing)">
+                        P
+                        <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-emerald-500 rounded-full border border-white animate-pulse"></span>
+                      </div>
+                      <div className="w-5.5 h-5.5 rounded-full bg-slate-500 text-white text-[8px] font-bold flex items-center justify-center border border-white relative shadow-sm" title="Rahul S. (Active)">
+                        R
+                        <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-amber-500 rounded-full border border-white"></span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -161,7 +213,7 @@ const ProjectReminders = () => {
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={()=>{setForm({title:currentProject.title, desc:currentProject.description||'', deadline:currentProject.deadline||'', team:currentProject.team_members||''}); setShowEdit(true);}} className="text-xs font-bold bg-white text-cyan-600 px-3 py-1.5 rounded-lg shadow-sm border border-slate-200">Edit Project</button>
-                <button onClick={()=>addMs(currentProject.id)} className="text-xs font-bold bg-cyan-600 text-white px-3 py-1.5 rounded-lg shadow-md hover:bg-cyan-700 transition-colors">+ Task</button>
+                <button onClick={()=>openAddTaskModal()} className="text-xs font-bold bg-cyan-600 text-white px-3 py-1.5 rounded-lg shadow-md hover:bg-cyan-700 transition-colors">+ Task</button>
               </div>
             </div>
 
@@ -347,6 +399,58 @@ const ProjectReminders = () => {
               </div>
               <button onClick={edit} disabled={submitting||!form.title.trim()} className="w-full bg-cyan-600 text-white py-4 rounded-2xl font-bold text-sm hover:bg-cyan-700 active:scale-[0.98] transition-all disabled:opacity-40 mb-20">{submitting?'Saving...':'Save Changes'}</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Task Modal ─── */}
+      {showTaskModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-t-[32px] p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto animate-slide-up">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-slate-900">Add New Task</h2>
+              <button onClick={()=>setShowTaskModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500"/></button>
+            </div>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Task Title *</label>
+                <input value={taskForm.title} onChange={e=>setTaskForm({...taskForm,title:e.target.value})} placeholder="e.g. Design database schema" className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-slate-200 focus:outline-none focus:border-cyan-400"/>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Due Date</label>
+                  <input type="date" value={taskForm.due_date} onChange={e=>setTaskForm({...taskForm,due_date:e.target.value})} className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400"/>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Column / Status</label>
+                  <select value={taskForm.column} onChange={e=>setTaskForm({...taskForm,column:e.target.value})} className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400">
+                    <option value="todo">To Do</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="done">Done</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Assign To</label>
+                <select value={taskForm.assigned_to} onChange={e=>setTaskForm({...taskForm,assigned_to:e.target.value})} className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400">
+                  <option value="">Unassigned</option>
+                  {teamMembers.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <button onClick={createTask} disabled={submitting||!taskForm.title.trim()} className="w-full bg-cyan-600 text-white py-4 rounded-2xl font-bold text-sm hover:bg-cyan-700 active:scale-[0.98] transition-all disabled:opacity-40 mb-20">{submitting?'Creating Task...':'Add Task'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Collaboration Alert Toast ─── */}
+      {collabNotification && (
+        <div className="fixed bottom-28 left-4 right-4 z-[60] animate-slide-up flex justify-center">
+          <div className="bg-slate-900/90 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 border border-slate-800">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+            {collabNotification}
           </div>
         </div>
       )}

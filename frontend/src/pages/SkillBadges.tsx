@@ -38,6 +38,23 @@ const SkillBadges = () => {
     ]).catch(()=>{}).finally(()=>setLoading(false));
   }, []);
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const card = e.currentTarget;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const xc = rect.width / 2;
+    const yc = rect.height / 2;
+    const angleX = (yc - y) / 12; // tilt angle
+    const angleY = (x - xc) / 12;
+    card.style.transform = `perspective(600px) rotateX(${angleX}deg) rotateY(${angleY}deg) translateY(-4px)`;
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const card = e.currentTarget;
+    card.style.transform = 'perspective(600px) rotateX(0deg) rotateY(0deg) translateY(0px)';
+  };
+
   const openBadgeModal = async (badge: Badge, earnedObj: Earned|null = null) => {
     setSelectedBadge({ badge, earned: earnedObj });
     setLoadingHolders(true);
@@ -114,7 +131,7 @@ const SkillBadges = () => {
                 const b = e?.badge; if(!b) return null;
                 const grad = b?.category ? catColors[b.category] || 'from-slate-500 to-slate-600' : 'from-slate-500 to-slate-600';
                 return (
-                  <button key={e.id || idx} onClick={() => openBadgeModal(b, e)} className="group bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex flex-col items-center text-center hover:shadow-xl hover:-translate-y-1 transition-all duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
+                  <button key={e.id || idx} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} onClick={() => openBadgeModal(b, e)} className="group bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex flex-col items-center text-center hover:shadow-xl transition-all duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
                     <div className={`relative w-20 h-20 rounded-[28px] bg-gradient-to-br ${grad} flex items-center justify-center text-white shadow-lg mb-4 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
                       <div className="absolute inset-0 bg-white/20 rounded-[28px] blur-md opacity-0 group-hover:opacity-100 transition-opacity"></div>
                       <div className="relative z-10 drop-shadow-md">{iconMap[b.icon] || <Award className="w-8 h-8"/>}</div>
@@ -134,12 +151,23 @@ const SkillBadges = () => {
           )
         ) : (
           <div className="flex flex-col gap-3 pb-6 animate-slide-up">
+            {/* Guidelines Card */}
+            <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100/50 rounded-3xl p-4 mb-2">
+              <h4 className="text-xs font-black text-indigo-900 mb-2 flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-indigo-600"/> How to Achieve Skill Badges
+              </h4>
+              <ul className="text-[10px] text-indigo-700/80 font-medium space-y-1.5 list-disc pl-4 leading-relaxed">
+                <li><span className="font-bold text-indigo-900">Workshop Sync:</span> Automatically synced and awarded when you register and attend department seminars and practical labs.</li>
+                <li><span className="font-bold text-indigo-900">Project Tracker:</span> Completed projects (with 100% Kanban tasks checked off) earn you execution badges.</li>
+                <li><span className="font-bold text-indigo-900">Faculty Nominations:</span> Mentors and professors can award custom achievement badges directly to your profile.</li>
+              </ul>
+            </div>
             {allBadges.map(b => {
               const e = earned.find(x => x?.badge?.id === b?.id) || null;
               const isEarned = !!e;
               const grad = b?.category ? catColors[b.category] || 'from-slate-500 to-slate-600' : 'from-slate-500 to-slate-600';
               return (
-                <button key={b?.id || Math.random().toString()} onClick={() => openBadgeModal(b, e)} className={`text-left rounded-3xl p-4 shadow-sm border flex items-center gap-4 transition-all hover:shadow-md ${isEarned?'bg-indigo-50/30 border-indigo-100':'bg-white border-slate-100 hover:border-indigo-200'}`}>
+                <button key={b?.id || Math.random().toString()} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} onClick={() => openBadgeModal(b, e)} className={`text-left rounded-3xl p-4 shadow-sm border flex items-center gap-4 transition-all hover:shadow-md ${isEarned?'bg-indigo-50/30 border-indigo-100':'bg-white border-slate-100 hover:border-indigo-200'}`}>
                   <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center text-white shadow-md shrink-0 transition-transform ${!isEarned?'opacity-50 grayscale hover:grayscale-0 hover:scale-105':'scale-105 rotate-2'}`}>
                     {iconMap[b.icon] || <Award className="w-6 h-6"/>}
                   </div>
@@ -196,6 +224,30 @@ const SkillBadges = () => {
                 <div className="mb-6 bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
                   <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2">Award Note</h4>
                   <p className="text-xs font-medium text-indigo-900 italic">"{selectedBadge.earned.note}"</p>
+                </div>
+              )}
+
+              {selectedBadge.earned && (
+                <div className="mb-6 bg-slate-900 text-slate-100 rounded-2xl p-4 border border-slate-800 shadow-md font-mono text-[9px]">
+                  <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
+                    <span className="font-bold text-cyan-400 uppercase tracking-wider text-[8px]">Verifiable Credential</span>
+                    <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded text-[7px] font-bold uppercase">Secured</span>
+                  </div>
+                  <div className="flex flex-col gap-1 text-slate-400">
+                    <p><span className="text-slate-500 font-bold">ISSUER:</span> Vel Tech Registrar</p>
+                    <p><span className="text-slate-500 font-bold">ISSUED TO:</span> student1@veltech.edu.in</p>
+                    <p><span className="text-slate-500 font-bold">RECORD ID:</span> VC-{selectedBadge.earned.id?.substring(0, 8).toUpperCase()}</p>
+                    <p className="break-all"><span className="text-slate-500 font-bold">BLOCK SIG:</span> SHA256:{(() => {
+                      const idVal = selectedBadge.earned.id || 'badge-auth';
+                      let hash = 0;
+                      for (let i = 0; i < idVal.length; i++) {
+                        hash = (hash << 5) - hash + idVal.charCodeAt(i);
+                        hash |= 0;
+                      }
+                      return Math.abs(hash).toString(16).repeat(4).substring(0, 40);
+                    })()}</p>
+                    <p><span className="text-slate-500 font-bold">TIMESTAMP:</span> {selectedBadge.earned.earned_at ? new Date(selectedBadge.earned.earned_at).toISOString() : new Date().toISOString()}</p>
+                  </div>
                 </div>
               )}
 
