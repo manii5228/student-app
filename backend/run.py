@@ -564,14 +564,14 @@ def start_attendance_scheduler(app_instance):
         with app_instance.app_context():
             from app.services.attendance_service import AttendanceService
             service = AttendanceService()
-            app_instance.logger.info("📅 Background Attendance Alerts Scheduler Initialized.")
+            app_instance.logger.info("[SCHEDULER] Background Attendance Alerts Scheduler Initialized.")
             while True:
                 try:
-                    app_instance.logger.info("📅 Running background check for low attendance...")
+                    app_instance.logger.info("[SCHEDULER] Running background check for low attendance...")
                     result = service.run_attendance_alerts()
-                    app_instance.logger.info(f"📅 Background check complete. Warnings generated: {result['alerts_sent']}")
+                    app_instance.logger.info(f"[SCHEDULER] Background check complete. Warnings generated: {result['alerts_sent']}")
                 except Exception as ex:
-                    app_instance.logger.error(f"❌ Error in background attendance warning check: {str(ex)}")
+                    app_instance.logger.error(f"[SCHEDULER] Error in background attendance warning check: {str(ex)}")
                 
                 # Sleep for 12 hours
                 time.sleep(43200)

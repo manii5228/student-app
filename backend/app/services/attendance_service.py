@@ -609,7 +609,7 @@ class AttendanceService:
                     f.write(html_content)
                 
                 alert_msg = (
-                    f"⚠️ [ATTENDANCE ALERT] Student {student.full_name} ({student.roll_number}) "
+                    f"[ATTENDANCE ALERT] Student {student.full_name} ({student.roll_number}) "
                     f"attendance is {percentage}% (below 75%). "
                     f"Saved email warning letter to {file_name} for student and mentor {mentor_name}."
                 )

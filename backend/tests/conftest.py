@@ -13,6 +13,7 @@ def app():
     """Create application for testing — fresh per test."""
     app = create_app("testing")
     with app.app_context():
+        _db.drop_all()
         _db.create_all()
         yield app
         _db.session.remove()
@@ -28,7 +29,7 @@ def client(app):
 @pytest.fixture
 def auth_headers(client):
     """Register and login a student, return auth headers."""
-    client.post("/api/v1/auth/register", json={
+    reg_resp = client.post("/api/v1/auth/register", json={
         "email": "test@veltech.edu.in",
         "password": "testpass123",
         "first_name": "Test",
@@ -39,11 +40,15 @@ def auth_headers(client):
         "semester": 4,
         "section": "A",
     })
+    if reg_resp.status_code != 201:
+        raise Exception(f"Registration failed: status={reg_resp.status_code}, data={reg_resp.get_json()}")
     resp = client.post("/api/v1/auth/login", json={
         "email": "test@veltech.edu.in",
         "password": "testpass123",
     })
     data = resp.get_json()
+    if not data or "access_token" not in data:
+        raise Exception(f"Login failed: status={resp.status_code}, data={data}")
     token = data["access_token"]
     return {"Authorization": f"Bearer {token}"}
 

@@ -86,6 +86,7 @@ All requested core features have been fully implemented and tested.
   - **Relocation of AI Study Bot & GPA Predictor:** We removed the "GPA Predictor" and "AI Study Bot" features from the Campus section grid in [Campus.tsx](file:///d:/vtu/Projects/student_app_veltech/frontend/src/pages/Campus.tsx) and added them as grid features in [Academic.tsx](file:///d:/vtu/Projects/student_app_veltech/frontend/src/pages/Academic.tsx) pointing to `/ai/study-assistant` and `/ai/gpa-predictor`. This keeps all academic analysis tools grouped logically in a single place.
 
 i asked to hide the bunko meter but not to remove completly lest make it cpme if the disputes log is pressed 5 times continuesly or any better taht should make load and teh resoan to crash the app,dissuce while doing this feature
+smart timetable is showing Please complete your profile to view your timetable, or check server connection. Update Profile instead of time table
 in pdf pdf in credit hub i want make changes in the pdf like adding the university logo 
 there are any possiblites for the prerequisites path map
 the shrable report is there but not able to share bettter make it to download 

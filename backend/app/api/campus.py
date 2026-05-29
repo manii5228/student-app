@@ -273,13 +273,29 @@ def reject_event(eid):
 @campus_bp.route("/notices", methods=["GET"])
 @jwt_required(optional=True)
 def list_notices():
-    """Get notice board with pinned items first. Include read status for authenticated users."""
-    notices = Notice.query.order_by(
-        Notice.is_pinned.desc(), Notice.created_at.desc()).limit(50).all()
+    """Get notice board with pinned items first. Filter by student audience if logged in."""
+    from ..models.user import User
+    from sqlalchemy import or_
     
     current_user = get_jwt_identity()
-    notice_list = []
+    student = db.session.get(User, current_user) if current_user else None
     
+    query = Notice.query
+    
+    # If the logged-in user is a student, filter targeted notices
+    if student and student.role.value == "student":
+        query = query.filter(
+            or_(
+                Notice.target_audience == "all",
+                or_(Notice.branch == None, Notice.branch == student.department),
+                or_(Notice.year == None, Notice.year == student.semester),
+                or_(Notice.section == None, Notice.section == student.section)
+            )
+        )
+        
+    notices = query.order_by(Notice.is_pinned.desc(), Notice.created_at.desc()).limit(50).all()
+    
+    notice_list = []
     for n in notices:
         n_dict = n.to_dict()
         n_dict["read_count"] = n.reads.count()
@@ -323,10 +339,46 @@ def create_notice():
         priority=data.get("priority", "normal"),
         target_audience=data.get("target_audience", "all"),
         is_pinned=data.get("is_pinned", False),
+        branch=data.get("branch"),
+        year=data.get("year"),
+        section=data.get("section"),
+        media_json=json.dumps(data.get("media", [])),
+        files_json=json.dumps(data.get("files", []))
     )
     db.session.add(n)
     db.session.commit()
     return jsonify({"message": "Notice posted", "notice": n.to_dict()}), 201
+
+
+@campus_bp.route("/notices/<nid>", methods=["PUT"])
+@jwt_required()
+@role_required("faculty", "admin")
+def update_notice(nid):
+    """Edit a notice after publishing. Only the author can edit it."""
+    notice = db.session.get(Notice, nid)
+    if not notice:
+        return jsonify({"error": "Notice not found"}), 404
+        
+    current_user = get_jwt_identity()
+    if notice.author_id != current_user:
+        return jsonify({"error": "Forbidden: Only the original publisher can edit this notice"}), 403
+        
+    data = request.get_json()
+    notice.title = data.get("title", notice.title)
+    notice.content = data.get("content", notice.content)
+    notice.priority = data.get("priority", notice.priority)
+    notice.target_audience = data.get("target_audience", notice.target_audience)
+    notice.is_pinned = data.get("is_pinned", notice.is_pinned)
+    notice.branch = data.get("branch", notice.branch)
+    notice.year = data.get("year", notice.year)
+    notice.section = data.get("section", notice.section)
+    if "media" in data:
+        notice.media_json = json.dumps(data["media"])
+    if "files" in data:
+        notice.files_json = json.dumps(data["files"])
+        
+    db.session.commit()
+    return jsonify({"message": "Notice updated successfully", "notice": notice.to_dict()}), 200
 
 
 # ── Clubs & Societies ─────────────────────────────────────────────

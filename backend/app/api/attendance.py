@@ -100,7 +100,7 @@ def generate_qr(session_id):
     Body: {"latitude": 13.123, "longitude": 80.123}
     """
     faculty_id = get_jwt_identity()
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or {}
     lat = data.get("latitude")
     lng = data.get("longitude")
 

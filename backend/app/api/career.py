@@ -60,6 +60,24 @@ def create_job():
     db.session.commit()
     return jsonify({"message": "Job posted", "job": j.to_dict()}), 201
 
+@career_bp.route("/jobs/cleanup-resumes", methods=["POST"])
+@jwt_required()
+@role_required("admin")
+def cleanup_old_resumes():
+    """Simulate cleaning up resumes older than 30 days from application storage."""
+    limit_date = datetime.now(timezone.utc) - timedelta(days=30)
+    old_apps = JobApplication.query.filter(JobApplication.applied_at < limit_date).all()
+    cleaned_count = 0
+    for app in old_apps:
+        if app.resume_url:
+            app.resume_url = None
+            cleaned_count += 1
+    db.session.commit()
+    return jsonify({
+        "message": f"Successfully checked and cleared {cleaned_count} ephemeral resumes older than 30 days.",
+        "purged_count": cleaned_count
+    }), 200
+
 
 # ── Eligibility Check ─────────────────────────────────────────────
 
@@ -231,6 +249,31 @@ def add_prep_question(company):
     db.session.add(q)
     db.session.commit()
     return jsonify({"message": "Question added", "question": q.to_dict()}), 201
+
+@career_bp.route("/prep/question/<qid>", methods=["PUT"])
+@jwt_required()
+@role_required("admin", "faculty")
+def edit_prep_question(qid):
+    q = db.session.get(CompanyPrepQuestion, qid)
+    if not q:
+        return jsonify({"error": "Question not found"}), 404
+    data = request.get_json()
+    q.question_text = data.get("question_text", q.question_text)
+    q.category = data.get("category", q.category)
+    q.year = data.get("year", q.year)
+    db.session.commit()
+    return jsonify({"message": "Question updated", "question": q.to_dict()}), 200
+
+@career_bp.route("/prep/question/<qid>", methods=["DELETE"])
+@jwt_required()
+@role_required("admin", "faculty")
+def delete_prep_question(qid):
+    q = db.session.get(CompanyPrepQuestion, qid)
+    if not q:
+        return jsonify({"error": "Question not found"}), 404
+    db.session.delete(q)
+    db.session.commit()
+    return jsonify({"message": "Question deleted"}), 200
 
 @career_bp.route("/prep/question/<qid>/upvote", methods=["POST"])
 @jwt_required()
@@ -1065,5 +1108,32 @@ def create_mock_test():
     db.session.add(t)
     db.session.commit()
     return jsonify({"message": "Test created", "test": t.to_dict()}), 201
+
+@career_bp.route("/mock-tests/<tid>", methods=["PUT"])
+@jwt_required()
+@role_required("admin", "faculty")
+def edit_mock_test(tid):
+    t = db.session.get(MockTest, tid)
+    if not t:
+        return jsonify({"error": "Mock test not found"}), 404
+    data = request.get_json()
+    t.title = data.get("title", t.title)
+    t.description = data.get("description", t.description)
+    t.category = data.get("category", t.category)
+    t.duration_minutes = data.get("duration_minutes", t.duration_minutes)
+    t.difficulty = data.get("difficulty", t.difficulty)
+    db.session.commit()
+    return jsonify({"message": "Test updated", "test": t.to_dict()}), 200
+
+@career_bp.route("/mock-tests/<tid>", methods=["DELETE"])
+@jwt_required()
+@role_required("admin", "faculty")
+def delete_mock_test(tid):
+    t = db.session.get(MockTest, tid)
+    if not t:
+        return jsonify({"error": "Mock test not found"}), 404
+    db.session.delete(t)
+    db.session.commit()
+    return jsonify({"message": "Test deleted"}), 200
 
 

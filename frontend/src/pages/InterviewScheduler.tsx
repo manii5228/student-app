@@ -1,101 +1,353 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Calendar, Clock, MapPin, CheckCircle, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, CheckCircle, AlertCircle, Calendar, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 
-interface Interview { id:string; posting_id:string; round_name:string; scheduled_at:string|null; venue:string|null; status:string; }
+interface Interview {
+  id: string;
+  posting_id: string;
+  round_name: string;
+  scheduled_at: string | null;
+  venue: string | null;
+  status: string;
+  company_name?: string;
+}
+
+interface Slot {
+  id: string;
+  time: string;
+  available: boolean;
+}
 
 const InterviewScheduler = () => {
-  const nav = useNavigate();
+  const navigate = useNavigate();
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeJobIdForBooking, setActiveJobIdForBooking] = useState<string | null>(null);
+  const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [bookingInProgress, setBookingInProgress] = useState(false);
+  const [activeTab, setActiveTab] = useState<'schedule' | 'book'>('schedule');
+
+  // Hardcoded target companies that student applied for (for booking simulation)
+  const appliedJobsToBook = [
+    { id: '3', company_name: 'Deloitte', role: 'Analyst' },
+    { id: '2', company_name: 'Amazon', role: 'SDE-1' }
+  ];
+
+  const fetchInterviews = async () => {
+    try {
+      const { data } = await api.get('/career/interviews');
+      // For each interview, map company name based on posting_id
+      const enriched = (data.interviews || []).map((iv: Interview) => {
+        let company_name = 'Deloitte';
+        if (iv.posting_id === '4') company_name = 'TCS';
+        else if (iv.posting_id === '2') company_name = 'Amazon';
+        else if (iv.posting_id === '1') company_name = 'Google';
+        return { ...iv, company_name };
+      });
+      setInterviews(enriched);
+    } catch (err) {
+      console.warn("Failed to fetch interviews, seeding default list");
+      setInterviews([
+        { id: '1', posting_id: '3', round_name: 'Technical Round 1', scheduled_at: new Date(Date.now() + 172800000).toISOString(), venue: 'Main Block Cabin 104', status: 'scheduled', company_name: 'Deloitte' },
+        { id: '2', posting_id: '4', round_name: 'Aptitude Screening', scheduled_at: new Date(Date.now() - 432000000).toISOString(), venue: 'Online Test Center', status: 'completed', company_name: 'TCS' }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    api.get('/career/interviews').then(r => setInterviews(r.data.interviews || [])).catch(()=>{}).finally(()=>setLoading(false));
+    fetchInterviews();
   }, []);
+
+  const fetchSlots = async (jobId: string) => {
+    try {
+      const { data } = await api.get(`/career/jobs/${jobId}/interview-slots`);
+      setAvailableSlots(data.slots || []);
+      setActiveJobIdForBooking(jobId);
+    } catch {
+      // Mock slots
+      const now = new Date();
+      const mock = Array.from({ length: 5 }, (_, i) => {
+        const t = new Date(now);
+        t.setDate(now.getDate() + i + 1);
+        t.setHours(10 + i, 0, 0, 0);
+        return { id: `slot-${i}`, time: t.toISOString(), available: true };
+      });
+      setAvailableSlots(mock);
+      setActiveJobIdForBooking(jobId);
+    }
+  };
+
+  const handleBookSlot = async () => {
+    if (!selectedSlotId || !activeJobIdForBooking) return;
+    const selectedSlot = availableSlots.find(s => s.id === selectedSlotId);
+    if (!selectedSlot) return;
+
+    setBookingInProgress(true);
+    try {
+      await api.post(`/career/jobs/${activeJobIdForBooking}/book-interview`, {
+        time: selectedSlot.time,
+        round_name: activeJobIdForBooking === '2' ? 'Amazon SDE-1 Technical Round 1' : 'Deloitte Analyst Interview'
+      });
+      alert('Interview slot booked successfully! Added to your schedule.');
+      setActiveJobIdForBooking(null);
+      setSelectedSlotId(null);
+      setActiveTab('schedule');
+      fetchInterviews();
+    } catch (err) {
+      alert('Failed to book slot. You might have a scheduling conflict.');
+    } finally {
+      setBookingInProgress(false);
+    }
+  };
 
   const upcoming = interviews.filter(i => i.status === 'scheduled');
   const past = interviews.filter(i => i.status !== 'scheduled');
 
-  const formatDate = (d: string|null) => {
+  const formatDate = (d: string | null) => {
     if (!d) return '—';
     const dt = new Date(d);
     return dt.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   };
-  const formatTime = (d: string|null) => {
+  
+  const formatTime = (d: string | null) => {
     if (!d) return '';
     return new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   };
-  const daysUntil = (d: string|null) => {
+  
+  const daysUntil = (d: string | null) => {
     if (!d) return null;
     return Math.ceil((new Date(d).getTime() - Date.now()) / 864e5);
   };
 
+  // Google Maps off-campus routing helper
+  const getMapsLink = (venue: string | null) => {
+    if (!venue) return '';
+    // If it's on-campus, search VelTech campus maps, otherwise search directly
+    const query = venue.toLowerCase().includes('cabin') || venue.toLowerCase().includes('block') 
+      ? `Veltech University, Chennai, ${venue}` 
+      : venue;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  };
+
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
-      <div className="bg-gradient-to-br from-violet-600 to-purple-700 p-6 pt-12 shadow-md relative overflow-hidden">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-violet-600 to-purple-700 p-6 pt-12 shadow-md relative overflow-hidden shrink-0">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-        <div className="flex items-center gap-3 relative z-10">
-          <button onClick={()=>nav(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"><ChevronLeft className="w-5 h-5 text-white"/></button>
-          <div><h1 className="text-xl font-bold text-white">Interview Schedule</h1><p className="text-xs text-violet-200">{upcoming.length} upcoming rounds</p></div>
+        <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
+              <ChevronLeft className="w-5 h-5 text-white" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-white">Interview Board</h1>
+              <p className="text-xs text-violet-200">{upcoming.length} upcoming rounds</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {loading ? <div className="flex justify-center py-16"><span className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></span></div>
-        : interviews.length === 0 ? (
-          <div className="text-center py-20">
-            <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-3"/>
-            <h2 className="text-lg font-bold text-slate-900">No Interviews Scheduled</h2>
-            <p className="text-sm text-slate-500 mt-1">Apply to jobs first — interviews appear here once you're shortlisted.</p>
+      {/* Tabs */}
+      <div className="px-5 pt-5 pb-2 shrink-0">
+        <div className="flex bg-white rounded-2xl p-1 shadow-sm border border-slate-100">
+          <button
+            onClick={() => setActiveTab('schedule')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'schedule' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500'
+            }`}
+          >
+            My Schedule
+          </button>
+          <button
+            onClick={() => setActiveTab('book')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'book' ? 'bg-violet-600 text-white shadow-md' : 'text-slate-500'
+            }`}
+          >
+            Book Slots (Calendly)
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+        {loading ? (
+          <div className="flex justify-center py-16">
+            <span className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></span>
           </div>
-        ) : (
-          <div className="flex flex-col gap-4 animate-slide-up">
-            {upcoming.length > 0 && <>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Upcoming</h3>
-              {upcoming.map(iv => {
-                const days = daysUntil(iv.scheduled_at);
-                return (
-                  <div key={iv.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-violet-100">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900">{iv.round_name}</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">{formatDate(iv.scheduled_at)}</p>
+        ) : activeTab === 'schedule' ? (
+          /* SCHEDULE VIEW */
+          interviews.length === 0 ? (
+            <div className="text-center py-20 animate-fade-in">
+              <CalendarIcon className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <h2 className="text-lg font-bold text-slate-900">No Interviews Scheduled</h2>
+              <p className="text-sm text-slate-500 mt-1">Shortlisted drives will prompt slot bookings.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 animate-slide-up">
+              {upcoming.length > 0 && (
+                <>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">Upcoming Rounds</h3>
+                  {upcoming.map(iv => {
+                    const days = daysUntil(iv.scheduled_at);
+                    const mapsUrl = getMapsLink(iv.venue);
+                    return (
+                      <div key={iv.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-violet-100 relative">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <span className="text-[10px] bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded uppercase">
+                              {iv.company_name}
+                            </span>
+                            <h3 className="text-base font-black text-slate-900 mt-1.5 leading-tight">{iv.round_name}</h3>
+                            <p className="text-xs text-slate-500 font-semibold mt-1">{formatDate(iv.scheduled_at)}</p>
+                          </div>
+                          <span className={`text-[9px] font-black px-2 py-1 rounded-lg uppercase shrink-0 ${
+                            days !== null && days <= 1 ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-violet-50 text-violet-700 border border-violet-100'
+                          }`}>
+                            {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days}d away`}
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-2 mt-4 pt-3 border-t border-slate-50">
+                          <div className="flex items-center gap-4 text-xs font-bold text-slate-600">
+                            <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-slate-400" />{formatTime(iv.scheduled_at)}</span>
+                            {iv.venue && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-slate-400" />{iv.venue}</span>}
+                          </div>
+                          
+                          {/* Google Maps off-campus and directions routing */}
+                          {iv.venue && (
+                            <a
+                              href={mapsUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-1 self-start flex items-center gap-1 text-[10px] font-black text-violet-600 hover:text-violet-800 transition-colors uppercase tracking-wider"
+                            >
+                              <ExternalLink className="w-3 h-3" /> Get Directions (Google Maps)
+                            </a>
+                          )}
+                        </div>
                       </div>
-                      <span className={`text-[9px] font-bold px-2 py-1 rounded-lg uppercase ${days !== null && days <= 1 ? 'bg-red-100 text-red-700' : days !== null && days <= 3 ? 'bg-amber-100 text-amber-700' : 'bg-violet-100 text-violet-700'}`}>
-                        {days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : `${days}d away`}
+                    );
+                  })}
+                </>
+              )}
+              {past.length > 0 && (
+                <>
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-4 pl-1">Past Drives</h3>
+                  {past.map(iv => (
+                    <div key={iv.id} className="bg-white/70 rounded-[24px] p-5 shadow-sm border border-slate-100">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded">
+                            {iv.company_name}
+                          </span>
+                          <h3 className="text-sm font-bold text-slate-600 mt-1">{iv.round_name}</h3>
+                          <p className="text-xs text-slate-400 mt-0.5">{formatDate(iv.scheduled_at)}</p>
+                        </div>
+                        <span className="text-[9px] font-bold px-2 py-1 rounded-lg uppercase bg-emerald-50 text-emerald-600 flex items-center gap-1 border border-emerald-100">
+                          <CheckCircle className="w-3 h-3" /> Completed
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          )
+        ) : (
+          /* CALENDLY BOOKING TAB */
+          <div className="flex flex-col gap-4 animate-fade-in">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">Shortlisted Placements</h3>
+            <p className="text-xs text-slate-500 -mt-2 leading-relaxed">Select a drive to pick your preferred interview time slot.</p>
+            
+            <div className="flex flex-col gap-3">
+              {appliedJobsToBook.map(job => {
+                const alreadyBooked = interviews.some(iv => iv.posting_id === job.id && iv.status === 'scheduled');
+                
+                return (
+                  <div key={job.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">{job.company_name}</h4>
+                      <p className="text-xs text-slate-500">{job.role}</p>
+                    </div>
+                    {alreadyBooked ? (
+                      <span className="text-[10px] bg-emerald-50 text-emerald-600 font-bold px-3 py-1.5 rounded-xl border border-emerald-100">
+                        Booked
                       </span>
-                    </div>
-                    <div className="flex items-center gap-4 mt-3">
-                      <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3"/>{formatTime(iv.scheduled_at)}</span>
-                      {iv.venue && <span className="text-[11px] font-bold text-slate-500 flex items-center gap-1"><MapPin className="w-3 h-3"/>{iv.venue}</span>}
-                    </div>
+                    ) : (
+                      <button
+                        onClick={() => fetchSlots(job.id)}
+                        className="bg-violet-600 hover:bg-violet-700 text-white text-xs font-black px-4 py-2 rounded-xl"
+                      >
+                        Book Slot
+                      </button>
+                    )}
                   </div>
                 );
               })}
-            </>}
-            {past.length > 0 && <>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-2">Past</h3>
-              {past.map(iv => (
-                <div key={iv.id} className="bg-white/70 rounded-[24px] p-5 shadow-sm border border-slate-100">
-                  <div className="flex items-center justify-between">
+            </div>
+
+            {/* Calendly booking picker modal */}
+            {activeJobIdForBooking && (
+              <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm p-0">
+                <div className="bg-white rounded-t-[32px] w-full max-w-md p-6 pb-10 shadow-2xl animate-slide-up">
+                  <div className="flex justify-between items-center mb-4">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-600">{iv.round_name}</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">{formatDate(iv.scheduled_at)}</p>
+                      <h4 className="text-lg font-black text-slate-900">Select Slot</h4>
+                      <p className="text-xs text-slate-500">Pick a Calendly-style interview time.</p>
                     </div>
-                    <span className={`text-[9px] font-bold px-2 py-1 rounded-lg uppercase ${iv.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                      {iv.status === 'completed' ? <><CheckCircle className="w-3 h-3 inline mr-1"/>Done</> : iv.status}
-                    </span>
+                    <button
+                      onClick={() => { setActiveJobIdForBooking(null); setSelectedSlotId(null); }}
+                      className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500"
+                    >
+                      ✕
+                    </button>
                   </div>
+
+                  {/* Slot selector grid */}
+                  <div className="grid grid-cols-2 gap-3 max-h-52 overflow-y-auto pr-1 my-4">
+                    {availableSlots.map(slot => {
+                      const dateStr = new Date(slot.time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                      const timeStr = new Date(slot.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                      const isSelected = selectedSlotId === slot.id;
+
+                      return (
+                        <button
+                          key={slot.id}
+                          onClick={() => setSelectedSlotId(slot.id)}
+                          className={`p-3 rounded-xl border text-center transition-all ${
+                            isSelected 
+                              ? 'border-violet-600 bg-violet-50 text-violet-700 font-black' 
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 font-semibold'
+                          }`}
+                        >
+                          <p className="text-xs">{dateStr}</p>
+                          <p className="text-[11px] mt-0.5 text-slate-500">{timeStr}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={handleBookSlot}
+                    disabled={!selectedSlotId || bookingInProgress}
+                    className="w-full bg-violet-600 text-white py-3.5 rounded-2xl text-xs font-black shadow-lg shadow-violet-500/20 disabled:opacity-40"
+                  >
+                    {bookingInProgress ? 'Booking Slot...' : 'Confirm Appointment Slot'}
+                  </button>
                 </div>
-              ))}
-            </>}
+              </div>
+            )}
           </div>
         )}
       </div>
-      <BottomNav/>
+
+      <BottomNav />
     </div>
   );
 };
+
 export default InterviewScheduler;

@@ -193,8 +193,8 @@ const LiveBusTracking = () => {
       {tab === 'hosteller' ? (
         <>
           {/* Map Area */}
-          <div className="flex-1 relative z-0">
-            <MapContainer center={veltechCoords} zoom={14} className="w-full h-full" zoomControl={false}>
+          <div className="flex-1 relative z-0 min-h-[480px] h-[calc(100vh-280px)]">
+            <MapContainer center={veltechCoords} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

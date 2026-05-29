@@ -98,3 +98,9 @@ Added all 12 key POI markers to the campus map.
 ### Q7: "nothing changed still blank the campus and bus tracking is blank"
 **Resolution:**
 Leaflet maps, markers, routes, and turn-by-turn routing step indicators are fully implemented and functional.
+
+
+the ui need to be like leaders,prince,kings and inside that it need to be a map with markers and when clicked on marker it should show the distance from the hostel and the current location also we need to show the hours in the top like 8:30,10:30,12:30 etc and the heading to collage is running like sec instead of min and that need to accurate 
+how will warden approve better be mentor if not we want something for warden  again and parent
+everything in the indoor map is misaligned and not able to see
+remove emergency,Sync &offline,health center,usage stats

@@ -146,14 +146,24 @@ class Notice(db.Model):
     target_audience = db.Column(db.String(50), default="all")
     is_pinned = db.Column(db.Boolean, default=False)
     attachment_url = db.Column(db.String(500), nullable=True)
+    branch = db.Column(db.String(50), nullable=True)
+    year = db.Column(db.Integer, nullable=True)
+    section = db.Column(db.String(10), nullable=True)
+    media_json = db.Column(db.Text, nullable=True, default='[]')
+    files_json = db.Column(db.Text, nullable=True, default='[]')
     expires_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     reads = db.relationship("NoticeRead", backref="notice", lazy="dynamic", cascade="all, delete-orphan")
 
     def to_dict(self):
+        import json
         return {"id": self.id, "title": self.title, "content": self.content,
                 "priority": self.priority, "target_audience": self.target_audience,
-                "is_pinned": self.is_pinned, "created_at": self.created_at.isoformat() if self.created_at else None}
+                "is_pinned": self.is_pinned, "author_id": self.author_id,
+                "branch": self.branch, "year": self.year, "section": self.section,
+                "media": json.loads(self.media_json) if self.media_json else [],
+                "files": json.loads(self.files_json) if self.files_json else [],
+                "created_at": self.created_at.isoformat() if self.created_at else None}
 
 
 class NoticeRead(db.Model):

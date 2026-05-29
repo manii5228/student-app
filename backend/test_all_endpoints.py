@@ -5,6 +5,7 @@ from app.extensions import db
 app = create_app("testing")
 
 with app.app_context():
+    db.drop_all()
     db.create_all()
     c = app.test_client()
 
@@ -152,9 +153,9 @@ with app.app_context():
 
     # 24. Change password
     r = c.post("/api/v1/auth/change-password", headers=stu_h, json={
-        "old_password": "testpass123", "new_password": "newpass1234"
+        "old_password": "testpass123", "new_password": "VelTech2026_UniquePassword_Secure_!@#"
     })
-    print(f"[POST] /change-password  => {r.status_code}")
+    print(f"[POST] /change-password  => {r.status_code} {r.get_json()}")
 
     # 25. Get class students
     r = c.get("/api/v1/attendance/students?department=CSE&semester=4&section=A",
