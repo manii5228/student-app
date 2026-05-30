@@ -4,7 +4,8 @@ import {
   Bell, Search, X, ChevronRight, Clock, BookOpen, FileText,
   CalendarDays, QrCode, Bus, MapPin, Briefcase, GraduationCap,
   Activity, TrendingUp, CheckCircle, AlertTriangle, DollarSign,
-  Calendar, Users, Coffee, Zap, Command
+  Calendar, Users, Coffee, Zap, Command, Award, Trophy, Star,
+  ThumbsUp, Plus
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import UpsellModal from '../components/UpsellModal';
@@ -51,6 +52,7 @@ const QUICK_ACTIONS = [
   { name: 'Canteen', icon: Coffee,         path: '/campus/canteen',      accent: '#c9503d' },
   { name: 'Jobs', icon: Briefcase,         path: '/career/jobs',         accent: '#0080c7' },
   { name: 'Library', icon: BookOpen,       path: '/campus/library',      accent: '#27bcd1' },
+  { name: 'Portfolio', icon: Award,        path: '/career/portfolio',     accent: '#a91f23' },
 ];
 
 // ── Fallback Data ────────────────────────────────────────────────
@@ -79,9 +81,106 @@ const FALLBACK_FEED: FeedData = {
 // ── Dashboard Component ──────────────────────────────────────────
 const Dashboard = () => {
   const navigate = useNavigate();
+
+  // ── User / Guest Info (declared early for use in hooks) ──────────
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isGuest = user?.is_guest || user?.role === 'guest';
+
   const [upsellOpen, setUpsellOpen] = useState(false);
   const [feed, setFeed] = useState<FeedData>(FALLBACK_FEED);
   const [loading, setLoading] = useState(true);
+
+  // ── Theme / Accent variables ───────────────────────────────────
+  const theme = localStorage.getItem('theme_preference') || 'light';
+  const accentColor = localStorage.getItem('accent_color') || '#0080c7';
+  const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  const C = {
+    navy: isDark ? '#0f172a' : '#22346c',
+    blue: accentColor,
+    red: '#a91f23',
+    terra: '#c9503d',
+    cyan: '#27bcd1',
+    bg: isDark ? '#0b0f19' : '#f4f5f7',
+    card: isDark ? '#1e293b' : '#ffffff',
+    textPrimary: isDark ? '#f8fafc' : '#22346c',
+    textSecondary: isDark ? '#94a3b8' : '#868e96',
+    border: isDark ? '#334155' : '#e9ecef',
+  };
+
+  const [achievements, setAchievements] = useState<any[]>([]);
+  const [skills, setSkills] = useState<any[]>([]);
+
+  // Add certification states
+  const [showAddCertModal, setShowAddCertModal] = useState(false);
+  const [certId, setCertId] = useState('');
+  const [certTitle, setCertTitle] = useState('');
+  const [certPlatform, setCertPlatform] = useState('coursera');
+  const [certVerifying, setCertVerifying] = useState(false);
+  const [certError, setCertError] = useState('');
+
+  // Endorse Skill handler
+  const endorseSkill = async (name: string) => {
+    try {
+      const res = await api.post('/auth/profile/endorse', {
+        user_id: user?.id,
+        skill_name: name
+      });
+      const updated = res.data.skill;
+      setSkills(prev => prev.map(s => s.name === name ? {
+        ...s,
+        endorsements: updated.endorsements,
+        endorsed: updated.endorsed
+      } : s));
+    } catch {
+      setSkills(prev => prev.map(s => s.name === name ? { ...s, endorsements: s.endorsements + (s.endorsed ? -1 : 1), endorsed: !s.endorsed } : s));
+    }
+  };
+
+  // Add Certification handler
+  const handleAddCertification = async () => {
+    if (!certId || !certTitle) {
+      setCertError('Please fill in all fields');
+      return;
+    }
+    setCertVerifying(true);
+    setCertError('');
+    try {
+      const res = await api.post('/auth/profile/certifications/verify', {
+        certificate_id: certId,
+        platform: certPlatform,
+        title: certTitle
+      });
+      const newAch = res.data.achievement;
+      setAchievements(prev => [...prev, newAch]);
+      setShowAddCertModal(false);
+      setCertId('');
+      setCertTitle('');
+    } catch (err: any) {
+      setCertError(err?.response?.data?.error || 'Verification failed. Make sure the ID is at least 8 characters.');
+    } finally {
+      setCertVerifying(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isGuest) return;
+    (async () => {
+      try {
+        const { data } = await api.get('/auth/me');
+        if (data.user.achievements) setAchievements(data.user.achievements);
+        if (data.user.skills) {
+          const mapped = data.user.skills.map((s: any) => ({
+            name: s.name,
+            endorsements: s.endorsements ? s.endorsements.length : 0,
+            endorsed: s.endorsements ? s.endorsements.includes(data.user.id) : false
+          }));
+          setSkills(mapped);
+        }
+      } catch {}
+    })();
+  }, [isGuest]);
 
   // Notification drawer
   const [notifOpen, setNotifOpen] = useState(false);
@@ -100,11 +199,8 @@ const Dashboard = () => {
   const searchTimerRef = useRef<any>(null);
 
   // ── Role redirect ──────────────────────────────────────────
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
   if (user?.role === 'faculty') return <Navigate to="/faculty" replace />;
   if (user?.role === 'admin') return <Navigate to="/admin" replace />;
-  const isGuest = user?.is_guest || user?.role === 'guest';
 
   // ── Data fetching ──────────────────────────────────────────
   useEffect(() => {
@@ -424,6 +520,109 @@ const Dashboard = () => {
             </div>
           </div>
         )}
+
+        {/* ── My Portfolio & Achievements (Moved from Profile) ── */}
+        {!isGuest && (
+          <div className="dash-section" style={{ marginBottom: 24 }}>
+            <div className="dash-section-header">
+              <h2 className="dash-section-title">My Portfolio & Achievements</h2>
+              <button className="dash-see-all" onClick={() => navigate('/career/portfolio')}>
+                Build Portfolio <ChevronRight size={13} />
+              </button>
+            </div>
+
+            {/* Achievements Sub-section */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-3.5">
+                <h3 className="text-xs font-bold flex items-center gap-1.5" style={{ color: C.textPrimary }}>
+                  <Trophy className="w-4 h-4" style={{ color: C.terra }} /> Verified Achievements
+                </h3>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.border, color: C.textSecondary }}>
+                  {achievements.length}
+                </span>
+              </div>
+              
+              {achievements.length === 0 ? (
+                <div className="text-center py-6 border border-dashed rounded-2xl" style={{ borderColor: C.border }}>
+                  <p className="text-xs" style={{ color: C.textSecondary }}>No verified achievements yet.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {achievements.map((a, i) => (
+                    <div key={a.id || i} className="rounded-xl p-3 flex items-center gap-3 border" style={{ background: C.card, borderColor: C.border }}>
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-sm shrink-0 bg-slate-50 dark:bg-slate-800">
+                        {a.icon || '🏆'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-xs font-bold truncate" style={{ color: C.textPrimary }}>{a.title}</h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full capitalize" style={{ background: C.blue + '14', color: C.blue }}>
+                            {a.type}
+                          </span>
+                          <span className="text-[9px]" style={{ color: C.textSecondary }}>
+                            {a.date ? new Date(a.date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'Verified'}
+                          </span>
+                        </div>
+                      </div>
+                      <CheckCircle className="w-4 h-4 shrink-0 text-emerald-500" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Skill Endorsements Sub-section */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-3.5">
+                <h3 className="text-xs font-bold flex items-center gap-1.5" style={{ color: C.textPrimary }}>
+                  <Star className="w-4 h-4" style={{ color: C.blue }} /> Skill Endorsements
+                </h3>
+              </div>
+              
+              {skills.length === 0 ? (
+                <div className="text-center py-6 border border-dashed rounded-2xl" style={{ borderColor: C.border }}>
+                  <p className="text-xs" style={{ color: C.textSecondary }}>No skills added. Add them under Profile.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {skills.map(skill => (
+                    <div key={skill.name} className="rounded-xl p-3 flex items-center gap-3 border" style={{ background: C.card, borderColor: C.border }}>
+                      <div className="flex-1">
+                        <h4 className="text-xs font-bold" style={{ color: C.textPrimary }}>{skill.name}</h4>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Users className="w-3 h-3 text-slate-400" />
+                          <span className="text-[9px]" style={{ color: C.textSecondary }}>{skill.endorsements} endorsements</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => endorseSkill(skill.name)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border"
+                        style={{
+                          background: skill.endorsed ? C.blue + '14' : 'transparent',
+                          color: skill.endorsed ? C.blue : C.textSecondary,
+                          borderColor: skill.endorsed ? C.blue + '30' : C.border,
+                        }}
+                      >
+                        <ThumbsUp className={`w-3 h-3 ${skill.endorsed ? 'fill-current' : ''}`} />
+                        {skill.endorsed ? 'Endorsed' : 'Endorse'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Certification verification trigger */}
+            <button
+              onClick={() => setShowAddCertModal(true)}
+              className="w-full border-2 border-dashed rounded-2xl p-4 flex items-center justify-center gap-2 text-xs font-bold transition-all"
+              style={{ borderColor: C.border, color: C.textSecondary, background: 'transparent' }}
+            >
+              <Plus className="w-4 h-4" />
+              Verify Certification (Coursera/NPTEL)
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ═══ COMMAND PALETTE ═══ */}
@@ -549,18 +748,79 @@ const Dashboard = () => {
       <BottomNav />
       <UpsellModal isOpen={upsellOpen} onClose={() => setUpsellOpen(false)} />
 
+      {/* Add Certification Modal */}
+      {showAddCertModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm animate-fade-in p-6" style={{ background: 'rgba(15,23,42,0.6)' }}>
+          <div className="rounded-[24px] p-6 shadow-2xl max-w-sm w-full animate-fade-in" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: C.blue + '14', color: C.blue }}>
+              <Award className="w-7 h-7" />
+            </div>
+            <h3 className="text-xl font-bold text-center mb-2" style={{ color: C.textPrimary }}>Verify Certification</h3>
+            <p className="text-sm text-center mb-4" style={{ color: C.textSecondary }}>Verify NPTEL or Coursera credentials instantly.</p>
+            {certError && (
+              <div className="mb-4 p-3 rounded-xl text-xs font-semibold border" style={{ background: '#fdf3f3', borderColor: '#f8d7da', color: '#a91f23' }}>
+                {certError}
+              </div>
+            )}
+            <div className="flex flex-col gap-4 mb-6">
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: C.textSecondary }}>Platform</label>
+                <select value={certPlatform} onChange={e => setCertPlatform(e.target.value)}
+                  className="w-full rounded-2xl py-3 px-4 text-sm font-medium outline-none border focus:border-blue-400"
+                  style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }}>
+                  <option value="coursera">Coursera</option>
+                  <option value="nptel">NPTEL</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: C.textSecondary }}>Course/Certificate Title</label>
+                <input type="text" value={certTitle} onChange={e => setCertTitle(e.target.value)}
+                  className="w-full rounded-2xl py-3 px-4 text-sm font-medium outline-none border focus:border-blue-400"
+                  style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }} placeholder="e.g. Deep Learning Specialization" />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 block" style={{ color: C.textSecondary }}>Certificate ID</label>
+                <input type="text" value={certId} onChange={e => setCertId(e.target.value)}
+                  className="w-full rounded-2xl py-3 px-4 text-sm font-medium outline-none border focus:border-blue-400"
+                  style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }} placeholder="e.g. COURSERA-123456" />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setShowAddCertModal(false); setCertError(''); }} className="flex-1 py-3.5 rounded-[14px] font-semibold text-sm" style={{ background: C.bg, color: C.textPrimary }}>Cancel</button>
+              <button onClick={handleAddCertification} disabled={certVerifying} className="flex-1 py-3.5 rounded-[14px] font-semibold text-sm text-white disabled:opacity-50" style={{ background: C.blue }}>
+                {certVerifying ? 'Verifying...' : 'Verify'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ═══ SCOPED STYLES ═══ */}
       <style>{`
+        /* ── Theme variables ─────────────────────── */
+        .dash-root {
+          --dash-bg: ${isDark ? '#0b0f19' : '#f4f5f7'};
+          --dash-card: ${isDark ? '#1e293b' : '#ffffff'};
+          --dash-text-primary: ${isDark ? '#f8fafc' : '#22346c'};
+          --dash-text-secondary: ${isDark ? '#94a3b8' : '#868e96'};
+          --dash-border: ${isDark ? '#334155' : '#e9ecef'};
+          --dash-accent: ${accentColor};
+          --dash-accent-hover: ${accentColor}dd;
+          --dash-top-bg: ${isDark ? '#0f172a' : '#ffffff'};
+          --dash-input-bg: ${isDark ? '#1e293b' : '#f4f5f7'};
+          --dash-divider: ${isDark ? '#334155' : '#f1f3f5'};
+        }
+
         /* ── Root ─────────────────────────────────── */
         .dash-root {
           height: 100%; display: flex; flex-direction: column;
-          background: #f4f5f7; font-family: 'Inter', -apple-system, system-ui, sans-serif;
+          background: var(--dash-bg); font-family: 'Inter', -apple-system, system-ui, sans-serif;
           position: relative; padding-bottom: 80px;
         }
 
         /* ── Top (header) ────────────────────────── */
         .dash-top {
-          background: #fff; padding: 48px 24px 20px; position: relative;
+          background: var(--dash-top-bg); padding: 48px 24px 20px; position: relative;
         }
         .dash-top-row {
           display: flex; align-items: flex-start; justify-content: space-between;
@@ -576,9 +836,9 @@ const Dashboard = () => {
         .dash-top-actions { display: flex; gap: 8px; margin-top: 4px; }
         .dash-icon-btn {
           width: 40px; height: 40px; border-radius: 12px;
-          background: #f4f5f7; border: none; cursor: pointer;
+          background: var(--dash-input-bg); border: none; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
-          color: #22346c; position: relative; transition: background 0.15s;
+          color: var(--dash-text-primary); position: relative; transition: background 0.15s;
         }
         .dash-icon-btn:hover { background: #e9ecef; }
         .dash-badge {
@@ -593,10 +853,10 @@ const Dashboard = () => {
         .dash-next-action {
           display: flex; align-items: center; gap: 8px;
           width: 100%; margin-top: 16px; padding: 10px 14px;
-          background: #f0f8fd; border-radius: 12px; border: none;
+          background: ${isDark ? '#1e293b' : '#f0f8fd'}; border-radius: 12px; border: none;
           cursor: pointer; text-align: left; transition: background 0.15s;
         }
-        .dash-next-action:hover { background: #dfeffa; }
+        .dash-next-action:hover { background: ${isDark ? '#334155' : '#dfeffa'}; }
         .dash-next-action span {
           flex: 1; font-size: 13px; font-weight: 500; color: #22346c;
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -613,8 +873,8 @@ const Dashboard = () => {
           transition: transform 0.15s;
         }
         .dash-stat-card:active { transform: scale(0.97); }
-        .dash-stat-blue { background: #dff0fb; }
-        .dash-stat-cyan { background: #e4f6f9; }
+        .dash-stat-blue { background: ${isDark ? '#1e293b' : '#dff0fb'}; }
+        .dash-stat-cyan { background: ${isDark ? '#1e293b' : '#e4f6f9'}; }
         .dash-stat-label {
           display: flex; align-items: center; gap: 6px;
           font-size: 12px; font-weight: 600; color: #495057;
@@ -647,7 +907,7 @@ const Dashboard = () => {
           display: flex; align-items: center; gap: 2px;
           background: none; border: none; cursor: pointer;
         }
-        .dash-see-all:hover { color: #035687; }
+        .dash-see-all:hover { color: var(--dash-accent-hover); }
         .dash-empty {
           text-align: center; padding: 32px; color: #adb5bd;
           font-size: 14px; background: #fff; border-radius: 16px;
@@ -676,7 +936,7 @@ const Dashboard = () => {
         .dash-schedule-list { display: flex; flex-direction: column; gap: 8px; }
         .dash-schedule-item {
           display: flex; align-items: center; gap: 14px;
-          background: #fff; border-radius: 14px; padding: 14px 16px;
+          background: var(--dash-card); border-radius: 14px; padding: 14px 16px;
           border: none; cursor: pointer; text-align: left;
           transition: box-shadow 0.15s;
         }
@@ -685,12 +945,12 @@ const Dashboard = () => {
           display: flex; flex-direction: column; align-items: center;
           min-width: 42px;
         }
-        .dash-time-text { font-size: 13px; font-weight: 700; color: #22346c; }
+        .dash-time-text { font-size: 13px; font-weight: 700; color: var(--dash-text-primary); }
         .dash-time-dot {
           width: 4px; height: 4px; border-radius: 50%;
-          background: #ced4da; margin: 3px 0;
+          background: var(--dash-border); margin: 3px 0;
         }
-        .dash-time-sub { font-size: 11px; color: #adb5bd; font-weight: 500; }
+        .dash-time-sub { font-size: 11px; color: var(--dash-text-secondary); font-weight: 500; }
         .dash-schedule-info { flex: 1; min-width: 0; }
         .dash-schedule-name {
           font-size: 14px; font-weight: 600; color: #22346c;
@@ -698,7 +958,7 @@ const Dashboard = () => {
           margin: 0;
         }
         .dash-schedule-meta {
-          font-size: 11px; color: #adb5bd; margin: 3px 0 0;
+          font-size: 11px; color: var(--dash-text-secondary); margin: 3px 0 0;
           font-weight: 500;
         }
 
@@ -706,7 +966,7 @@ const Dashboard = () => {
         .dash-deadline-list { display: flex; flex-direction: column; gap: 8px; }
         .dash-deadline-item {
           display: flex; align-items: center; gap: 12px;
-          background: #fff; border-radius: 14px; padding: 14px 16px;
+          background: var(--dash-card); border-radius: 14px; padding: 14px 16px;
           border: none; cursor: pointer; text-align: left;
           transition: box-shadow 0.15s;
         }
@@ -721,7 +981,7 @@ const Dashboard = () => {
           margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .dash-deadline-info p {
-          font-size: 11px; color: #adb5bd; margin: 2px 0 0; font-weight: 500;
+          font-size: 11px; color: var(--dash-text-secondary); margin: 2px 0 0; font-weight: 500;
         }
         .dash-deadline-badge {
           font-size: 10px; font-weight: 700; padding: 4px 10px;
@@ -735,16 +995,16 @@ const Dashboard = () => {
 
         /* ── Activity Card (dark) ────────────────── */
         .dash-activity-card {
-          background: #22346c; border-radius: 24px; padding: 22px 20px;
+          background: ${isDark ? 'var(--dash-card)' : '#22346c'}; border-radius: 24px; border: ${isDark ? '1px solid var(--dash-border)' : 'none'}; padding: 22px 20px;
           color: #fff;
         }
         .dash-activity-header {
           display: flex; align-items: center; justify-content: space-between;
           margin-bottom: 20px;
         }
-        .dash-activity-label { font-size: 12px; color: #adb5bd; font-weight: 500; margin: 0 0 4px; }
+        .dash-activity-label { font-size: 12px; color: var(--dash-text-secondary); font-weight: 500; margin: 0 0 4px; }
         .dash-activity-value { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin: 0; }
-        .dash-activity-unit { font-size: 12px; font-weight: 500; color: #adb5bd; }
+        .dash-activity-unit { font-size: 12px; font-weight: 500; color: var(--dash-text-secondary); }
         .dash-activity-ring { position: relative; }
         .dash-ring-text {
           position: absolute; inset: 0;
@@ -780,7 +1040,7 @@ const Dashboard = () => {
           border-left: 4px solid transparent; border-right: 4px solid transparent;
           border-top: 4px solid #27bcd1;
         }
-        .dash-bar-day { font-size: 10px; font-weight: 600; color: #adb5bd; }
+        .dash-bar-day { font-size: 10px; font-weight: 600; color: var(--dash-text-secondary); }
 
         /* ── Overlay ─────────────────────────────── */
         .dash-overlay {
@@ -794,24 +1054,24 @@ const Dashboard = () => {
 
         /* ── Command Palette ──────────────────────── */
         .dash-palette {
-          background: #fff; border-radius: 20px; width: 92%; max-width: 420px;
+          background: var(--dash-card); border-radius: 20px; border: 1px solid var(--dash-border); width: 92%; max-width: 420px;
           box-shadow: 0 12px 40px rgba(34,52,108,0.12);
           overflow: hidden; animation: slideUp 0.25s cubic-bezier(0.16,1,0.3,1);
         }
         .dash-palette-input-row {
           display: flex; align-items: center; gap: 10px;
-          padding: 14px 16px; border-bottom: 1px solid #f1f3f5;
+          padding: 14px 16px; border-bottom: 1px solid var(--dash-divider);
         }
         .dash-palette-input {
           flex: 1; border: none; outline: none; font-size: 14px;
-          font-weight: 500; color: #22346c; background: transparent;
+          font-weight: 500; color: var(--dash-text-primary); background: transparent;
         }
-        .dash-palette-input::placeholder { color: #ced4da; }
+        .dash-palette-input::placeholder { color: var(--dash-text-secondary); }
         .dash-palette-close {
           width: 26px; height: 26px; border-radius: 8px;
-          background: #f1f3f5; border: none; cursor: pointer;
+          background: var(--dash-input-bg); border: none; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
-          color: #868e96; transition: background 0.15s;
+          color: var(--dash-text-secondary); transition: background 0.15s;
         }
         .dash-palette-close:hover { background: #e9ecef; }
         .dash-palette-body { max-height: 55vh; overflow-y: auto; padding: 8px; }
@@ -825,7 +1085,7 @@ const Dashboard = () => {
           width: 100%; display: flex; align-items: center; gap: 10px;
           padding: 8px 10px; border-radius: 10px; border: none;
           background: transparent; cursor: pointer; font-size: 13px;
-          font-weight: 500; color: #495057; text-align: left;
+          font-weight: 500; color: var(--dash-text-primary); text-align: left;
           transition: background 0.12s;
         }
         .dash-palette-row:hover { background: #f4f5f7; }
@@ -833,7 +1093,7 @@ const Dashboard = () => {
           text-align: center; padding: 32px 0;
           display: flex; flex-direction: column; align-items: center; gap: 8px;
         }
-        .dash-palette-empty p { font-size: 13px; color: #adb5bd; margin: 0; }
+        .dash-palette-empty p { font-size: 13px; color: var(--dash-text-secondary); margin: 0; }
         .dash-palette-result {
           width: 100%; display: flex; align-items: center; gap: 10px;
           padding: 10px 12px; border-radius: 10px; border: none;
@@ -851,7 +1111,7 @@ const Dashboard = () => {
           font-size: 13px; font-weight: 600; color: #22346c;
           margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
-        .dash-palette-result-info p { font-size: 10px; color: #adb5bd; margin: 2px 0 0; }
+        .dash-palette-result-info p { font-size: 10px; color: var(--dash-text-secondary); margin: 2px 0 0; }
         .dash-palette-result-type {
           font-size: 9px; font-weight: 700; color: #adb5bd;
           background: #f1f3f5; padding: 2px 8px; border-radius: 6px;
@@ -859,14 +1119,14 @@ const Dashboard = () => {
         }
         .dash-palette-footer {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 10px 16px; border-top: 1px solid #f1f3f5;
+          padding: 10px 16px; border-top: 1px solid var(--dash-divider);
           font-size: 10px; font-weight: 600; color: #adb5bd;
         }
         .dash-palette-footer span { display: flex; align-items: center; gap: 4px; }
 
         /* ── Notification Drawer ──────────────────── */
         .dash-drawer {
-          background: #fff; border-radius: 24px 24px 0 0;
+          background: var(--dash-card); border-radius: 24px 24px 0 0; border-top: 1px solid var(--dash-border);
           width: 100%; max-width: 480px; max-height: 82vh;
           display: flex; flex-direction: column;
           box-shadow: 0 -8px 40px rgba(34,52,108,0.1);
@@ -874,10 +1134,10 @@ const Dashboard = () => {
         }
         .dash-drawer-header {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 20px 20px 12px; border-bottom: 1px solid #f1f3f5;
+          padding: 20px 20px 12px; border-bottom: 1px solid var(--dash-divider);
         }
         .dash-drawer-header h2 {
-          font-size: 17px; font-weight: 700; color: #22346c; margin: 0;
+          font-size: 17px; font-weight: 700; color: var(--dash-text-primary); margin: 0;
         }
         .dash-drawer-badge {
           background: #a91f23; color: #fff; font-size: 10px;
@@ -893,11 +1153,11 @@ const Dashboard = () => {
         .dash-drawer-tab {
           padding: 6px 14px; border-radius: 10px; border: none;
           font-size: 11px; font-weight: 600; text-transform: capitalize;
-          background: #f1f3f5; color: #868e96; cursor: pointer;
+          background: var(--dash-input-bg); color: var(--dash-text-secondary); cursor: pointer;
           transition: all 0.15s;
         }
         .dash-drawer-tab.active {
-          background: #22346c; color: #fff;
+          background: var(--dash-accent); color: #fff;
         }
         .dash-drawer-list {
           flex: 1; overflow-y: auto; padding: 8px 16px 16px;
@@ -907,17 +1167,17 @@ const Dashboard = () => {
           display: flex; align-items: flex-start; gap: 10px;
           padding: 12px 14px; border-radius: 14px; border: none;
           cursor: pointer; text-align: left; width: 100%;
-          background: #fff; border: 1px solid #e9ecef;
+          background: var(--dash-card); border: 1px solid var(--dash-border);
           transition: box-shadow 0.15s;
         }
-        .dash-notif-item.read { background: #f8f9fa; border-color: #f1f3f5; }
+        .dash-notif-item.read { background: ${isDark ? '#1e293b80' : '#f8f9fa'}; border-color: var(--dash-border); }
         .dash-notif-item:hover { box-shadow: 0 2px 8px rgba(34,52,108,0.06); }
         .dash-notif-icon {
           width: 36px; height: 36px; border-radius: 10px;
           display: flex; align-items: center; justify-content: center;
           flex-shrink: 0;
         }
-        .dash-notif-icon[data-cat="academic"] { background: #dff0fb; color: #0080c7; }
+        .dash-notif-icon[data-cat="academic"] { background: ${isDark ? '#1e293b' : '#dff0fb'}; color: #0080c7; }
         .dash-notif-icon[data-cat="event"] { background: #fdf3f3; color: #a91f23; }
         .dash-notif-icon[data-cat="finance"] { background: #fcf5f4; color: #c9503d; }
         .dash-notif-body { flex: 1; min-width: 0; }
@@ -925,10 +1185,10 @@ const Dashboard = () => {
           display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
         }
         .dash-notif-title-row h4 {
-          font-size: 13px; font-weight: 600; color: #22346c; margin: 0;
+          font-size: 13px; font-weight: 600; color: var(--dash-text-primary); margin: 0;
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
-        .dash-notif-item.read .dash-notif-title-row h4 { color: #868e96; }
+        .dash-notif-item.read .dash-notif-title-row h4 { color: var(--dash-text-secondary); }
         .dash-notif-dot {
           width: 6px; height: 6px; border-radius: 50%;
           background: #0080c7; flex-shrink: 0;
@@ -937,12 +1197,12 @@ const Dashboard = () => {
           background: #a91f23; animation: pulse-dot 2s infinite;
         }
         .dash-notif-msg {
-          font-size: 11px; color: #868e96; margin: 0;
+          font-size: 11px; color: var(--dash-text-secondary); margin: 0;
           display: -webkit-box; -webkit-line-clamp: 2;
           -webkit-box-orient: vertical; overflow: hidden;
         }
         .dash-notif-time {
-          font-size: 10px; color: #ced4da; font-weight: 600; margin: 4px 0 0;
+          font-size: 10px; color: var(--dash-text-secondary); font-weight: 600; margin: 4px 0 0;
         }
 
         /* ── Animations ──────────────────────────── */

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Academic from './pages/Academic';
@@ -70,8 +70,10 @@ import AdminFeeDefaulters from './pages/AdminFeeDefaulters';
 import AdminAccessControl from './pages/AdminAccessControl';
 import AdminDataExport from './pages/AdminDataExport';
 import AdminModeration from './pages/AdminModeration';
-import AdminPlacementAnalytics from './pages/AdminPlacementAnalytics';
 import AdminFacultyRoles from './pages/AdminFacultyRoles';
+import AdminIdTemplates from './pages/AdminIdTemplates';
+import AdminPlacementAnalytics from './pages/AdminPlacementAnalytics';
+
 
 import GuestLockedFeature from './components/GuestLockedFeature';
 
@@ -128,6 +130,31 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
+  useEffect(() => {
+    const applyTheme = () => {
+      const theme = localStorage.getItem('theme_preference') || 'light';
+      const accentColor = localStorage.getItem('accent_color') || '#0080c7';
+
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = 'dark';
+      } else if (theme === 'auto') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', prefersDark);
+        document.documentElement.style.colorScheme = prefersDark ? 'dark' : 'light';
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.style.colorScheme = 'light';
+      }
+
+      document.documentElement.style.setProperty('--accent-color', accentColor);
+    };
+
+    applyTheme();
+    window.addEventListener('theme-changed', applyTheme);
+    return () => window.removeEventListener('theme-changed', applyTheme);
+  }, []);
+
   return (
     <Router>
       <div className="min-h-screen bg-app-bg flex items-center justify-center sm:p-4">
@@ -225,6 +252,8 @@ function App() {
             <Route path="/admin/moderation" element={<AdminRoute><AdminModeration /></AdminRoute>} />
             <Route path="/admin/placements" element={<AdminRoute><AdminPlacementAnalytics /></AdminRoute>} />
             <Route path="/admin/faculty-roles" element={<AdminRoute><AdminFacultyRoles /></AdminRoute>} />
+            <Route path="/admin/id-templates" element={<AdminRoute><AdminIdTemplates /></AdminRoute>} />
+
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/login" />} />

@@ -1,99 +1,82 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft, Smartphone, Monitor, Tablet, Wifi,
+  ChevronLeft, ChevronRight, Smartphone, Monitor, Tablet, Wifi,
   Trash2, LogOut, Fingerprint, Shield, Key,
-  Plus, X, CheckCircle, Clock, AlertTriangle, ChevronRight,
-  CreditCard, QrCode, Award, Star, Heart,
-  Download, RefreshCw, Camera, Sun, Moon, Palette,
-  WifiOff, BarChart3, Zap, Trophy,
-  Users, ThumbsUp, ExternalLink, Bus, MapPin, Bell
+  Plus, X, CheckCircle, AlertTriangle, CreditCard,
+  Palette, User, Link2, Globe, Edit3, Save, Camera,
+  RefreshCw, Laptop, Mail, ExternalLink, Trash
 } from 'lucide-react';
-import { api } from '../lib/api';
 import BottomNav from '../components/BottomNav';
+import { api } from '../lib/api';
 
-// ── Time helper ──────────────────────────────────────────────────
-const timeAgo = (dateStr: string): string => {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-};
+const PRESETS = [
+  { id: 'classic-navy', name: 'Classic Navy', gradient: 'linear-gradient(135deg, #22346c, #0080c7)' },
+  { id: 'premium-gold', name: 'Premium Gold', gradient: 'linear-gradient(135deg, #111827, #374151)' },
+  { id: 'vibrant-crimson', name: 'Vibrant Crimson', gradient: 'linear-gradient(135deg, #a91f23, #c9503d)' },
+  { id: 'tech-cyan', name: 'Tech Cyan', gradient: 'linear-gradient(135deg, #0f172a, #1e293b)' },
+  { id: 'elegant-dark', name: 'Elegant Dark', gradient: 'linear-gradient(135deg, #000000, #2d3748)' },
+];
 
-// ── TOTP-like QR generator (rotates every 15s) ──────────────────
-const generateTOTPCode = (userId: string): string => {
-  const epoch = Math.floor(Date.now() / 15000); // 15-second window
-  const raw = `${userId}-${epoch}-VELTECH`;
-  let hash = 0;
-  for (let i = 0; i < raw.length; i++) {
-    hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
+// Helper to generate a rotating 6-digit mockup TOTP code
+const generateTOTPCode = (userId: string) => {
+  const timeBlock = Math.floor(Date.now() / 15000);
+  const hash = timeBlock + userId;
+  let code = 0;
+  for (let i = 0; i < hash.length; i++) {
+    code = (code << 5) - code + hash.charCodeAt(i);
+    code |= 0;
   }
-  return Math.abs(hash).toString(36).toUpperCase().padStart(8, '0').slice(0, 8);
+  return String(Math.abs(code % 1000000)).padStart(6, '0');
 };
-
-// ── Mock achievements data ──────────────────────────────────────
-const MOCK_ACHIEVEMENTS = [
-  { id: '1', title: 'HackGrid 36h - Runner Up', type: 'hackathon', icon: '🏆', date: '2026-03-15' },
-  { id: '2', title: 'CodeChef Chapter President', type: 'leadership', icon: '👑', date: '2025-09-01' },
-  { id: '3', title: 'IEEE Paper Published', type: 'paper', icon: '📄', date: '2026-01-20' },
-  { id: '4', title: 'Google Cloud Certified', type: 'certification', icon: '☁️', date: '2026-02-10' },
-  { id: '5', title: 'NPTEL - Data Science Gold', type: 'certification', icon: '🎓', date: '2025-11-05' },
-];
-
-const MOCK_SKILLS = [
-  { name: 'React', endorsements: 12, endorsed: true },
-  { name: 'Python', endorsements: 18, endorsed: false },
-  { name: 'Machine Learning', endorsements: 7, endorsed: false },
-  { name: 'Java', endorsements: 9, endorsed: true },
-  { name: 'SQL', endorsements: 14, endorsed: false },
-];
 
 const Profile = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [biometrics, setBiometrics] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'id-card' | 'portfolio' | 'sessions' | 'biometric' | 'security' | 'preferences'>('id-card');
   const [loading, setLoading] = useState(true);
-  const [sessionLoading, setSessionLoading] = useState<string | null>(null);
-  const [confirmLogoutAll, setConfirmLogoutAll] = useState(false);
-  const [biometricRegistering, setBiometricRegistering] = useState(false);
-  const [biometricMsg, setBiometricMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-  const [showBiometricNameModal, setShowBiometricNameModal] = useState(false);
-  const [customDeviceName, setCustomDeviceName] = useState('');
 
-  // ID card state
+  // Tab state (restructured)
+  const [activeTab, setActiveTab] = useState<'id-card' | 'security-bio' | 'account-links' | 'preferences'>('id-card');
+
+  // ID Card State
+  const [idTemplate, setIdTemplate] = useState({
+    college_name: 'VelTech University',
+    background_style: 'classic-navy',
+    primary_color: '#22346c',
+    accent_color: '#0080c7',
+    logo_url: '',
+    custom_bg_url: ''
+  });
+  const [isFlipped, setIsFlipped] = useState(false);
   const [qrCode, setQrCode] = useState('');
   const [qrCountdown, setQrCountdown] = useState(15);
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-
-  // Preferences state
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme_preference') || 'light');
-  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent_color') || 'indigo');
-  const [offlineSync, setOfflineSync] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('offline_sync_settings') || '{"timetable":true,"syllabus":true,"news":false}'); }
-    catch { return { timetable: true, syllabus: true, news: false }; }
-  });
-
-  // Achievements & Skills portfolio states
-  const [achievements, setAchievements] = useState<any[]>(MOCK_ACHIEVEMENTS);
-  const [skills, setSkills] = useState(MOCK_SKILLS);
   const [showQRScanner, setShowQRScanner] = useState(false);
-  const [attendanceMsg, setAttendanceMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [attendanceMsg, setAttendanceMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
 
-  // Add certification states
-  const [showAddCertModal, setShowAddCertModal] = useState(false);
-  const [certId, setCertId] = useState('');
-  const [certTitle, setCertTitle] = useState('');
-  const [certPlatform, setCertPlatform] = useState('coursera');
-  const [certVerifying, setCertVerifying] = useState(false);
-  const [certError, setCertError] = useState('');
+  // Preferences State
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme_preference') || 'light');
+  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent_color') || '#0080c7');
+  const [prefsSaved, setPrefsSaved] = useState(false);
+
+  // Combined Security & Bio States
+  const [bio, setBio] = useState('');
+  const [editingBio, setEditingBio] = useState(false);
+  const [confirmLogoutAll, setConfirmLogoutAll] = useState(false);
+  const [biometricRegistering, setBiometricRegistering] = useState(false);
+  const [biometricMsg, setBiometricMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
+  const [showBiometricNameModal, setShowBiometricNameModal] = useState(false);
+  const [customDeviceName, setCustomDeviceName] = useState('');
+  const [sessionLoading, setSessionLoading] = useState<string | null>(null);
+
+  // Account Links CRUD States
+  const [socialLinks, setSocialLinks] = useState({ linkedin: '', github: '', google_scholar: '' });
+  const [educationLinks, setEducationLinks] = useState<{name: string, url: string}[]>([]);
+  const [newLinkName, setNewLinkName] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
+  const [editingSocial, setEditingSocial] = useState(false);
+  const [accountSaved, setAccountSaved] = useState(false);
 
   useEffect(() => {
     fetchProfile();
@@ -107,24 +90,35 @@ const Profile = () => {
       const u = res.data.user;
       setUser(u);
 
-      // Parse achievements
-      if (u.achievements && u.achievements.length > 0) {
-        setAchievements(u.achievements);
-      }
+      // Fetch active ID Card template for user's role
+      fetchTemplate(u.role || 'student');
 
-      // Parse skills
-      if (u.skills && u.skills.length > 0) {
-        const mappedSkills = u.skills.map((s: any) => ({
-          name: s.name,
-          endorsements: s.endorsements ? s.endorsements.length : 0,
-          endorsed: s.endorsements ? s.endorsements.includes(u.id) : false
-        }));
-        setSkills(mappedSkills);
-      }
+      // Parse preferences
+      const prefs = u.preferences || {};
+      setBio(prefs.bio || '');
+      setSocialLinks({
+        linkedin: prefs.linkedin || '',
+        github: prefs.github || '',
+        google_scholar: prefs.google_scholar || '',
+      });
+      setEducationLinks(prefs.education_links || []);
+      if (prefs.theme_preference) setTheme(prefs.theme_preference);
+      if (prefs.accent_color) setAccentColor(prefs.accent_color);
     } catch {
       const stored = localStorage.getItem('user');
-      if (stored) setUser(JSON.parse(stored));
+      if (stored) {
+        const u = JSON.parse(stored);
+        setUser(u);
+        fetchTemplate(u.role || 'student');
+      }
     }
+  };
+
+  const fetchTemplate = async (role: string) => {
+    try {
+      const { data } = await api.get(`/auth/id-template/${role}`);
+      setIdTemplate(data);
+    } catch {}
   };
 
   // ── TOTP QR rotation every 15 seconds ──────────────────────
@@ -144,28 +138,6 @@ const Profile = () => {
 
     return () => { clearInterval(interval); clearInterval(countdown); };
   }, [user?.id]);
-
-  // ── Holographic tilt effect via DeviceOrientation ──────────
-  useEffect(() => {
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      const x = Math.min(Math.max((e.gamma || 0) / 45, -1), 1);
-      const y = Math.min(Math.max((e.beta || 0) / 45, -1), 1);
-      setTilt({ x: x * 8, y: y * 4 });
-    };
-    window.addEventListener('deviceorientation', handleOrientation);
-    return () => window.removeEventListener('deviceorientation', handleOrientation);
-  }, []);
-
-  // Mouse-based tilt for desktop
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
-    setTilt({ x: x * 10, y: -y * 10 });
-  }, []);
-
-  const handleMouseLeave = () => setTilt({ x: 0, y: 0 });
 
   const fetchSessions = async () => {
     try {
@@ -194,7 +166,7 @@ const Profile = () => {
         return;
       }
       setSessions(prev => prev.filter(s => s.id !== sessionId));
-    } catch { }
+    } catch {}
     setSessionLoading(null);
   };
 
@@ -206,7 +178,7 @@ const Profile = () => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       navigate('/login');
-    } catch { }
+    } catch {}
   };
 
   const startBiometricRegistration = () => {
@@ -248,45 +220,13 @@ const Profile = () => {
   };
 
   const revokeBiometric = async (credId: string) => {
-    try { await api.delete(`/auth/biometric/credentials/${credId}`); setBiometrics(prev => prev.filter(b => b.id !== credId)); } catch { }
+    try { await api.delete(`/auth/biometric/credentials/${credId}`); setBiometrics(prev => prev.filter(b => b.id !== credId)); } catch {}
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
-  };
-
-  const endorseSkill = async (name: string) => {
-    try {
-      const res = await api.post('/auth/profile/endorse', {
-        user_id: user?.id,
-        skill_name: name
-      });
-      const updated = res.data.skill;
-      setSkills(prev => prev.map(s => s.name === name ? {
-        ...s,
-        endorsements: updated.endorsements,
-        endorsed: updated.endorsed
-      } : s));
-    } catch {
-      setSkills(prev => prev.map(s => s.name === name ? { ...s, endorsements: s.endorsements + (s.endorsed ? -1 : 1), endorsed: !s.endorsed } : s));
-    }
-  };
-
-  const handleExportData = async () => {
-    try {
-      const res = await api.get('/auth/me/export', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `veltech_data_export_${user?.id?.slice(0, 8) || 'user'}.zip`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch {
-      alert('Failed to export data. Please try again.');
-    }
   };
 
   const handleClassAttendance = async () => {
@@ -310,7 +250,6 @@ const Profile = () => {
   const handleClubAttendance = async () => {
     setAttendanceMsg(null);
     try {
-      // Find a technical or cultural club
       const clubsRes = await api.get('/campus/clubs');
       const clubId = clubsRes.data.clubs?.[0]?.id || 'mock_club_id';
       await api.post(`/campus/clubs/${clubId}/attendance`, {
@@ -327,36 +266,65 @@ const Profile = () => {
     }
   };
 
-  const handleAddCertification = async () => {
-    if (!certId || !certTitle) {
-      setCertError('Please fill in all fields');
-      return;
-    }
-    setCertVerifying(true);
-    setCertError('');
-    try {
-      const res = await api.post('/auth/profile/certifications/verify', {
-        certificate_id: certId,
-        platform: certPlatform,
-        title: certTitle
-      });
-      const newAch = res.data.achievement;
-      setAchievements(prev => [...prev, newAch]);
-      setShowAddCertModal(false);
-      setCertId('');
-      setCertTitle('');
-    } catch (err: any) {
-      setCertError(err?.response?.data?.error || 'Verification failed. Make sure the ID is at least 8 characters.');
-    } finally {
-      setCertVerifying(false);
-    }
-  };
-
+  // ── Save Preferences (Theme/Accent — now actually applied) ──
   const savePreferences = async () => {
     localStorage.setItem('theme_preference', theme);
     localStorage.setItem('accent_color', accentColor);
-    localStorage.setItem('offline_sync_settings', JSON.stringify(offlineSync));
-    try { await api.put('/auth/me/preferences', { theme_preference: theme, offline_sync_settings: offlineSync }); } catch { }
+
+    // Apply theme to document
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.style.colorScheme = 'dark';
+    } else if (theme === 'auto') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.toggle('dark', prefersDark);
+      document.documentElement.style.colorScheme = prefersDark ? 'dark' : 'light';
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.style.colorScheme = 'light';
+    }
+
+    // Apply accent color as CSS variable
+    document.documentElement.style.setProperty('--accent-color', accentColor);
+    window.dispatchEvent(new Event('theme-changed'));
+
+    try { await api.put('/auth/me/preferences', { theme_preference: theme, accent_color: accentColor }); } catch {}
+    setPrefsSaved(true);
+    setTimeout(() => setPrefsSaved(false), 2000);
+  };
+
+  // ── Save Account Preferences (Bio & Social & custom links) ──
+  const saveAccount = async (updatedLinks?: any[]) => {
+    const finalLinks = updatedLinks !== undefined ? updatedLinks : educationLinks;
+    try {
+      await api.put('/auth/me/preferences', {
+        bio,
+        linkedin: socialLinks.linkedin,
+        github: socialLinks.github,
+        google_scholar: socialLinks.google_scholar,
+        education_links: finalLinks
+      });
+    } catch {}
+    setEditingBio(false);
+    setEditingSocial(false);
+    setAccountSaved(true);
+    setTimeout(() => setAccountSaved(false), 2000);
+  };
+
+  // ── Custom link CRUD operations ──
+  const handleAddLink = () => {
+    if (!newLinkName.trim() || !newLinkUrl.trim()) return;
+    const updated = [...educationLinks, { name: newLinkName.trim(), url: newLinkUrl.trim() }];
+    setEducationLinks(updated);
+    setNewLinkName('');
+    setNewLinkUrl('');
+    saveAccount(updated);
+  };
+
+  const handleDeleteLink = (index: number) => {
+    const updated = educationLinks.filter((_, idx) => idx !== index);
+    setEducationLinks(updated);
+    saveAccount(updated);
   };
 
   const getDeviceIcon = (type: string) => {
@@ -367,50 +335,69 @@ const Profile = () => {
     }
   };
 
+  const timeAgo = (ts: string) => {
+    const diff = Date.now() - new Date(ts).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  };
+
   const isGuest = user?.is_guest || user?.role === 'guest';
 
-  // ── Tab definitions ────────────────────────────────────────
+  // Restructured Tab definitions
   const tabs = [
     { key: 'id-card', label: 'ID Card', icon: <CreditCard className="w-3.5 h-3.5" /> },
-    { key: 'portfolio', label: 'Portfolio', icon: <Award className="w-3.5 h-3.5" /> },
-    { key: 'sessions', label: 'Sessions', icon: <Wifi className="w-3.5 h-3.5" /> },
-    { key: 'biometric', label: 'Bio', icon: <Fingerprint className="w-3.5 h-3.5" /> },
-    { key: 'security', label: 'Security', icon: <Key className="w-3.5 h-3.5" /> },
+    { key: 'security-bio', label: 'Security & Bio', icon: <Fingerprint className="w-3.5 h-3.5" /> },
+    { key: 'account-links', label: 'Account Links', icon: <User className="w-3.5 h-3.5" /> },
     { key: 'preferences', label: 'Prefs', icon: <Palette className="w-3.5 h-3.5" /> },
   ];
 
+  // Dynamic colors based on active theme
+  const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const C = {
+    navy: isDark ? '#0f172a' : '#22346c',
+    blue: accentColor,
+    red: '#a91f23',
+    terra: '#c9503d',
+    cyan: '#27bcd1',
+    bg: isDark ? '#0b0f19' : '#f4f5f7',
+    card: isDark ? '#1e293b' : '#ffffff',
+    textPrimary: isDark ? '#f8fafc' : '#22346c',
+    textSecondary: isDark ? '#94a3b8' : '#868e96',
+    border: isDark ? '#334155' : '#e9ecef',
+  };
+
+  const currentPreset = PRESETS.find(p => p.id === idTemplate.background_style) || PRESETS[0];
+
   return (
-    <div className="min-h-full bg-white flex flex-col font-sans animate-fade-in relative pb-24">
+    <div className="min-h-full flex flex-col font-sans relative pb-24 transition-colors duration-300" style={{ background: C.bg }}>
 
       {/* ═══ HEADER ═══ */}
-      <div className="bg-slate-900 rounded-b-[40px] p-8 pt-12">
+      <div className="rounded-b-[32px] p-8 pt-12 transition-colors duration-300" style={{ background: C.navy }}>
         <div className="flex items-center gap-4 mb-6">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/15 transition-colors" style={{ background: 'rgba(255,255,255,0.08)' }}>
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
-          <h1 className="text-xl font-bold text-white">Profile & Security</h1>
+          <h1 className="text-xl font-bold text-white">Profile</h1>
         </div>
 
-        {/* User Info Card */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-[24px] p-5 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-indigo-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+        {/* User Info */}
+        <div className="rounded-[20px] p-5 flex items-center gap-4" style={{ background: 'rgba(255,255,255,0.08)' }}>
+          <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold" style={{ background: C.blue }}>
             {isGuest ? 'G' : (user?.first_name?.[0] || 'U')}
           </div>
-          <div className="flex-1 text-white">
-            <h2 className="text-lg font-bold">{isGuest ? 'Guest Visitor' : user?.full_name || 'User'}</h2>
-            <p className="text-sm text-slate-300">{isGuest ? 'Limited access mode' : user?.email || ''}</p>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-white/20 rounded-full uppercase tracking-wider">
+          <div className="flex-1 text-white min-w-0">
+            <h2 className="text-lg font-bold truncate">{isGuest ? 'Guest Visitor' : user?.full_name || 'User'}</h2>
+            <p className="text-sm opacity-60 truncate">{isGuest ? 'Limited access mode' : user?.email || ''}</p>
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ background: 'rgba(255,255,255,0.15)' }}>
                 {user?.role || 'student'}
               </span>
               {user?.department && (
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-500/40 rounded-full uppercase tracking-wider">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ background: `${C.blue}40` }}>
                   {user.department}
-                </span>
-              )}
-              {user?.semester && (
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-500/40 rounded-full uppercase tracking-wider">
-                  Sem {user.semester}
                 </span>
               )}
             </div>
@@ -418,56 +405,19 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Guest Warning & Action Grid */}
-      {isGuest && (
-        <div className="mx-6 mt-6 flex flex-col gap-5">
-          <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl text-center shadow-sm relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-bl-[80px] pointer-events-none" />
-            <Shield className="w-10 h-10 text-slate-400 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-slate-900">Guest Visitor Mode</h3>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed max-w-xs mx-auto">
-              You are browsing with parent/visitor permissions. Active student records and credentials are secure.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { name: 'Emergency Support', icon: Zap, color: 'text-red-700 bg-red-50', path: '/utility/emergency' },
-              { name: 'Live Bus Tracking', icon: Bus, color: 'text-blue-600 bg-blue-50', path: '/campus/bus' },
-              { name: 'Indoor Map Guide', icon: MapPin, color: 'text-emerald-600 bg-emerald-50', path: '/campus/map' },
-              { name: 'Notice Board', icon: Bell, color: 'text-purple-600 bg-purple-50', path: '/campus/notices' },
-            ].map(item => (
-              <button key={item.name} onClick={() => navigate(item.path)}
-                className="bg-slate-50 rounded-[20px] p-4 flex items-center gap-3 text-left hover:bg-slate-100 active:scale-95 transition-all border border-slate-100">
-                <div className={`w-10 h-10 rounded-xl ${item.color} flex items-center justify-center shrink-0`}>
-                  <item.icon className="w-5 h-5" />
-                </div>
-                <span className="text-xs font-bold text-slate-700">{item.name}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Exit Guest Mode Danger Zone */}
-          <button onClick={handleLogout} className="bg-red-50 rounded-[24px] p-4 flex items-center gap-4 text-left w-full hover:bg-red-100 transition-colors border border-red-100 mt-2">
-            <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-red-600 shadow-sm shrink-0">
-              <LogOut className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-bold text-red-700">Exit Guest Mode</p>
-              <p className="text-xs text-red-600 mt-0.5">End this guest session and return to Login.</p>
-            </div>
-          </button>
-        </div>
-      )}
-
-      {/* ═══ TABS ═══ */}
+      {/* TABS */}
       {!isGuest && (
         <div className="px-4 mt-5">
-          <div className="flex bg-slate-100 rounded-2xl p-1 overflow-x-auto hide-scrollbar gap-0.5">
+          <div className="flex rounded-2xl p-1 overflow-x-auto gap-0.5" style={{ background: isDark ? '#1e293b' : '#e9ecef' }}>
             {tabs.map(tab => (
               <button key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
-                className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-[10px] font-bold flex flex-col items-center justify-center gap-1 transition-all ${activeTab === tab.key ? 'bg-white text-slate-900 shadow-md' : 'text-slate-500'}`}
+                className="flex-1 min-w-[75px] py-2.5 rounded-xl text-[10px] font-bold flex flex-col items-center justify-center gap-1 transition-all"
+                style={{
+                  background: activeTab === tab.key ? C.card : 'transparent',
+                  color: activeTab === tab.key ? C.textPrimary : C.textSecondary,
+                  boxShadow: activeTab === tab.key ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                }}
               >
                 {tab.icon}
                 {tab.label}
@@ -477,68 +427,103 @@ const Profile = () => {
         </div>
       )}
 
-      {/* ═══ CONTENT ═══ */}
+      {/* CONTENT */}
       <div className="px-6 mt-5 flex-1 overflow-y-auto">
 
         {/* ═══════════ Digital ID Card Tab ═══════════ */}
         {activeTab === 'id-card' && !isGuest && (
           <div className="animate-fade-in">
-            {/* 3D Holographic ID Card */}
-            <div
-              ref={cardRef}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={handleMouseLeave}
-              className="relative rounded-[28px] overflow-hidden shadow-2xl mb-5 cursor-pointer"
-              style={{
-                transform: `perspective(800px) rotateY(${tilt.x}deg) rotateX(${tilt.y}deg)`,
-                transition: 'transform 0.1s ease-out',
-              }}
-            >
-              {/* Card background */}
-              <div className="bg-gradient-to-br from-slate-900 via-indigo-900 to-violet-900 p-6 relative">
-                {/* Holographic overlay */}
-                <div className="absolute inset-0 opacity-20 pointer-events-none"
+            {/* Instagram-Style Flipping card container */}
+            <div onClick={() => setIsFlipped(!isFlipped)} className={`flip-card ${isFlipped ? 'flipped' : ''} mb-5`}>
+              <div className="flip-card-inner relative aspect-[1.58/1] w-full">
+                
+                {/* ── CARD FRONT ── */}
+                <div className="flip-card-front h-full w-full relative p-5 flex flex-col justify-between"
                   style={{
-                    background: `linear-gradient(${135 + tilt.x * 5}deg, transparent 20%, rgba(99,102,241,0.4) 40%, rgba(168,85,247,0.3) 50%, rgba(236,72,153,0.3) 60%, transparent 80%)`,
-                    transition: 'background 0.1s ease-out',
+                    background: currentPreset.gradient,
+                    backgroundColor: idTemplate.primary_color
                   }}
-                />
-                {/* Security pattern */}
-                <div className="absolute inset-0 opacity-5 pointer-events-none"
-                  style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, #fff 6px, #fff 7px)' }}
-                />
+                >
+                  <div className="absolute inset-0 opacity-5 pointer-events-none"
+                    style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, #fff 6px, #fff 7px)' }}
+                  />
 
-                {/* Top row */}
-                <div className="flex items-start justify-between mb-6 relative z-10">
-                  <div>
-                    <p className="text-[9px] font-bold text-indigo-300 uppercase tracking-[3px]">VelTech University</p>
-                    <p className="text-[8px] text-slate-400 mt-0.5">Student Digital ID</p>
+                  {/* Header Row */}
+                  <div className="flex justify-between items-start z-10">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[3px] text-white">
+                        {idTemplate.college_name}
+                      </p>
+                      <p className="text-[8px] text-white/50">{user?.role === 'student' ? 'Student' : 'Faculty'} Virtual ID</p>
+                    </div>
+                    {idTemplate.logo_url ? (
+                      <img src={idTemplate.logo_url} alt="Logo" className="h-6 w-auto object-contain" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
+                        <CreditCard className="w-3.5 h-3.5 text-white/80" />
+                      </div>
+                    )}
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-indigo-300" />
+
+                  {/* Body Row */}
+                  <div className="flex items-end justify-between z-10">
+                    <div>
+                      <h3 className="text-base font-extrabold text-white tracking-tight">{user?.full_name || 'User'}</h3>
+                      <p className="text-[10px] text-white/70 font-medium">{user?.roll_number || user?.employee_id || 'VT2024CSE001'}</p>
+                      <div className="flex gap-2 mt-1.5">
+                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-white/15">
+                          {user?.department || 'CSE'}
+                        </span>
+                        {user?.semester && (
+                          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/80">
+                            Sem {user.semester}
+                          </span>
+                        )}
+                        {user?.role === 'student' && (
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
+                            user.hostel_status === 'hosteler' ? 'bg-emerald-500/30 text-emerald-300' : 'bg-blue-500/30 text-blue-300'
+                          }`}>
+                            {user.hostel_status || 'dayscholar'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Avatar Photo */}
+                    <div className="w-14 h-14 rounded-full border-2 border-white/40 overflow-hidden bg-white/10 flex items-center justify-center relative shadow-md">
+                      <img
+                        src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${user?.id || 'default'}`}
+                        alt="Photo"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                {/* Student info */}
-                <div className="flex items-end justify-between relative z-10">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-black text-white tracking-tight">{user?.full_name || 'Student Name'}</h3>
-                    <p className="text-sm text-slate-300 font-medium mt-1">{user?.roll_number || 'VT2024CSE001'}</p>
-                    <div className="flex gap-3 mt-2">
-                      <span className="text-[10px] font-bold text-indigo-300 bg-white/10 px-2 py-0.5 rounded-full">
-                        {user?.department || 'CSE'}
-                      </span>
-                      <span className="text-[10px] font-bold text-emerald-300 bg-white/10 px-2 py-0.5 rounded-full">
-                        Sem {user?.semester || '4'}
-                      </span>
+                {/* ── CARD BACK ── */}
+                <div className="flip-card-back h-full w-full relative p-5 flex flex-col justify-between"
+                  style={{
+                    background: currentPreset.gradient,
+                    backgroundColor: idTemplate.primary_color
+                  }}
+                >
+                  <div className="absolute inset-0 opacity-5 pointer-events-none"
+                    style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, #fff 6px, #fff 7px)' }}
+                  />
+
+                  {/* Header */}
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[3px] text-white">{idTemplate.college_name}</p>
+                      <p className="text-[8px] text-white/40">Secure verification QR</p>
                     </div>
+                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md bg-white/10 text-white/70">Tap to flip back</span>
                   </div>
 
-                  {/* Dynamic QR Code (TOTP-based, rotates every 15s) */}
-                  <div className="flex flex-col items-center">
+                  {/* Secure QR and Rotating TOTP */}
+                  <div className="flex flex-col items-center justify-center mt-1">
                     <div className="w-20 h-20 bg-white rounded-xl p-1.5 shadow-lg relative">
-                      {/* Simplified QR pattern using the TOTP code */}
-                      <div className="w-full h-full bg-slate-900 rounded-lg flex items-center justify-center relative overflow-hidden">
+                      <div className="w-full h-full rounded-lg flex items-center justify-center relative overflow-hidden" style={{ background: '#22346c' }}>
                         <div className="grid grid-cols-8 gap-px absolute inset-1">
                           {qrCode.split('').flatMap((c, i) => {
                             const val = parseInt(c, 36);
@@ -547,369 +532,355 @@ const Profile = () => {
                             ));
                           })}
                         </div>
-                        <QrCode className="w-6 h-6 text-white/60 relative z-10" />
+                        <Camera className="w-6 h-6 text-white/60 relative z-10" />
                       </div>
                     </div>
-                    {/* Countdown */}
-                    <div className="flex items-center gap-1 mt-2">
-                      <RefreshCw className={`w-3 h-3 text-indigo-300 ${qrCountdown <= 3 ? 'animate-spin' : ''}`} />
-                      <span className={`text-[10px] font-bold ${qrCountdown <= 3 ? 'text-red-400' : 'text-indigo-300'}`}>{qrCountdown}s</span>
+                    <div className="flex items-center gap-1 mt-1.5">
+                      <RefreshCw className={`w-2.5 h-2.5 ${qrCountdown <= 3 ? 'animate-spin' : ''}`} style={{ color: C.cyan }} />
+                      <span className="text-[9px] font-bold" style={{ color: qrCountdown <= 3 ? C.red : C.cyan }}>TOTP: {qrCountdown}s</span>
                     </div>
                   </div>
-                </div>
 
-                {/* Bottom strip */}
-                <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between relative z-10">
-                  <p className="text-[8px] text-slate-500">Valid: AY 2025-26 • {user?.email || 'student@veltech.edu.in'}</p>
-                  <div className="flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  {/* Footer strip */}
+                  <div className="pt-2 border-t flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+                    <p className="text-[8px] text-white/50">Valid: AY 2025-26 • {user?.email}</p>
                     <span className="text-[8px] font-bold text-emerald-400">VERIFIED</span>
                   </div>
                 </div>
+
               </div>
             </div>
 
             {/* QR Scanner button */}
             <button
-              onClick={() => setShowQRScanner(true)}
-              className="w-full bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-center gap-3 font-bold text-sm mb-4 hover:bg-slate-800 active:scale-[0.98] transition-all shadow-lg"
+              onClick={(e) => { e.stopPropagation(); setShowQRScanner(true); }}
+              className="w-full text-white rounded-2xl p-4 flex items-center justify-center gap-3 font-semibold text-sm mb-4 active:scale-[0.98] transition-all shadow-sm"
+              style={{ background: C.navy }}
             >
               <Camera className="w-5 h-5" />
               Scan QR for Attendance
             </button>
-
-            {/* Quick profile links */}
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { name: 'Health Center', icon: Heart, color: 'text-red-600 bg-red-50', path: '/utility/health' },
-                { name: 'Emergency', icon: Zap, color: 'text-red-700 bg-red-50', path: '/utility/emergency' },
-                { name: 'Sync & Offline', icon: WifiOff, color: 'text-blue-600 bg-blue-50', path: '/utility/sync' },
-                { name: 'Usage Stats', icon: BarChart3, color: 'text-purple-600 bg-purple-50', path: '/ai/usage' },
-              ].map(item => (
-                <button key={item.name} onClick={() => navigate(item.path)}
-                  className="bg-slate-50 rounded-[18px] p-4 flex items-center gap-3 text-left hover:bg-slate-100 active:scale-95 transition-all border border-slate-100">
-                  <div className={`w-10 h-10 rounded-xl ${item.color} flex items-center justify-center shrink-0`}>
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <span className="text-xs font-bold text-slate-700">{item.name}</span>
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
-        {/* ═══════════ Portfolio Tab ═══════════ */}
-        {activeTab === 'portfolio' && !isGuest && (
-          <div className="animate-fade-in">
-            {/* Achievement Showcase */}
-            <div className="mb-6">
+        {/* ═══════════ Security & Bio Tab ═══════════ */}
+        {activeTab === 'security-bio' && !isGuest && (
+          <div className="animate-fade-in flex flex-col gap-4">
+            
+            {/* Bio Section */}
+            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Trophy className="w-4 h-4 text-amber-500" /> Achievements
-                </h3>
-                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{achievements.length}</span>
-              </div>
-              <div className="flex flex-col gap-2.5">
-                {achievements.map(a => (
-                  <div key={a.id} className="bg-slate-50 rounded-[18px] p-4 flex items-center gap-3 border border-slate-100">
-                    <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center text-2xl shadow-sm shrink-0">
-                      {a.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold text-slate-900 truncate">{a.title}</h4>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full capitalize">{a.type}</span>
-                        <span className="text-[10px] text-slate-400">{new Date(a.date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>
-                      </div>
-                    </div>
-                    <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Skill Endorsements */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <Star className="w-4 h-4 text-indigo-500" /> Skill Endorsements
-                </h3>
-              </div>
-              <div className="flex flex-col gap-2">
-                {skills.map(skill => (
-                  <div key={skill.name} className="bg-slate-50 rounded-[16px] p-3.5 flex items-center gap-3 border border-slate-100">
-                    <div className="flex-1">
-                      <h4 className="text-sm font-bold text-slate-800">{skill.name}</h4>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Users className="w-3 h-3 text-slate-400" />
-                        <span className="text-[10px] text-slate-500">{skill.endorsements} endorsements</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => endorseSkill(skill.name)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all ${skill.endorsed
-                          ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300'
-                        }`}
-                    >
-                      <ThumbsUp className={`w-3.5 h-3.5 ${skill.endorsed ? 'fill-indigo-500' : ''}`} />
-                      {skill.endorsed ? 'Endorsed' : 'Endorse'}
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add certification */}
-              <button
-                onClick={() => setShowAddCertModal(true)}
-                className="w-full mt-4 bg-white border-2 border-dashed border-slate-200 rounded-[18px] p-4 flex items-center justify-center gap-2 text-sm font-bold text-slate-500 hover:border-indigo-300 hover:text-indigo-600 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                Add Certification (Coursera/NPTEL)
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════ Sessions Tab ═══════════ */}
-        {activeTab === 'sessions' && !isGuest && (
-          <div className="animate-fade-in">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-slate-900">Active Devices</h3>
-              {sessions.length > 0 && (
-                <button onClick={() => setConfirmLogoutAll(true)} className="text-xs font-bold text-red-500 flex items-center gap-1 hover:text-red-600">
-                  <LogOut className="w-4 h-4" /> Logout All
+                <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: C.textPrimary }}>
+                  <User className="w-4 h-4" style={{ color: C.blue }} /> About Me (Bio)
+                </h4>
+                <button onClick={() => setEditingBio(!editingBio)} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: C.blue }}>
+                  <Edit3 className="w-3 h-3" /> {editingBio ? 'Cancel' : 'Edit'}
                 </button>
+              </div>
+              {editingBio ? (
+                <div className="flex flex-col gap-3">
+                  <textarea
+                    value={bio}
+                    onChange={e => setBio(e.target.value)}
+                    placeholder="Write a short bio about yourself..."
+                    className="w-full rounded-xl py-2.5 px-3 text-sm outline-none border resize-none focus:border-blue-400 transition-colors"
+                    style={{ background: C.bg, borderColor: C.border, color: C.textPrimary, minHeight: 80 }}
+                  />
+                  <button onClick={() => saveAccount()} className="w-full py-2.5 rounded-xl text-xs font-bold text-white transition-all" style={{ background: C.blue }}>
+                    Save Bio
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm leading-relaxed" style={{ color: bio ? C.textPrimary : C.textSecondary }}>
+                  {bio || 'No bio added yet. Tap Edit to add one.'}
+                </p>
               )}
             </div>
-            {loading ? (
-              <div className="flex justify-center py-12"><span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {sessions.map(session => (
-                  <div key={session.id} className={`rounded-[20px] p-4 flex items-center gap-4 ${session.is_current ? 'bg-indigo-50 border border-indigo-200' : 'bg-slate-50'}`}>
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${session.is_current ? 'bg-indigo-100 text-indigo-600' : 'bg-white text-slate-500'}`}>
-                      {getDeviceIcon(session.device_type)}
+
+            {/* Change Password */}
+            <button onClick={() => navigate('/change-password')} className="rounded-2xl p-4 flex items-center gap-4 text-left w-full transition-all border group" style={{ background: C.card, borderColor: C.border }}>
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm" style={{ background: C.bg, color: C.terra }}>
+                <Key className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold" style={{ color: C.textPrimary }}>Change Password</p>
+                <p className="text-xs mt-0.5" style={{ color: C.textSecondary }}>Update credentials with strength validation.</p>
+              </div>
+              <ChevronRight className="w-5 h-5" style={{ color: C.textSecondary }} />
+            </button>
+
+            {/* Biometric Credentials */}
+            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: C.textPrimary }}>
+                  <Fingerprint className="w-4 h-4" style={{ color: C.blue }} /> Biometric Authentication
+                </h4>
+                <button onClick={startBiometricRegistration} disabled={biometricRegistering}
+                  className="text-xs font-semibold flex items-center gap-1 disabled:opacity-50" style={{ color: C.blue }}>
+                  {biometricRegistering ? 'Registering...' : 'Add Device'}
+                </button>
+              </div>
+              {biometricMsg && (
+                <div className="mb-3 p-3 rounded-xl text-xs font-medium border"
+                  style={{ background: biometricMsg.type === 'success' ? C.cyan + '0a' : C.red + '0a', borderColor: biometricMsg.type === 'success' ? C.cyan + '30' : C.red + '30', color: biometricMsg.type === 'success' ? C.cyan : C.red }}>
+                  {biometricMsg.text}
+                </div>
+              )}
+              <div className="flex flex-col gap-2.5">
+                {biometrics.map(cred => (
+                  <div key={cred.id} className="flex items-center justify-between p-2 rounded-xl border" style={{ borderColor: C.border, background: C.bg }}>
+                    <div>
+                      <p className="text-xs font-bold" style={{ color: C.textPrimary }}>{cred.device_name || 'Biometric Key'}</p>
+                      <span className="text-[10px]" style={{ color: C.textSecondary }}>Registered: {cred.created_at ? new Date(cred.created_at).toLocaleDateString() : '—'}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold text-slate-800 truncate">{session.device_info?.split(' ').slice(0, 3).join(' ') || 'Unknown'}</p>
-                        {session.is_current && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded-md uppercase">This</span>}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-slate-500">{session.ip_address || '—'}</span>
-                        <span className="text-slate-300">·</span>
-                        <span className="text-xs text-slate-400 flex items-center gap-0.5"><Clock className="w-3 h-3" />{session.created_at ? timeAgo(session.created_at) : '—'}</span>
-                      </div>
-                    </div>
-                    <button onClick={() => revokeSession(session.id)} disabled={sessionLoading === session.id}
-                      className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 disabled:opacity-50">
-                      {sessionLoading === session.id ? <span className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    <button onClick={() => revokeBiometric(cred.id)} className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors">
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 ))}
-                {sessions.length === 0 && (
-                  <div className="text-center py-12">
-                    <Wifi className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                    <p className="text-slate-500 text-sm font-bold">No active sessions found.</p>
-                  </div>
+                {biometrics.length === 0 && (
+                  <p className="text-xs text-center py-4" style={{ color: C.textSecondary }}>No biometrics configured. Register FaceID/Fingerprint for passwordless logins.</p>
                 )}
               </div>
-            )}
-            <div className="mt-6 bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-start gap-3">
-              <Shield className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
-              <div>
-                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Privacy Notice</h4>
-                <p className="text-[11px] text-slate-500 leading-relaxed mt-1">We log IPs and devices to prevent unauthorized access. Revoke any suspicious sessions immediately.</p>
-              </div>
             </div>
-          </div>
-        )}
 
-        {/* ═══════════ Biometric Tab ═══════════ */}
-        {activeTab === 'biometric' && !isGuest && (
-          <div className="animate-fade-in">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-slate-900">Biometric Auth</h3>
-              <button onClick={startBiometricRegistration} disabled={biometricRegistering}
-                className="text-xs font-bold text-indigo-600 flex items-center gap-1 hover:text-indigo-700 disabled:opacity-50">
-                {biometricRegistering ? <span className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" /> : <Plus className="w-4 h-4" />}
-                {biometricRegistering ? 'Registering...' : 'Add Device'}
-              </button>
-            </div>
-            <div className="bg-indigo-50 rounded-[20px] p-4 mb-4 flex items-start gap-3">
-              <Fingerprint className="w-6 h-6 text-indigo-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-bold text-indigo-800">Passwordless Login</p>
-                <p className="text-xs text-indigo-700 mt-1">Register your fingerprint or Face ID for instant sign-in.</p>
+            {/* Active Sessions */}
+            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: C.textPrimary }}>
+                  <Wifi className="w-4 h-4" style={{ color: C.blue }} /> Active Sessions
+                </h4>
+                {sessions.length > 0 && (
+                  <button onClick={() => setConfirmLogoutAll(true)} className="text-xs font-semibold" style={{ color: C.red }}>
+                    Revoke All
+                  </button>
+                )}
               </div>
-            </div>
-            {biometricMsg && (
-              <div className={`mb-4 p-4 rounded-[16px] flex items-center gap-2 text-sm font-medium ${biometricMsg.type === 'success' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
-                {biometricMsg.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
-                {biometricMsg.text}
-              </div>
-            )}
-            <div className="flex flex-col gap-3">
-              {biometrics.map(cred => (
-                <div key={cred.id} className="bg-slate-50 rounded-[20px] p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-emerald-600 shadow-sm"><Fingerprint className="w-5 h-5" /></div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-800">{cred.device_name || 'Device'}</p>
-                    <span className="text-xs text-slate-500">Registered: {cred.created_at ? new Date(cred.created_at).toLocaleDateString() : '—'}</span>
-                  </div>
-                  <button onClick={() => revokeBiometric(cred.id)} className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100"><X className="w-4 h-4" /></button>
-                </div>
-              ))}
-              {biometrics.length === 0 && (
-                <div className="text-center py-12">
-                  <Fingerprint className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500 text-sm font-bold">No biometric credentials yet.</p>
-                  <p className="text-slate-400 text-xs mt-1">Tap "Add Device" to register.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════ Security Tab ═══════════ */}
-        {activeTab === 'security' && !isGuest && (
-          <div className="animate-fade-in flex flex-col gap-4">
-            <button onClick={() => navigate('/change-password')} className="bg-slate-50 rounded-[20px] p-4 flex items-center gap-4 text-left w-full hover:bg-slate-100 transition-colors group">
-              <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-amber-600 shadow-sm"><Key className="w-5 h-5" /></div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-slate-800">Change Password</p>
-                <p className="text-xs text-slate-500 mt-0.5">Update credentials with strength validation.</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-slate-600" />
-            </button>
-
-            {/* Data Export (GDPR) */}
-            <button onClick={handleExportData} className="bg-slate-50 rounded-[20px] p-4 flex items-center gap-4 text-left w-full hover:bg-slate-100 transition-colors group">
-              <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-blue-600 shadow-sm"><Download className="w-5 h-5" /></div>
-              <div className="flex-1">
-                <p className="text-sm font-bold text-slate-800">Export My Data</p>
-                <p className="text-xs text-slate-500 mt-0.5">Download all your data as a ZIP file (GDPR).</p>
-              </div>
-              <ExternalLink className="w-4 h-4 text-slate-400" />
-            </button>
-
-            {/* Account Details */}
-            <div className="bg-slate-50 rounded-[20px] p-4">
-              <h4 className="text-sm font-bold text-slate-800 mb-3">Account Details</h4>
-              <div className="flex flex-col gap-2.5">
-                {[
-                  { label: 'Email', value: user?.email },
-                  { label: 'Role', value: user?.role, capitalize: true },
-                  { label: 'Roll Number', value: user?.roll_number },
-                  { label: 'Department', value: user?.department },
-                  { label: 'Semester', value: user?.semester ? `Semester ${user.semester}` : null },
-                  { label: 'Joined', value: user?.created_at ? new Date(user.created_at).toLocaleDateString() : null },
-                ].filter(r => r.value).map(row => (
-                  <div key={row.label} className="flex justify-between">
-                    <span className="text-xs text-slate-500 font-medium">{row.label}</span>
-                    <span className={`text-xs text-slate-800 font-bold ${row.capitalize ? 'capitalize' : ''}`}>{row.value}</span>
+              <div className="flex flex-col gap-2">
+                {sessions.map(session => (
+                  <div key={session.id} className="flex items-center justify-between p-2 rounded-xl border" style={{ borderColor: C.border, background: session.is_current ? C.blue + '0a' : C.bg }}>
+                    <div className="min-w-0 flex-1 pr-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-bold truncate" style={{ color: C.textPrimary }}>{session.device_info?.split(' ').slice(0, 3).join(' ') || 'Unknown Device'}</p>
+                        {session.is_current && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-blue-500 text-white">This</span>}
+                      </div>
+                      <p className="text-[9px]" style={{ color: C.textSecondary }}>IP: {session.ip_address || '—'} · {timeAgo(session.created_at)}</p>
+                    </div>
+                    <button onClick={() => revokeSession(session.id)} disabled={sessionLoading === session.id} className="p-2 rounded-lg text-red-500">
+                      <Trash className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 ))}
-                <div className="flex justify-between">
-                  <span className="text-xs text-slate-500 font-medium">Verified</span>
-                  <span className={`text-xs font-bold flex items-center gap-1 ${user?.is_verified ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {user?.is_verified ? <><CheckCircle className="w-3 h-3" /> Yes</> : <><AlertTriangle className="w-3 h-3" /> Pending</>}
-                  </span>
-                </div>
               </div>
             </div>
 
             {/* Danger Zone */}
             <div className="mt-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">Danger Zone</p>
-              <button onClick={handleLogout} className="bg-red-50 rounded-[20px] p-4 flex items-center gap-4 text-left w-full hover:bg-red-100 transition-colors">
-                <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-red-600 shadow-sm"><LogOut className="w-5 h-5" /></div>
+              <button onClick={handleLogout} className="rounded-2xl p-4 flex items-center gap-4 text-left w-full transition-colors border" style={{ background: C.red + '08', borderColor: C.red + '20' }}>
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm" style={{ background: C.card, color: C.red }}>
+                  <LogOut className="w-5 h-5" />
+                </div>
                 <div className="flex-1">
-                  <p className="text-sm font-bold text-red-700">Sign Out</p>
-                  <p className="text-xs text-red-600 mt-0.5">Log out from this device only.</p>
+                  <p className="text-sm font-bold" style={{ color: C.red }}>Sign Out</p>
+                  <p className="text-xs mt-0.5" style={{ color: C.red + 'aa' }}>Sign out of your account on this device.</p>
                 </div>
               </button>
             </div>
+
           </div>
         )}
 
-        {/* ═══════════ Preferences Tab ═══════════ */}
+        {/* ═══════════ Account Links Tab ═══════════ */}
+        {activeTab === 'account-links' && !isGuest && (
+          <div className="animate-fade-in flex flex-col gap-4">
+            
+            {/* Social Links CRUD */}
+            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: C.textPrimary }}>
+                  <Link2 className="w-4 h-4" style={{ color: C.cyan }} /> Social Profiles
+                </h4>
+                <button onClick={() => setEditingSocial(!editingSocial)} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: C.blue }}>
+                  <Edit3 className="w-3 h-3" /> {editingSocial ? 'Cancel' : 'Edit'}
+                </button>
+              </div>
+
+              {editingSocial ? (
+                <div className="flex flex-col gap-4">
+                  {[
+                    { key: 'linkedin', label: 'LinkedIn URL', placeholder: 'https://linkedin.com/in/username' },
+                    { key: 'github', label: 'GitHub URL', placeholder: 'https://github.com/username' },
+                    { key: 'google_scholar', label: 'Google Scholar URL', placeholder: 'https://scholar.google.com/citations?user=...' },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: C.textSecondary }}>{f.label}</label>
+                      <input
+                        type="url"
+                        value={(socialLinks as any)[f.key]}
+                        onChange={e => setSocialLinks(prev => ({ ...prev, [f.key]: e.target.value }))}
+                        className="w-full rounded-xl py-2.5 px-3 text-sm outline-none border focus:border-blue-400 transition-colors"
+                        style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }}
+                        placeholder={f.placeholder}
+                      />
+                    </div>
+                  ))}
+                  <button onClick={() => saveAccount()} className="w-full py-3 rounded-2xl text-xs font-bold text-white transition-all" style={{ background: C.blue }}>
+                    Save Profiles
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {[
+                    { key: 'linkedin', label: 'LinkedIn', icon: <Globe className="w-4 h-4" /> },
+                    { key: 'github', label: 'GitHub', icon: <Globe className="w-4 h-4" /> },
+                    { key: 'google_scholar', label: 'Google Scholar', icon: <Globe className="w-4 h-4" /> },
+                  ].map(f => {
+                    const val = (socialLinks as any)[f.key];
+                    return (
+                      <div key={f.key} className="flex items-center justify-between p-2.5 rounded-xl border" style={{ borderColor: C.border, background: C.bg }}>
+                        <div className="flex items-center gap-2">
+                          <span style={{ color: val ? C.blue : C.textSecondary }}>{f.icon}</span>
+                          <span className="text-xs font-bold" style={{ color: C.textPrimary }}>{f.label}</span>
+                        </div>
+                        {val ? (
+                          <a href={val} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold flex items-center gap-1" style={{ color: C.blue }}>
+                            Open <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <span className="text-xs" style={{ color: C.textSecondary }}>Not added</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Custom Education Links CRUD */}
+            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
+              <h4 className="text-sm font-bold flex items-center gap-2 mb-3" style={{ color: C.textPrimary }}>
+                <Globe className="w-4 h-4" style={{ color: C.blue }} /> Custom Educational Links
+              </h4>
+              <p className="text-xs mb-4" style={{ color: C.textSecondary }}>Add links to your portfolios, research papers, or school websites.</p>
+              
+              {/* Add form */}
+              <div className="flex flex-col gap-2.5 mb-4 p-3.5 rounded-xl border bg-slate-50 dark:bg-slate-800" style={{ borderColor: C.border }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Add New URL</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Link Name (e.g. ResearchGate)"
+                    value={newLinkName}
+                    onChange={e => setNewLinkName(e.target.value)}
+                    className="flex-1 rounded-xl py-2 px-3 text-xs outline-none border focus:border-blue-400"
+                    style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }}
+                  />
+                  <input
+                    type="url"
+                    placeholder="URL (https://...)"
+                    value={newLinkUrl}
+                    onChange={e => setNewLinkUrl(e.target.value)}
+                    className="flex-[2] rounded-xl py-2 px-3 text-xs outline-none border focus:border-blue-400"
+                    style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }}
+                  />
+                </div>
+                <button onClick={handleAddLink} className="py-2 rounded-xl text-xs font-bold text-white shadow-sm flex items-center justify-center gap-1" style={{ background: C.blue }}>
+                  <Plus className="w-3.5 h-3.5" /> Add Link
+                </button>
+              </div>
+
+              {/* List */}
+              <div className="flex flex-col gap-2">
+                {educationLinks.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl border" style={{ borderColor: C.border, background: C.bg }}>
+                    <div>
+                      <p className="text-xs font-bold" style={{ color: C.textPrimary }}>{item.name}</p>
+                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[10px] truncate block max-w-[200px]" style={{ color: C.blue }}>{item.url}</a>
+                    </div>
+                    <button onClick={() => handleDeleteLink(idx)} className="p-2 text-red-500">
+                      <Trash className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {educationLinks.length === 0 && (
+                  <p className="text-xs text-center py-4" style={{ color: C.textSecondary }}>No custom links added yet.</p>
+                )}
+              </div>
+            </div>
+
+            {accountSaved && (
+              <div className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium" style={{ background: C.cyan + '14', color: C.cyan }}>
+                <CheckCircle className="w-4 h-4" /> Account details saved
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════ Preferences Tab (Theme + Accent — now functional) ═══════════ */}
         {activeTab === 'preferences' && !isGuest && (
           <div className="animate-fade-in flex flex-col gap-5">
             {/* Theme */}
-            <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-100">
-              <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />} Theme
+            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
+              <h4 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: C.textPrimary }}>
+                <Palette className="w-4 h-4" /> System Theme
               </h4>
               <div className="flex gap-2">
                 {[
-                  { key: 'light', label: 'Light', icon: <Sun className="w-4 h-4" /> },
-                  { key: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" /> },
-                  { key: 'auto', label: 'Auto', icon: <Monitor className="w-4 h-4" /> },
+                  { key: 'light', label: 'Light' },
+                  { key: 'dark', label: 'Dark' },
+                  { key: 'auto', label: 'Auto' },
                 ].map(t => (
                   <button key={t.key} onClick={() => setTheme(t.key)}
-                    className={`flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border-2 ${theme === t.key ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600'
-                      }`}>
-                    {t.icon} {t.label}
+                    className="flex-1 py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border-2"
+                    style={{
+                      borderColor: theme === t.key ? C.blue : C.border,
+                      background: theme === t.key ? C.blue + '0a' : 'transparent',
+                      color: theme === t.key ? C.blue : C.textSecondary,
+                    }}>
+                    {t.label}
                   </button>
                 ))}
               </div>
             </div>
 
             {/* Accent Color */}
-            <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-100">
-              <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
+              <h4 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: C.textPrimary }}>
                 <Palette className="w-4 h-4" /> Accent Color
               </h4>
               <div className="flex gap-3 flex-wrap">
                 {[
-                  { key: 'indigo', color: 'bg-indigo-500' },
-                  { key: 'emerald', color: 'bg-emerald-500' },
-                  { key: 'rose', color: 'bg-rose-500' },
-                  { key: 'amber', color: 'bg-amber-500' },
-                  { key: 'cyan', color: 'bg-cyan-500' },
-                  { key: 'violet', color: 'bg-violet-500' },
+                  { key: '#0080c7', label: 'Blue' },
+                  { key: '#22346c', label: 'Navy' },
+                  { key: '#27bcd1', label: 'Cyan' },
+                  { key: '#a91f23', label: 'Red' },
+                  { key: '#c9503d', label: 'Terra' },
                 ].map(c => (
                   <button key={c.key} onClick={() => setAccentColor(c.key)}
-                    className={`w-10 h-10 rounded-xl ${c.color} transition-all ${accentColor === c.key ? 'ring-4 ring-offset-2 ring-slate-300 scale-110' : 'hover:scale-105'}`}
+                    className="w-10 h-10 rounded-xl transition-all"
+                    style={{
+                      background: c.key,
+                      boxShadow: accentColor === c.key ? `0 0 0 3px ${C.card}, 0 0 0 5px ${c.key}` : 'none',
+                      transform: accentColor === c.key ? 'scale(1.1)' : 'scale(1)',
+                    }}
                   />
                 ))}
               </div>
             </div>
 
-            {/* Offline Sync */}
-            <div className="bg-slate-50 rounded-[20px] p-5 border border-slate-100">
-              <h4 className="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
-                <WifiOff className="w-4 h-4" /> Offline Cache
-              </h4>
-              {[
-                { key: 'timetable', label: 'Timetable', desc: 'Cache schedule offline' },
-                { key: 'syllabus', label: 'Syllabus', desc: 'Cache syllabus PDFs' },
-                { key: 'news', label: 'News & Notices', desc: 'Cache notices offline' },
-              ].map(item => (
-                <div key={item.key} className="flex items-center justify-between py-2.5">
-                  <div>
-                    <p className="text-sm font-bold text-slate-700">{item.label}</p>
-                    <p className="text-[10px] text-slate-400">{item.desc}</p>
-                  </div>
-                  <button
-                    onClick={() => setOfflineSync((prev: any) => ({ ...prev, [item.key]: !prev[item.key] }))}
-                    className={`w-12 h-7 rounded-full flex items-center transition-all p-0.5 ${offlineSync[item.key] ? 'bg-indigo-500 justify-end' : 'bg-slate-300 justify-start'}`}
-                  >
-                    <div className="w-6 h-6 bg-white rounded-full shadow-sm" />
-                  </button>
-                </div>
-              ))}
-            </div>
-
             {/* Save button */}
             <button
               onClick={savePreferences}
-              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-sm hover:bg-slate-800 active:scale-[0.98] transition-all"
+              className="w-full text-white py-4 rounded-2xl font-semibold text-sm active:scale-[0.98] transition-all"
+              style={{ background: C.navy }}
             >
               Save Preferences
             </button>
+            {prefsSaved && (
+              <div className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium" style={{ background: C.cyan + '14', color: C.cyan }}>
+                <CheckCircle className="w-4 h-4" /> Preferences applied!
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -920,14 +891,14 @@ const Profile = () => {
 
       {/* Confirm Logout All */}
       {confirmLogoutAll && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-6">
-          <div className="bg-white rounded-[28px] p-6 shadow-2xl max-w-sm w-full">
-            <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4"><AlertTriangle className="w-7 h-7 text-red-600" /></div>
-            <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Logout All Devices?</h3>
-            <p className="text-sm text-slate-500 text-center mb-6">This will sign you out from every device, including this one.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm animate-fade-in p-6" style={{ background: C.navy + '60' }}>
+          <div className="rounded-[24px] p-6 shadow-2xl max-w-sm w-full" style={{ background: C.card }}>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: C.red + '14', color: C.red }}><AlertTriangle className="w-7 h-7" /></div>
+            <h3 className="text-xl font-bold text-center mb-2" style={{ color: C.textPrimary }}>Logout All Devices?</h3>
+            <p className="text-sm text-center mb-6" style={{ color: C.textSecondary }}>This will sign you out from every device, including this one.</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmLogoutAll(false)} className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-[16px] font-bold text-sm">Cancel</button>
-              <button onClick={revokeAllSessions} className="flex-1 bg-red-600 text-white py-3.5 rounded-[16px] font-bold text-sm">Logout All</button>
+              <button onClick={() => setConfirmLogoutAll(false)} className="flex-1 py-3.5 rounded-[14px] font-semibold text-sm" style={{ background: C.bg, color: C.textPrimary }}>Cancel</button>
+              <button onClick={revokeAllSessions} className="flex-1 py-3.5 rounded-[14px] font-semibold text-sm text-white" style={{ background: C.red }}>Logout All</button>
             </div>
           </div>
         </div>
@@ -935,19 +906,20 @@ const Profile = () => {
 
       {/* Biometric Device Naming */}
       {showBiometricNameModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-6">
-          <div className="bg-white rounded-[28px] p-6 shadow-2xl max-w-sm w-full">
-            <div className="w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-indigo-600"><Fingerprint className="w-7 h-7" /></div>
-            <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Register Biometric</h3>
-            <p className="text-sm text-slate-500 text-center mb-4">Name this biometric device.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm animate-fade-in p-6" style={{ background: C.navy + '60' }}>
+          <div className="rounded-[24px] p-6 shadow-2xl max-w-sm w-full" style={{ background: C.card }}>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: C.blue + '14', color: C.blue }}><Fingerprint className="w-7 h-7" /></div>
+            <h3 className="text-xl font-bold text-center mb-2" style={{ color: C.textPrimary }}>Register Biometric</h3>
+            <p className="text-sm text-center mb-4" style={{ color: C.textSecondary }}>Name this biometric device.</p>
             <div className="mb-6">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">Device Name</label>
+              <label className="text-[10px] font-semibold uppercase tracking-wider mb-2 block" style={{ color: C.textSecondary }}>Device Name</label>
               <input type="text" value={customDeviceName} onChange={e => setCustomDeviceName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 px-4 text-sm font-medium text-slate-900 focus:outline-none focus:border-indigo-400" placeholder="e.g. Personal Phone" autoFocus />
+                className="w-full rounded-2xl py-3.5 px-4 text-sm font-medium outline-none border focus:border-blue-400"
+                style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }} placeholder="e.g. Personal Phone" autoFocus />
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowBiometricNameModal(false)} className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-[16px] font-bold text-sm">Cancel</button>
-              <button onClick={() => registerBiometric(customDeviceName)} disabled={!customDeviceName.trim()} className="flex-1 bg-indigo-600 text-white py-3.5 rounded-[16px] font-bold text-sm disabled:opacity-50">Proceed</button>
+              <button onClick={() => setShowBiometricNameModal(false)} className="flex-1 py-3.5 rounded-[14px] font-semibold text-sm" style={{ background: C.bg, color: C.textPrimary }}>Cancel</button>
+              <button onClick={() => registerBiometric(customDeviceName)} disabled={!customDeviceName.trim()} className="flex-1 py-3.5 rounded-[14px] font-semibold text-sm text-white disabled:opacity-50" style={{ background: C.blue }}>Proceed</button>
             </div>
           </div>
         </div>
@@ -955,76 +927,33 @@ const Profile = () => {
 
       {/* QR Scanner Modal */}
       {showQRScanner && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white rounded-t-[32px] w-full max-w-md p-6 animate-slide-up">
+        <div className="fixed inset-0 z-50 flex items-end justify-center backdrop-blur-sm animate-fade-in" style={{ background: C.navy + '70' }}>
+          <div className="rounded-t-[28px] w-full max-w-md p-6 animate-slide-up" style={{ background: C.card }}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-slate-900">Scan Attendance QR</h2>
-              <button onClick={() => setShowQRScanner(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center"><X className="w-4 h-4 text-slate-500" /></button>
+              <h2 className="text-lg font-bold" style={{ color: C.textPrimary }}>Scan Attendance QR</h2>
+              <button onClick={() => setShowQRScanner(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: C.bg }}><X className="w-4 h-4" style={{ color: C.textSecondary }} /></button>
             </div>
-            {/* Camera viewfinder placeholder */}
-            <div className="w-full aspect-square bg-slate-900 rounded-[24px] flex flex-col items-center justify-center mb-4 relative overflow-hidden">
-              <div className="absolute inset-8 border-2 border-white/30 rounded-2xl" />
-              <div className="absolute top-8 left-8 w-8 h-8 border-t-4 border-l-4 border-indigo-400 rounded-tl-lg" />
-              <div className="absolute top-8 right-8 w-8 h-8 border-t-4 border-r-4 border-indigo-400 rounded-tr-lg" />
-              <div className="absolute bottom-8 left-8 w-8 h-8 border-b-4 border-l-4 border-indigo-400 rounded-bl-lg" />
-              <div className="absolute bottom-8 right-8 w-8 h-8 border-b-4 border-r-4 border-indigo-400 rounded-br-lg" />
-              {/* Scanning line animation */}
-              <div className="absolute left-8 right-8 h-0.5 bg-indigo-400 shadow-lg shadow-indigo-400/50 animate-scan" />
+            <div className="w-full aspect-square rounded-[20px] flex flex-col items-center justify-center mb-4 relative overflow-hidden" style={{ background: C.navy }}>
+              <div className="absolute inset-8 border-2 rounded-2xl" style={{ borderColor: 'rgba(255,255,255,0.2)' }} />
+              <div className="absolute top-8 left-8 w-8 h-8 border-t-4 border-l-4 rounded-tl-lg" style={{ borderColor: C.cyan }} />
+              <div className="absolute top-8 right-8 w-8 h-8 border-t-4 border-r-4 rounded-tr-lg" style={{ borderColor: C.cyan }} />
+              <div className="absolute bottom-8 left-8 w-8 h-8 border-b-4 border-l-4 rounded-bl-lg" style={{ borderColor: C.cyan }} />
+              <div className="absolute bottom-8 right-8 w-8 h-8 border-b-4 border-r-4 rounded-br-lg" style={{ borderColor: C.cyan }} />
+              <div className="absolute left-8 right-8 h-0.5 animate-scan" style={{ background: C.cyan, boxShadow: `0 0 8px ${C.cyan}80` }} />
               <Camera className="w-12 h-12 text-white/40 mb-3" />
               <p className="text-sm text-white/60 font-medium text-center px-6">Point at faculty's session QR or club event code</p>
             </div>
             {attendanceMsg && (
-              <div className={`mb-4 p-4 rounded-[16px] flex items-center gap-2 text-sm font-medium ${attendanceMsg.type === 'success' ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+              <div className="mb-4 p-4 rounded-[14px] flex items-center gap-2 text-sm font-medium border"
+                style={{ background: attendanceMsg.type === 'success' ? C.cyan + '0a' : C.red + '0a', borderColor: attendanceMsg.type === 'success' ? C.cyan + '30' : C.red + '30', color: attendanceMsg.type === 'success' ? C.cyan : C.red }}>
                 {attendanceMsg.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
                 {attendanceMsg.text}
               </div>
             )}
             <div className="flex gap-3">
-              <button onClick={() => setShowQRScanner(false)} className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-2xl font-bold text-sm">Cancel</button>
-              <button onClick={handleClassAttendance} className="flex-1 bg-indigo-600 text-white py-3.5 rounded-2xl font-bold text-sm">Class Attendance</button>
-              <button onClick={handleClubAttendance} className="flex-1 bg-violet-600 text-white py-3.5 rounded-2xl font-bold text-sm">Club Attendance</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Certification Modal */}
-      {showAddCertModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-6">
-          <div className="bg-white rounded-[28px] p-6 shadow-2xl max-w-sm w-full">
-            <div className="w-14 h-14 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4 text-indigo-600"><Award className="w-7 h-7" /></div>
-            <h3 className="text-xl font-bold text-slate-900 text-center mb-2">Verify Certification</h3>
-            <p className="text-sm text-slate-500 text-center mb-4">Verify NPTEL or Coursera credentials instantly.</p>
-            {certError && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
-                {certError}
-              </div>
-            )}
-            <div className="flex flex-col gap-4 mb-6">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Platform</label>
-                <select value={certPlatform} onChange={e => setCertPlatform(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-900 focus:outline-none focus:border-indigo-400">
-                  <option value="coursera">Coursera</option>
-                  <option value="nptel">NPTEL</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Course/Certificate Title</label>
-                <input type="text" value={certTitle} onChange={e => setCertTitle(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-900 focus:outline-none focus:border-indigo-400" placeholder="e.g. Deep Learning Specialization" />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Certificate ID</label>
-                <input type="text" value={certId} onChange={e => setCertId(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-medium text-slate-900 focus:outline-none focus:border-indigo-400" placeholder="e.g. COURSERA-123456" />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => { setShowAddCertModal(false); setCertError(''); }} className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-[16px] font-bold text-sm">Cancel</button>
-              <button onClick={handleAddCertification} disabled={certVerifying} className="flex-1 bg-indigo-600 text-white py-3.5 rounded-[16px] font-bold text-sm disabled:opacity-50">
-                {certVerifying ? 'Verifying...' : 'Verify'}
-              </button>
+              <button onClick={() => setShowQRScanner(false)} className="flex-1 py-3.5 rounded-2xl font-semibold text-sm" style={{ background: C.bg, color: C.textPrimary }}>Cancel</button>
+              <button onClick={handleClassAttendance} className="flex-1 py-3.5 rounded-2xl font-semibold text-sm text-white" style={{ background: C.blue }}>Class</button>
+              <button onClick={handleClubAttendance} className="flex-1 py-3.5 rounded-2xl font-semibold text-sm text-white" style={{ background: C.navy }}>Club</button>
             </div>
           </div>
         </div>
@@ -1037,6 +966,40 @@ const Profile = () => {
         .animate-scan { animation: scan 2s ease-in-out infinite; }
         @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .animate-slide-up { animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+
+        /* 3D Flipping Card CSS */
+        .flip-card {
+          perspective: 1000px;
+          background-color: transparent;
+          cursor: pointer;
+        }
+        .flip-card-inner {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          transform-style: preserve-3d;
+        }
+        .flip-card.flipped .flip-card-inner {
+          transform: rotateY(180deg);
+        }
+        .flip-card-front, .flip-card-back {
+          position: relative;
+          width: 100%;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          border-radius: 24px;
+          overflow: hidden;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .flip-card-back {
+          position: absolute;
+          inset: 0;
+          transform: rotateY(180deg);
+          z-index: 2;
+        }
       `}</style>
     </div>
   );

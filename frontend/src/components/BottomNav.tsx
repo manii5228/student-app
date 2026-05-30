@@ -1,26 +1,88 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Home, BookOpen, Coffee, Briefcase, User } from 'lucide-react';
 
 const BottomNav = () => {
   const location = useLocation();
-  const userStr = localStorage.getItem('user');
-  const user = userStr ? JSON.parse(userStr) : null;
+  const [user, setUser] = useState<any>(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme_preference') || 'light');
+  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent_color') || '#0080c7');
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      setTheme(localStorage.getItem('theme_preference') || 'light');
+      setAccentColor(localStorage.getItem('accent_color') || '#0080c7');
+      try {
+        const stored = localStorage.getItem('user');
+        setUser(stored ? JSON.parse(stored) : null);
+      } catch {}
+    };
+
+    window.addEventListener('theme-changed', handleThemeChange);
+    return () => window.removeEventListener('theme-changed', handleThemeChange);
+  }, []);
+
   const isFaculty = user?.role === 'faculty';
   const isAdmin = user?.role === 'admin';
   const path = location.pathname;
 
+  const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  const containerClass = `fixed bottom-0 w-full max-w-md border-t px-6 py-4 rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50 transition-all duration-300 ${
+    isDark ? 'bg-slate-900 border-slate-800/80 text-slate-100' : 'bg-white border-slate-100 text-slate-800'
+  }`;
+
+  const defaultColor = isDark ? '#94a3b8' : '#adb5bd'; // slate-400 or slate-500
+
+  const getLinkProps = (isActive: boolean, activeColor: string) => {
+    return {
+      style: {
+        color: isActive ? activeColor : defaultColor,
+        transition: 'color 0.25s ease',
+      },
+      className: 'flex flex-col items-center gap-1 transition-all duration-200 active:scale-95'
+    };
+  };
+
+  const getIconClass = (isActive: boolean, activeColor: string) => {
+    return `w-6 h-6 transition-all duration-250`;
+  };
+
+  const getIconStyle = (isActive: boolean, activeColor: string) => {
+    return {
+      fill: isActive ? `${activeColor}20` : 'transparent',
+      stroke: isActive ? activeColor : defaultColor,
+    };
+  };
+
   if (isAdmin) {
+    const activeCol = accentColor;
     return (
-      <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-slate-100 px-6 py-4 rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
+      <div className={containerClass}>
         <div className="flex justify-around items-center">
-          <NavLink to="/admin" className={`flex flex-col items-center gap-1 ${path.startsWith('/admin') ? 'text-blue-500' : 'text-slate-400 hover:text-slate-600'}`}>
-            <Home className={`w-6 h-6 ${path.startsWith('/admin') ? 'fill-blue-500/20' : ''}`} />
-            <span className="text-[10px] font-bold">Admin Hub</span>
+          <NavLink to="/admin">
+            {({ isActive }) => (
+              <div {...getLinkProps(isActive, activeCol)}>
+                <Home className={getIconClass(isActive, activeCol)} style={getIconStyle(isActive, activeCol)} />
+                <span className="text-[10px] font-bold">Admin Hub</span>
+              </div>
+            )}
           </NavLink>
-          <NavLink to="/profile" className={`flex flex-col items-center gap-1 ${path === '/profile' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>
-            <User className={`w-6 h-6 ${path === '/profile' ? 'fill-slate-900/20' : ''}`} />
-            <span className="text-[10px] font-bold">Profile</span>
+          <NavLink to="/profile">
+            {({ isActive }) => (
+              <div {...getLinkProps(isActive, activeCol)}>
+                <User className={getIconClass(isActive, activeCol)} style={getIconStyle(isActive, activeCol)} />
+                <span className="text-[10px] font-bold">Profile</span>
+              </div>
+            )}
           </NavLink>
         </div>
       </div>
@@ -29,23 +91,39 @@ const BottomNav = () => {
 
   if (isFaculty) {
     return (
-      <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-slate-100 px-6 py-4 rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
+      <div className={containerClass}>
         <div className="flex justify-around items-center">
-          <NavLink to="/faculty" className={`flex flex-col items-center gap-1 ${path === '/faculty' || path === '/faculty/' ? 'text-indigo-500' : 'text-slate-400 hover:text-slate-600'}`}>
-            <Home className={`w-6 h-6 ${path === '/faculty' || path === '/faculty/' ? 'fill-indigo-500/20' : ''}`} />
-            <span className="text-[10px] font-bold">Hub</span>
+          <NavLink to="/faculty">
+            {({ isActive }) => (
+              <div {...getLinkProps(isActive, accentColor)}>
+                <Home className={getIconClass(isActive, accentColor)} style={getIconStyle(isActive, accentColor)} />
+                <span className="text-[10px] font-bold">Hub</span>
+              </div>
+            )}
           </NavLink>
-          <NavLink to="/faculty/question-bank" className={`flex flex-col items-center gap-1 ${path.startsWith('/faculty/question-bank') ? 'text-blue-500' : 'text-slate-400 hover:text-slate-600'}`}>
-            <BookOpen className={`w-6 h-6 ${path.startsWith('/faculty/question-bank') ? 'fill-blue-500/20' : ''}`} />
-            <span className="text-[10px] font-bold">PYQs</span>
+          <NavLink to="/faculty/question-bank">
+            {({ isActive }) => (
+              <div {...getLinkProps(isActive, accentColor)}>
+                <BookOpen className={getIconClass(isActive, accentColor)} style={getIconStyle(isActive, accentColor)} />
+                <span className="text-[10px] font-bold">PYQs</span>
+              </div>
+            )}
           </NavLink>
-          <NavLink to="/faculty/resources" className={`flex flex-col items-center gap-1 ${path.startsWith('/faculty/resources') ? 'text-orange-500' : 'text-slate-400 hover:text-slate-600'}`}>
-            <Briefcase className={`w-6 h-6 ${path.startsWith('/faculty/resources') ? 'fill-orange-500/20' : ''}`} />
-            <span className="text-[10px] font-bold">Notes</span>
+          <NavLink to="/faculty/resources">
+            {({ isActive }) => (
+              <div {...getLinkProps(isActive, accentColor)}>
+                <Briefcase className={getIconClass(isActive, accentColor)} style={getIconStyle(isActive, accentColor)} />
+                <span className="text-[10px] font-bold">Notes</span>
+              </div>
+            )}
           </NavLink>
-          <NavLink to="/profile" className={`flex flex-col items-center gap-1 ${path === '/profile' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>
-            <User className={`w-6 h-6 ${path === '/profile' ? 'fill-slate-900/20' : ''}`} />
-            <span className="text-[10px] font-bold">Profile</span>
+          <NavLink to="/profile">
+            {({ isActive }) => (
+              <div {...getLinkProps(isActive, accentColor)}>
+                <User className={getIconClass(isActive, accentColor)} style={getIconStyle(isActive, accentColor)} />
+                <span className="text-[10px] font-bold">Profile</span>
+              </div>
+            )}
           </NavLink>
         </div>
       </div>
@@ -53,31 +131,51 @@ const BottomNav = () => {
   }
 
   return (
-    <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-slate-100 px-6 py-4 rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50">
+    <div className={containerClass}>
       <div className="flex justify-between items-center">
-        <NavLink to="/" className={`flex flex-col items-center gap-1 ${path === '/' ? 'text-[#0080c7]' : 'text-slate-400 hover:text-slate-600'}`}>
-          <Home className={`w-6 h-6 ${path === '/' ? 'fill-[#0080c7]/20' : ''}`} />
-          <span className="text-[10px] font-bold">Home</span>
+        <NavLink to="/">
+          {({ isActive }) => (
+            <div {...getLinkProps(isActive, accentColor)}>
+              <Home className={getIconClass(isActive, accentColor)} style={getIconStyle(isActive, accentColor)} />
+              <span className="text-[10px] font-bold">Home</span>
+            </div>
+          )}
         </NavLink>
-        
-        <NavLink to="/academic" className={`flex flex-col items-center gap-1 ${path.startsWith('/academic') ? 'text-indigo-500' : 'text-slate-400 hover:text-slate-600'}`}>
-          <BookOpen className={`w-6 h-6 ${path.startsWith('/academic') ? 'fill-indigo-500/20' : ''}`} />
-          <span className="text-[10px] font-bold">Academic</span>
+
+        <NavLink to="/academic">
+          {({ isActive }) => (
+            <div {...getLinkProps(isActive, '#6366f1')}> {/* Indigo */}
+              <BookOpen className={getIconClass(isActive, '#6366f1')} style={getIconStyle(isActive, '#6366f1')} />
+              <span className="text-[10px] font-bold">Academic</span>
+            </div>
+          )}
         </NavLink>
-        
-        <NavLink to="/campus" className={`flex flex-col items-center gap-1 ${path.startsWith('/campus') ? 'text-orange-500' : 'text-slate-400 hover:text-slate-600'}`}>
-          <Coffee className={`w-6 h-6 ${path.startsWith('/campus') ? 'fill-orange-500/20' : ''}`} />
-          <span className="text-[10px] font-bold">Campus</span>
+
+        <NavLink to="/campus">
+          {({ isActive }) => (
+            <div {...getLinkProps(isActive, '#f97316')}> {/* Orange */}
+              <Coffee className={getIconClass(isActive, '#f97316')} style={getIconStyle(isActive, '#f97316')} />
+              <span className="text-[10px] font-bold">Campus</span>
+            </div>
+          )}
         </NavLink>
-        
-        <NavLink to="/career" className={`flex flex-col items-center gap-1 ${path.startsWith('/career') ? 'text-emerald-500' : 'text-slate-400 hover:text-slate-600'}`}>
-          <Briefcase className={`w-6 h-6 ${path.startsWith('/career') ? 'fill-emerald-500/20' : ''}`} />
-          <span className="text-[10px] font-bold">Career</span>
+
+        <NavLink to="/career">
+          {({ isActive }) => (
+            <div {...getLinkProps(isActive, '#10b981')}> {/* Emerald */}
+              <Briefcase className={getIconClass(isActive, '#10b981')} style={getIconStyle(isActive, '#10b981')} />
+              <span className="text-[10px] font-bold">Career</span>
+            </div>
+          )}
         </NavLink>
-        
-        <NavLink to="/profile" className={`flex flex-col items-center gap-1 ${path === '/profile' ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>
-          <User className={`w-6 h-6 ${path === '/profile' ? 'fill-slate-900/20' : ''}`} />
-          <span className="text-[10px] font-bold">Profile</span>
+
+        <NavLink to="/profile">
+          {({ isActive }) => (
+            <div {...getLinkProps(isActive, accentColor)}>
+              <User className={getIconClass(isActive, accentColor)} style={getIconStyle(isActive, accentColor)} />
+              <span className="text-[10px] font-bold">Profile</span>
+            </div>
+          )}
         </NavLink>
       </div>
     </div>

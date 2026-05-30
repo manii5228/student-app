@@ -287,68 +287,36 @@ def update_preferences():
 
     data = request.get_json()
     import json
-    user.preferences = json.dumps(data)
+    # Merge preferences
+    current_prefs = json.loads(user.preferences) if user.preferences else {}
+    current_prefs.update(data)
+    user.preferences = json.dumps(current_prefs)
     db.session.commit()
-    return jsonify({"message": "Preferences updated successfully", "preferences": data}), 200
+    return jsonify({"message": "Preferences updated successfully", "preferences": current_prefs}), 200
 
 
-@auth_bp.route("/me/export", methods=["GET"])
-@jwt_required()
-def export_data():
-    """GDPR Compliance Data Export - compiles user data to a downloadable ZIP."""
-    user_id = get_jwt_identity()
-    if isinstance(user_id, str) and user_id.startswith("guest_"):
-        return jsonify({"error": "Guest accounts have no persistent data to export"}), 400
 
-    from ..repositories.user_repo import UserRepository
-    user = UserRepository().get_by_id(user_id)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
+@auth_bp.route("/id-template/<role_type>", methods=["GET"])
+def get_id_template(role_type):
+    """Retrieve ID Card template settings for student or faculty."""
+    if role_type not in ["student", "faculty"]:
+        return jsonify({"error": "Invalid role type"}), 400
 
-    import json
-    from io import BytesIO
-    import zipfile
-    from datetime import datetime, timezone
-    from flask import send_file
+    from ..models.user import IDCardTemplate
+    template = IDCardTemplate.query.filter_by(role_type=role_type).first()
+    if not template:
+        return jsonify({
+            "role_type": role_type,
+            "college_name": "VelTech University" if role_type == "student" else "VelTech University Faculty",
+            "background_style": "classic-navy" if role_type == "student" else "elegant-dark",
+            "primary_color": "#22346c" if role_type == "student" else "#0f172a",
+            "accent_color": "#0080c7" if role_type == "student" else "#27bcd1",
+            "logo_url": None,
+            "custom_bg_url": None
+        }), 200
 
-    user_data = user.to_dict()
-    sessions = [s.to_dict() for s in user.sessions.all()]
-    biometrics = [b.to_dict() for b in user.biometric_credentials.all()]
+    return jsonify(template.to_dict()), 200
 
-    # Combine it all into a dictionary
-    export_payload = {
-        "profile": user_data,
-        "sessions": sessions,
-        "biometrics": biometrics,
-        "export_metadata": {
-            "exported_at": datetime.now(timezone.utc).isoformat(),
-            "organization": "VelTech University",
-            "gdpr_compliance": "Article 15 - Right of Access"
-        }
-    }
-
-    # Create ZIP file in memory
-    zip_buffer = BytesIO()
-    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        zip_file.writestr("profile_data.json", json.dumps(export_payload, indent=2))
-        readme_content = f"""VelTech University - Student Data Portability Archive
-============================================================
-Student Name: {user.full_name}
-Roll Number: {user.roll_number or "N/A"}
-Export Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}
-
-This archive contains all the active personal data associated with your account,
-compiled in compliance with standard data protection regulations (GDPR Article 20).
-"""
-        zip_file.writestr("README.txt", readme_content)
-
-    zip_buffer.seek(0)
-    return send_file(
-        zip_buffer,
-        mimetype="application/zip",
-        as_attachment=True,
-        download_name=f"veltech_data_export_{user.id[:8]}.zip"
-    )
 
 
 @auth_bp.route("/nfc-profile/<totp_code>", methods=["GET"])

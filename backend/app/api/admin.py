@@ -138,3 +138,38 @@ def update_faculty_assignments_admin(faculty_id):
         "assigned_features": assigned_features,
         "assigned_clubs": assigned_clubs
     }), 200
+
+
+@admin_bp.route("/id-template", methods=["POST", "PUT"])
+@jwt_required()
+@role_required("admin")
+def save_id_template():
+    """Create or update ID Card template settings (Admin only)."""
+    from ..models.user import IDCardTemplate
+    data = request.get_json() or {}
+    role_type = data.get("role_type")
+    
+    if not role_type or role_type not in ["student", "faculty"]:
+        return jsonify({"error": "role_type must be 'student' or 'faculty'"}), 400
+        
+    template = IDCardTemplate.query.filter_by(role_type=role_type).first()
+    if not template:
+        template = IDCardTemplate(role_type=role_type)
+        db.session.add(template)
+        
+    if "college_name" in data:
+        template.college_name = data["college_name"]
+    if "background_style" in data:
+        template.background_style = data["background_style"]
+    if "logo_url" in data:
+        template.logo_url = data["logo_url"]
+    if "custom_bg_url" in data:
+        template.custom_bg_url = data["custom_bg_url"]
+    if "primary_color" in data:
+        template.primary_color = data["primary_color"]
+    if "accent_color" in data:
+        template.accent_color = data["accent_color"]
+        
+    db.session.commit()
+    return jsonify({"message": "Template saved successfully", "template": template.to_dict()}), 200
+

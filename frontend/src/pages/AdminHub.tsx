@@ -44,6 +44,7 @@ const AdminHub = () => {
   const controlFeatures = [
     { name: 'Access Control', desc: 'Restrict features (Exam Mode)', icon: <Lock className="w-5 h-5 text-slate-600"/>, color: 'bg-slate-100', path: '/admin/access-control' },
     { name: 'Faculty Roles', desc: 'Manage coordinator assignments', icon: <Users className="w-5 h-5 text-purple-600"/>, color: 'bg-purple-100', path: '/admin/faculty-roles' },
+    { name: 'ID Card Templates', desc: 'Manage student & faculty template looks', icon: <Database className="w-5 h-5 text-indigo-600"/>, color: 'bg-indigo-100', path: '/admin/id-templates' },
     { name: 'Club Moderation', desc: 'Approve student clubs & events', icon: <Flag className="w-5 h-5 text-emerald-600"/>, color: 'bg-emerald-100', path: '/admin/moderation' },
     { name: 'Data Export Engine', desc: 'NAAC/NBA accreditation reports', icon: <Download className="w-5 h-5 text-indigo-600"/>, color: 'bg-indigo-100', path: '/admin/export' },
   ];

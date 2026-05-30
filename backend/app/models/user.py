@@ -54,6 +54,8 @@ class User(db.Model):
     section = db.Column(db.String(10), nullable=True)
     batch_year = db.Column(db.Integer, nullable=True)
     cgpa = db.Column(db.Float, nullable=True, default=0.0)
+    hostel_status = db.Column(db.String(20), nullable=True, default='dayscholar')
+
 
     # ── Faculty-specific fields ────────────────────────────────────
     employee_id = db.Column(db.String(30), unique=True, nullable=True)
@@ -131,6 +133,7 @@ class User(db.Model):
                 "section": self.section,
                 "batch_year": self.batch_year,
                 "cgpa": self.cgpa,
+                "hostel_status": self.hostel_status or "dayscholar",
             })
         elif self.role == UserRole.FACULTY:
             data.update({
@@ -294,5 +297,38 @@ class CoordinatorAssignment(db.Model):
             "entity_id": self.entity_id,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
+
+
+class IDCardTemplate(db.Model):
+    """
+    Stores styling, branding, and backgrounds for Student and Faculty ID cards.
+    Managed solely by Admins (CRUD).
+    """
+    __tablename__ = "id_card_templates"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    role_type = db.Column(db.String(20), unique=True, nullable=False) # 'student' or 'faculty'
+    college_name = db.Column(db.String(255), default="VelTech University")
+    background_style = db.Column(db.String(50), default="classic-navy") # 'classic-navy', 'premium-gold', 'vibrant-crimson', etc.
+    custom_bg_url = db.Column(db.String(500), nullable=True) # for background image uploads
+    primary_color = db.Column(db.String(10), default="#22346c")
+    accent_color = db.Column(db.String(10), default="#0080c7")
+    logo_url = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "role_type": self.role_type,
+            "college_name": self.college_name,
+            "background_style": self.background_style,
+            "custom_bg_url": self.custom_bg_url,
+            "primary_color": self.primary_color,
+            "accent_color": self.accent_color,
+            "logo_url": self.logo_url,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
+
 
 
