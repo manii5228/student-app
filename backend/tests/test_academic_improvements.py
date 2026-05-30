@@ -50,6 +50,22 @@ def test_results_analytics(client, auth_headers):
 
     # Create dummy results
     with client.application.app_context():
+        other_user = User(
+            id="other_student",
+            email="other_student@veltech.edu.in",
+            role=UserRole.STUDENT,
+            first_name="Other",
+            last_name="Student",
+            department="CSE",
+            semester=4,
+            section="A",
+            roll_number="22CSE888",
+            is_verified=True
+        )
+        other_user.set_password("student123!")
+        db.session.add(other_user)
+        db.session.flush()
+
         res1 = Result(
             student_id=student_id, semester=4, subject_code="CS301", subject_name="Data Structures",
             total_marks=85.0, published=True

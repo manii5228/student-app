@@ -7,9 +7,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "mobile:build": "npm run build && npx cap sync",
+    "mobile:add-android": "npx cap add android",
+    "mobile:sync": "npx cap sync"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
     "@types/zxcvbn": "^4.4.5",
     "axios": "^1.16.0",
     "leaflet": "^1.9.4",
@@ -21,6 +26,7 @@
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.4",
     "@eslint/js": "^10.0.1",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^24.12.2",

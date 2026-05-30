@@ -13,7 +13,48 @@ from app.extensions import db
 app = create_app()
 
 with app.app_context():
+    # 1. Add hostel_status to users table if missing
+    import sqlite3
+    db_path = os.path.join(app.instance_path, 'superapp.db')
+    if os.path.exists(db_path):
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("ALTER TABLE users ADD COLUMN hostel_status TEXT DEFAULT 'dayscholar'")
+            conn.commit()
+            conn.close()
+            print("Successfully added hostel_status column via SQL.")
+        except Exception as e:
+            pass
     db.create_all()
+
+    # 2. Seed default ID card templates if they do not exist
+    try:
+        from app.models.user import IDCardTemplate
+        student_template = IDCardTemplate.query.filter_by(role_type='student').first()
+        if not student_template:
+            student_template = IDCardTemplate(
+                role_type='student',
+                college_name='VelTech University',
+                background_style='classic-navy',
+                primary_color='#22346c',
+                accent_color='#0080c7'
+            )
+            db.session.add(student_template)
+
+        faculty_template = IDCardTemplate.query.filter_by(role_type='faculty').first()
+        if not faculty_template:
+            faculty_template = IDCardTemplate(
+                role_type='faculty',
+                college_name='VelTech University Faculty',
+                background_style='elegant-dark',
+                primary_color='#0f172a',
+                accent_color='#27bcd1'
+            )
+            db.session.add(faculty_template)
+        db.session.commit()
+    except Exception as e:
+        print(f"Error seeding templates: {e}")
 
 @app.cli.command("seed")
 def seed_db():
@@ -38,36 +79,117 @@ def seed_db():
     db.session.add(admin)
 
     # Faculty
-    faculty = User(
-        email="faculty@veltech.edu.in",
-        role=UserRole.FACULTY,
-        first_name="Dr. Ramesh",
-        last_name="Kumar",
-        department="CSE",
-        employee_id="FAC001",
-        designation="Associate Professor",
-        specialization="Data Structures & Algorithms",
-        publications="1. R. Kumar et al., 'Optimized Graph Algorithms in Distributed Systems', IEEE Transactions 2024.\n2. R. Kumar, 'A Survey of Quantum Computing Paradigms', ACM Computing Surveys 2023.",
-        research_interests="Distributed Systems, Algorithmic Graph Theory, Quantum Computing",
-        office_hours="Monday & Wednesday, 2:00 PM - 4:00 PM",
-        office_location="Cabin 104, 1st Floor, B-Block",
-        is_verified=True,
-    )
-    faculty.set_password("faculty123!")
-    db.session.add(faculty)
+    faculty_specs = [
+        {
+            "email": "faculty@veltech.edu.in",
+            "first_name": "Dr. Ramesh",
+            "last_name": "Kumar",
+            "dept": "CSE",
+            "emp_id": "FAC001",
+            "designation": "Associate Professor",
+            "specialization": "Data Structures & Algorithms",
+            "interests": "Distributed Systems, Algorithmic Graph Theory"
+        },
+        {
+            "email": "faculty_ece@veltech.edu.in",
+            "first_name": "Dr. Sunita",
+            "last_name": "Rao",
+            "dept": "ECE",
+            "emp_id": "FAC002",
+            "designation": "Professor",
+            "specialization": "VLSI Design & Signal Processing",
+            "interests": "Microelectronics, Wireless Sensor Networks"
+        },
+        {
+            "email": "faculty_biomed@veltech.edu.in",
+            "first_name": "Dr. Amit",
+            "last_name": "Patil",
+            "dept": "Biomed",
+            "emp_id": "FAC003",
+            "designation": "Assistant Professor",
+            "specialization": "Bioinformatics & Medical Imaging",
+            "interests": "Biomedical Instrumentation, Machine Learning"
+        },
+        {
+            "email": "faculty_civil@veltech.edu.in",
+            "first_name": "Dr. Rajesh",
+            "last_name": "Sharma",
+            "dept": "Civil",
+            "emp_id": "FAC004",
+            "designation": "Professor",
+            "specialization": "Structural Engineering",
+            "interests": "Sustainable Concrete, Earthquake Resistant Design"
+        },
+        {
+            "email": "faculty_mech@veltech.edu.in",
+            "first_name": "Dr. Suresh",
+            "last_name": "Naidu",
+            "dept": "Mech",
+            "emp_id": "FAC005",
+            "designation": "Associate Professor",
+            "specialization": "Thermodynamics & Robotics",
+            "interests": "Automotive Engineering, Fluid Dynamics"
+        }
+    ]
 
-    # Students
-    for i in range(1, 6):
+    for spec in faculty_specs:
+        fac = User(
+            email=spec["email"],
+            role=UserRole.FACULTY,
+            first_name=spec["first_name"],
+            last_name=spec["last_name"],
+            department=spec["dept"],
+            employee_id=spec["emp_id"],
+            designation=spec["designation"],
+            specialization=spec["specialization"],
+            research_interests=spec["interests"],
+            office_location="A-Block Cabin 204",
+            is_verified=True,
+        )
+        fac.set_password("faculty123!")
+        db.session.add(fac)
+
+    # Students (covering CSE, ECE, Biomed, Civil, Mech, split by Dayscholars/Hostelers across years 1, 2, 3, 4)
+    student_specs = [
+        # Year 2 (Sem 4) - CSE (original student1-5)
+        {"email": "student1@veltech.edu.in", "first": "Mani", "last": "Manjunath", "dept": "CSE", "roll": "22CSE101", "hostel": "dayscholar", "sem": 4, "year": 2024},
+        {"email": "student2@veltech.edu.in", "first": "Arjun", "last": "Reddy", "dept": "CSE", "roll": "22CSE202", "hostel": "hosteler", "sem": 4, "year": 2024},
+        {"email": "student3@veltech.edu.in", "first": "Neha", "last": "Sharma", "dept": "CSE", "roll": "22CSE303", "hostel": "dayscholar", "sem": 4, "year": 2024},
+        {"email": "student4@veltech.edu.in", "first": "Aditya", "last": "Verma", "dept": "CSE", "roll": "22CSE404", "hostel": "hosteler", "sem": 4, "year": 2024},
+        {"email": "student5@veltech.edu.in", "first": "Riya", "last": "Sen", "dept": "CSE", "roll": "22CSE505", "hostel": "dayscholar", "sem": 4, "year": 2024},
+        
+        # Year 1 (Sem 2)
+        {"email": "student_ece_yr1@veltech.edu.in", "first": "Vikram", "last": "Singh", "dept": "ECE", "roll": "25ECE011", "hostel": "dayscholar", "sem": 2, "year": 2025},
+        {"email": "student_civil_yr1@veltech.edu.in", "first": "Karan", "last": "Johar", "dept": "Civil", "roll": "25CE022", "hostel": "hosteler", "sem": 2, "year": 2025},
+        {"email": "student_cse_yr1@veltech.edu.in", "first": "Rohan", "last": "Mehra", "dept": "CSE", "roll": "25CSE033", "hostel": "hosteler", "sem": 2, "year": 2025},
+
+        # Year 2 (Sem 4)
+        {"email": "student_ece_yr2@veltech.edu.in", "first": "Ananya", "last": "Patel", "dept": "ECE", "roll": "24ECE044", "hostel": "hosteler", "sem": 4, "year": 2024},
+        {"email": "student_civil_yr2@veltech.edu.in", "first": "Pooja", "last": "Hegde", "dept": "Civil", "roll": "24CE055", "hostel": "dayscholar", "sem": 4, "year": 2024},
+
+        # Year 3 (Sem 6)
+        {"email": "student_biomed_yr3@veltech.edu.in", "first": "Rahul", "last": "Mehta", "dept": "Biomed", "roll": "23BM066", "hostel": "dayscholar", "sem": 6, "year": 2023},
+        {"email": "student_mech_yr3@veltech.edu.in", "first": "Kabir", "last": "Thapar", "dept": "Mech", "roll": "23ME077", "hostel": "hosteler", "sem": 6, "year": 2023},
+        {"email": "student_cse_yr3@veltech.edu.in", "first": "Kriti", "last": "Sanon", "dept": "CSE", "roll": "23CSE088", "hostel": "dayscholar", "sem": 6, "year": 2023},
+
+        # Year 4 (Sem 8)
+        {"email": "student_biomed_yr4@veltech.edu.in", "first": "Sneha", "last": "Nair", "dept": "Biomed", "roll": "22BM099", "hostel": "hosteler", "sem": 8, "year": 2022},
+        {"email": "student_mech_yr4@veltech.edu.in", "first": "Simran", "last": "Gill", "dept": "Mech", "roll": "22ME110", "hostel": "dayscholar", "sem": 8, "year": 2022},
+        {"email": "student_cse_yr4@veltech.edu.in", "first": "Varun", "last": "Dhawan", "dept": "CSE", "roll": "22CSE121", "hostel": "hosteler", "sem": 8, "year": 2022},
+    ]
+
+    for spec in student_specs:
         student = User(
-            email=f"student{i}@veltech.edu.in",
+            email=spec["email"],
             role=UserRole.STUDENT,
-            first_name=f"Student",
-            last_name=f"{i}",
-            department="CSE",
-            roll_number=f"22CSE{str(i).zfill(3)}",
-            semester=4,
+            first_name=spec["first"],
+            last_name=spec["last"],
+            department=spec["dept"],
+            roll_number=spec["roll"],
+            hostel_status=spec["hostel"],
+            semester=spec["sem"],
             section="A",
-            batch_year=2022,
+            batch_year=spec["year"],
             is_verified=True,
         )
         student.set_password("student123!")
@@ -89,11 +211,12 @@ def seed_db():
         {"code": "HU301", "name": "English"}
     ]
 
-    # Assign student1-5 to faculty as mentor
+    # Assign students to the mentor of their respective department
     student_users = User.query.filter_by(role=UserRole.STUDENT).all()
     faculty_user = User.query.filter_by(role=UserRole.FACULTY).first()
     for s in student_users:
-        s.mentor_id = faculty_user.id
+        mentor = User.query.filter_by(role=UserRole.FACULTY, department=s.department).first()
+        s.mentor_id = mentor.id if mentor else faculty_user.id
     db.session.commit()
 
     # We will seed 15 days of classes
@@ -123,9 +246,10 @@ def seed_db():
             present_count = 0
             absent_count = 0
 
-            for student in student_users:
-                # Student 1 has specific percentages to create a low attendance warning:
-                if student.roll_number == "22CSE001":
+            # Only CSE students attend CSE department sessions
+            cse_students = [s for s in student_users if s.department == "CSE"]
+            for student in cse_students:
+                if student.roll_number == "22CSE101":
                     if sub["code"] == "CS301":
                         is_present = random.random() < 0.90
                     elif sub["code"] == "CS302":
@@ -157,7 +281,7 @@ def seed_db():
 
             session.total_present = present_count
             session.total_absent = absent_count
-            session.total_students = len(student_users)
+            session.total_students = len(cse_students)
 
     db.session.commit()
     print("Attendance seeded successfully!")
@@ -532,6 +656,25 @@ def seed_db():
     ))
     db.session.commit()
     print("Portfolio seeded!")
+
+    # Seed default ID card templates
+    from app.models.user import IDCardTemplate
+    db.session.add(IDCardTemplate(
+        role_type='student',
+        college_name='VelTech University',
+        background_style='classic-navy',
+        primary_color='#22346c',
+        accent_color='#0080c7'
+    ))
+    db.session.add(IDCardTemplate(
+        role_type='faculty',
+        college_name='VelTech University Faculty',
+        background_style='elegant-dark',
+        primary_color='#0f172a',
+        accent_color='#27bcd1'
+    ))
+    db.session.commit()
+    print("Default ID card templates seeded!")
 
     print("Database seeded successfully!")
     print("   Admin:   admin@veltech.edu.in / admin123!")
