@@ -46,9 +46,8 @@ const FacultyDiscrepancies = () => {
   
   // Resolve dispute state
   const [selectedDispute, setSelectedDispute] = useState<AttendanceDiscrepancyType | null>(null);
-  const [remarks, setRemarks] = useState('');
   const [actionType, setActionType] = useState<'resolved' | 'rejected' | null>(null);
-  const [updatedStatus, setUpdatedStatus] = useState<'present' | 'absent' | 'late'>('present');
+  const [updatedStatus, setUpdatedStatus] = useState<'present' | 'absent'>('present');
   const [submitting, setSubmitting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -78,19 +77,18 @@ const FacultyDiscrepancies = () => {
 
   const handleResolve = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDispute || !actionType || !remarks.trim()) return;
+    if (!selectedDispute || !actionType) return;
 
     try {
       setSubmitting(true);
       await api.post(`/attendance/discrepancy/${selectedDispute.id}/resolve`, {
         status: actionType,
-        resolution_remarks: remarks,
+        resolution_remarks: actionType === 'resolved' ? 'Resolved by faculty' : 'Rejected by faculty',
         updated_status: actionType === 'resolved' ? updatedStatus : undefined
       });
 
       triggerToast(`Discrepancy successfully ${actionType === 'resolved' ? 'approved' : 'rejected'}.`);
       setSelectedDispute(null);
-      setRemarks('');
       setActionType(null);
       fetchDiscrepancies();
     } catch (err: any) {
@@ -279,7 +277,6 @@ const FacultyDiscrepancies = () => {
                 onClick={() => {
                   setSelectedDispute(null);
                   setActionType(null);
-                  setRemarks('');
                 }}
                 className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
               >
@@ -300,7 +297,7 @@ const FacultyDiscrepancies = () => {
                     Update Attendance Status to:
                   </label>
                   <div className="flex gap-2">
-                    {(['present', 'late', 'absent'] as const).map((status) => (
+                    {(['present', 'absent'] as const).map((status) => (
                       <button
                         key={status}
                         type="button"
@@ -318,25 +315,9 @@ const FacultyDiscrepancies = () => {
                 </div>
               )}
 
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Resolution Remarks / Explanation
-              </label>
-              <textarea
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                placeholder={
-                  actionType === 'resolved' 
-                    ? "Explain why the status was corrected (e.g. 'Verified student presence in lab roster, corrected to present.')"
-                    : "Explain why this request is being rejected."
-                }
-                required
-                rows={3}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600"
-              />
-
               <button
                 type="submit"
-                disabled={submitting || !remarks.trim()}
+                disabled={submitting}
                 className={`w-full text-white font-bold text-xs py-3.5 rounded-2xl mt-5 shadow-lg flex items-center justify-center gap-2 transition-all ${
                   actionType === 'resolved' 
                     ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/10' 

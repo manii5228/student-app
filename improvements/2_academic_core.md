@@ -97,3 +97,4 @@ no sipder charts,no analytics,no target clacualtor,round to 1 decimal
 countdown timer to exam when ut is clicked that should show,no study material link,no conflict resolution,i also want to see exams like mid terms,unit tests,model tests and these can be uploaded by the faculities or corue coordinators in a from or pdf pr excle so that need to be extracted and displayed
  no filter /sort,remove ocr/indexing
 ya waht about the gpa oredictor and ai study bot
+change the colour of results there soemthing different instead of black

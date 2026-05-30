@@ -126,7 +126,7 @@ const InternshipTracker = () => {
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => nav(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
+            <button onClick={() => { const u = JSON.parse(localStorage.getItem('user') || '{}'); nav(u.role === 'faculty' ? '/faculty/career' : '/career'); }} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Search, MessageSquare, ChevronDown, ChevronUp, Plus, ThumbsUp, Trash2, Edit, CheckCircle, HelpCircle, Layers, Users, BookOpen } from 'lucide-react';
+import { ChevronLeft, Search, MessageSquare, ChevronDown, ChevronUp, Plus, ThumbsUp, Trash2, Edit, CheckCircle, HelpCircle, Layers, Users, BookOpen, X, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -39,7 +39,6 @@ const CompanyPrep = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [expandedQ, setExpandedQ] = useState<string | null>(null);
   
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -214,6 +213,8 @@ const CompanyPrep = () => {
   const [activeFlashcardIdx, setActiveFlashcardIdx] = useState(0);
   const [cardFlipped, setCardFlipped] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
+  const [showBulkCardModal, setShowBulkCardModal] = useState(false);
+  const [bulkCardText, setBulkCardText] = useState('');
   const [cardFront, setCardFront] = useState('');
   const [cardBack, setCardBack] = useState('');
   const [cardCat, setCardCat] = useState('Algorithms');
@@ -237,6 +238,36 @@ const CompanyPrep = () => {
     setShowAddCard(false);
   };
 
+  const handleBulkUploadCards = () => {
+    if (!bulkCardText.trim()) return;
+    const lines = bulkCardText.split('\n');
+    const newCards: FlashCard[] = [];
+    lines.forEach((line, idx) => {
+      if (!line.trim()) return;
+      const parts = line.split('|');
+      const front = parts[0]?.trim() || '';
+      const back = parts[1]?.trim() || '';
+      const cat = parts[2]?.trim() || 'Algorithms';
+      if (front && back) {
+        newCards.push({
+          id: `fc_bulk_${Date.now()}_${idx}`,
+          front,
+          back,
+          category: cat,
+          isMastered: false
+        });
+      }
+    });
+    if (newCards.length > 0) {
+      setFlashcards([...flashcards, ...newCards]);
+      alert(`Bulk uploaded ${newCards.length} flashcards successfully!`);
+      setBulkCardText('');
+      setShowBulkCardModal(false);
+    } else {
+      alert("No valid flashcards found. Use format: Front of Card | Back of Card | Category");
+    }
+  };
+
   const toggleMastered = (cardId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setFlashcards(flashcards.map(c => c.id === cardId ? { ...c, isMastered: !c.isMastered } : c));
@@ -250,7 +281,7 @@ const CompanyPrep = () => {
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 pt-12 shadow-md relative overflow-hidden shrink-0">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center gap-3 relative z-10 mb-4">
-          <button onClick={() => navigate('/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
+          <button onClick={() => navigate(user?.role === 'faculty' ? '/faculty/career' : '/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
           <div>
@@ -338,7 +369,7 @@ const CompanyPrep = () => {
                 </div>
                 {questions.map((q, idx) => (
                   <div key={q.id} className="bg-white rounded-[24px] shadow-sm border border-slate-100 overflow-hidden">
-                    <button onClick={() => setExpandedQ(expandedQ === q.id ? null : q.id)} className="w-full p-4 text-left flex items-start gap-3">
+                    <div className="w-full p-4 text-left flex items-start gap-3">
                       <span className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black shrink-0 mt-0.5">{idx + 1}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-slate-800 leading-relaxed pr-6">{q.question_text}</p>
@@ -367,7 +398,7 @@ const CompanyPrep = () => {
                           </div>
                         </div>
                       </div>
-                    </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -451,17 +482,25 @@ const CompanyPrep = () => {
         {/* FLASH CARDS TAB */}
         {activeTab === 'flashcards' && (
           <div className="flex flex-col gap-5 pt-2 animate-fade-in">
-            <div className="flex justify-between items-center pl-1">
+            <div className="flex justify-between items-center pl-1 gap-2">
               <div>
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">DSA & System Design Revision</h3>
                 <p className="text-[10px] text-slate-500">Tap cards to flip. Master all {filteredCards.length} cards remaining.</p>
               </div>
-              <button 
-                onClick={() => setShowAddCard(true)}
-                className="bg-blue-600 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md shadow-blue-500/10 flex items-center gap-0.5"
-              >
-                <Plus className="w-4 h-4" /> Card
-              </button>
+              <div className="flex gap-1.5 shrink-0">
+                <button 
+                  onClick={() => setShowBulkCardModal(true)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black px-3.5 py-2 rounded-xl border border-slate-200 transition-all active:scale-95 flex items-center gap-1"
+                >
+                  <Upload className="w-3.5 h-3.5" /> Bulk Upload
+                </button>
+                <button 
+                  onClick={() => setShowAddCard(true)}
+                  className="bg-blue-600 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md shadow-blue-500/10 flex items-center gap-0.5 transition-all active:scale-95"
+                >
+                  <Plus className="w-4 h-4" /> Card
+                </button>
+              </div>
             </div>
 
             {filteredCards.length === 0 ? (
@@ -495,9 +534,10 @@ const CompanyPrep = () => {
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tap to Flip Card</span>
                   </div>
 
-                  {/* Back View (Rotated) */}
+                  {/* Back View (Rotated 180deg to avoid mirror image) */}
                   <div 
-                    className={`absolute inset-0 backface-hidden p-6 flex flex-col justify-between items-center rotateY-180 ${cardFlipped ? 'opacity-100' : 'opacity-0'}`}
+                    className={`absolute inset-0 backface-hidden p-6 flex flex-col justify-between items-center ${cardFlipped ? 'opacity-100' : 'opacity-0'}`}
+                    style={{ transform: 'rotateY(180deg)' }}
                   >
                     <span className="text-[9px] font-black uppercase bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full tracking-wider">
                       Explanation
@@ -507,7 +547,7 @@ const CompanyPrep = () => {
                     </p>
                     <button
                       onClick={(e) => toggleMastered(filteredCards[activeFlashcardIdx].id, e)}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-md shadow-emerald-500/10 flex items-center gap-1"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-md shadow-emerald-500/10 flex items-center gap-1 animate-pulse"
                     >
                       <CheckCircle className="w-3.5 h-3.5" /> Mark as Mastered
                     </button>
@@ -641,6 +681,42 @@ const CompanyPrep = () => {
               <button onClick={() => setShowAddCard(false)} className="flex-1 py-3.5 text-xs font-black text-slate-500 bg-slate-100 rounded-2xl">Cancel</button>
               <button onClick={handleCreateCard} disabled={!cardFront.trim() || !cardBack.trim()} className="flex-1 py-3.5 text-xs font-black text-white bg-blue-600 rounded-2xl disabled:opacity-50 shadow-lg shadow-blue-500/10">
                 Add to Deck
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Flashcards Upload Modal */}
+      {showBulkCardModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-[32px] p-6 shadow-2xl animate-slide-up flex flex-col max-h-[85vh]">
+            <div className="flex justify-between items-center mb-4 shrink-0">
+              <h3 className="text-lg font-black text-slate-900">Bulk Upload Flash Cards</h3>
+              <button onClick={() => setShowBulkCardModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
+              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                Paste your flashcards below. Each card must be on a new line in the format:<br />
+                <code className="bg-slate-100 text-slate-800 px-1 py-0.5 rounded text-[11px] font-black">Front of Card | Back of Card | Category</code>
+              </p>
+              
+              <textarea
+                value={bulkCardText}
+                onChange={e => setBulkCardText(e.target.value)}
+                placeholder="What is DFS? | Depth First Search | Algorithms&#10;What is BFS? | Breadth First Search | Algorithms"
+                rows={10}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-medium text-slate-700 outline-none focus:bg-white focus:border-blue-500 transition-all resize-none leading-relaxed h-64"
+              />
+            </div>
+            
+            <div className="flex gap-3 mt-6 shrink-0 border-t border-slate-100 pt-4">
+              <button onClick={() => setShowBulkCardModal(false)} className="flex-1 py-3.5 text-xs font-black text-slate-500 bg-slate-100 rounded-2xl">Cancel</button>
+              <button onClick={handleBulkUploadCards} disabled={!bulkCardText.trim()} className="flex-1 py-3.5 text-xs font-black text-white bg-blue-600 rounded-2xl disabled:opacity-50 shadow-lg shadow-blue-500/10">
+                Upload Cards
               </button>
             </div>
           </div>

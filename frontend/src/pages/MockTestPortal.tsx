@@ -35,6 +35,7 @@ interface Result {
 const MockTestPortal = () => {
   const nav = useNavigate();
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const lastViolationTimeRef = useRef<number>(0);
   
   // Lists and loading
   const [tests, setTests] = useState<Test[]>([]);
@@ -199,13 +200,29 @@ const MockTestPortal = () => {
       }
     };
 
+    // Window focus loss tracking (detect Alt+Tab, Windows key, clicking out, etc.)
+    const handleWindowBlur = () => {
+      handleViolation("window_blur");
+    };
+
+    // Keyboard shortcut interception
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Meta' || e.key === 'Alt' || e.altKey || e.metaKey || e.key === 'Escape') {
+        handleViolation("keyboard_shortcut");
+      }
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
+    window.addEventListener("blur", handleWindowBlur);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       clearInterval(timer);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      window.removeEventListener("blur", handleWindowBlur);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [activeTest, showResults, currentQ, questions]);
 
@@ -216,7 +233,14 @@ const MockTestPortal = () => {
     }
   }, [webcamStream, activeTest]);
 
-  const handleViolation = (type: 'tab_switch' | 'fullscreen_exit') => {
+  const handleViolation = (type: string) => {
+    const now = Date.now();
+    // Allow at most one violation warning every 1.5 seconds to prevent duplicate event registers (e.g. keydown + blur firing simultaneously)
+    if (now - lastViolationTimeRef.current < 1500) {
+      return;
+    }
+    lastViolationTimeRef.current = now;
+
     setWarnings(prev => {
       const nextWarn = prev + 1;
       if (nextWarn >= 3) {

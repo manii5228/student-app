@@ -390,12 +390,48 @@ def get_syllabus():
 @jwt_required()
 @role_required("faculty")
 def update_syllabus_progress():
-    """Faculty marks a syllabus unit as completed."""
+    """Faculty marks a syllabus unit or a specific topic as completed."""
     data = request.get_json()
     unit = db.session.get(Syllabus, data["unit_id"])
     if not unit:
         return jsonify({"error": "Unit not found"}), 404
-    unit.is_completed = data.get("is_completed", True)
+
+    topic_name = data.get("topic_name")
+    is_completed = data.get("is_completed", True)
+
+    import json
+    if topic_name:
+        try:
+            completed_list = json.loads(unit.completed_topics) if unit.completed_topics else []
+            if not isinstance(completed_list, list):
+                completed_list = []
+        except Exception:
+            completed_list = [t.strip() for t in (unit.completed_topics or "").split(",") if t.strip()]
+
+        topic_name_clean = topic_name.strip()
+        if is_completed:
+            if topic_name_clean not in completed_list:
+                completed_list.append(topic_name_clean)
+        else:
+            if topic_name_clean in completed_list:
+                completed_list.remove(topic_name_clean)
+
+        unit.completed_topics = json.dumps(completed_list)
+
+        # Check if all topics in the unit are completed
+        all_topics = [t.strip() for t in (unit.topics or "").split(",") if t.strip()]
+        if all_topics and all(t in completed_list for t in all_topics):
+            unit.is_completed = True
+        else:
+            unit.is_completed = False
+    else:
+        unit.is_completed = is_completed
+        if is_completed:
+            all_topics = [t.strip() for t in (unit.topics or "").split(",") if t.strip()]
+            unit.completed_topics = json.dumps(all_topics)
+        else:
+            unit.completed_topics = "[]"
+
     unit.completed_by = get_jwt_identity()
     db.session.commit()
     return jsonify({"message": "Progress updated", "unit": unit.to_dict()}), 200
@@ -580,6 +616,52 @@ def internal_marks_analytics():
         "my_marks": [m.to_dict() for m in my_marks],
         "class_stats": class_stats,
         "struggling_subjects": struggling_subjects
+    }), 200
+
+
+@academic_bp.route("/internal-marks/class", methods=["GET"])
+@jwt_required()
+@role_required("faculty", "admin")
+def get_class_marks():
+    """Retrieve existing marks for a class/subject/test type."""
+    subject_code = request.args.get("subject_code")
+    test_type = request.args.get("test_type")
+    
+    if not subject_code or not test_type:
+        return jsonify({"error": "subject_code and test_type are required"}), 400
+        
+    fid = get_jwt_identity()
+    user = db.session.get(User, fid)
+    
+    # Query students in the faculty's class
+    students_query = User.query.filter_by(role=UserRole.STUDENT, is_active=True)
+    if user.role.value == "faculty":
+        students_query = students_query.filter_by(
+            department=user.department,
+            semester=user.semester,
+            section=user.section
+        )
+    students = students_query.order_by(User.first_name).all()
+    student_ids = [s.id for s in students]
+    
+    # Fetch existing marks for these students
+    marks = InternalMark.query.filter(
+        InternalMark.student_id.in_(student_ids),
+        InternalMark.subject_code == subject_code,
+        InternalMark.test_type == test_type
+    ).all()
+    
+    marks_dict = {m.student_id: m.marks_obtained for m in marks}
+    
+    return jsonify({
+        "students": [
+            {
+                "id": s.id,
+                "name": s.full_name,
+                "roll_number": s.roll_number,
+                "marks": marks_dict.get(s.id, None)
+            } for s in students
+        ]
     }), 200
 
 
@@ -805,4 +887,32 @@ def track_download(qp_id):
     qp.download_count = (qp.download_count or 0) + 1
     db.session.commit()
     return jsonify({"file_url": qp.file_url, "downloads": qp.download_count}), 200
+
+
+@academic_bp.route("/meetings/booked", methods=["GET"])
+@jwt_required()
+def get_student_booked_meetings():
+    """Get the list of meetings booked by the current student."""
+    from ..models.career import MeetingSlot
+    from ..models.user import User
+    
+    student_id = get_jwt_identity()
+    booked = MeetingSlot.query.filter_by(booked_by=student_id, is_booked=True).order_by(MeetingSlot.date.desc(), MeetingSlot.start_time.desc()).all()
+    
+    result = []
+    for slot in booked:
+        faculty = db.session.get(User, slot.faculty_id)
+        result.append({
+            "id": slot.id,
+            "faculty_id": slot.faculty_id,
+            "faculty_name": faculty.full_name if faculty else "Unknown Faculty",
+            "faculty_email": faculty.email if faculty else "",
+            "date": str(slot.date),
+            "start_time": slot.start_time.strftime("%H:%M") if slot.start_time else None,
+            "end_time": slot.end_time.strftime("%H:%M") if slot.end_time else None,
+            "purpose": slot.purpose,
+            "meet_link": "https://meet.google.com/abc-defg-hij"
+        })
+        
+    return jsonify({"meetings": result}), 200
 

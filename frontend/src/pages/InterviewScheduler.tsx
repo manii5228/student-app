@@ -29,6 +29,8 @@ const InterviewScheduler = () => {
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [bookingInProgress, setBookingInProgress] = useState(false);
   const [activeTab, setActiveTab] = useState<'schedule' | 'book'>('schedule');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Hardcoded target companies that student applied for (for booking simulation)
   const appliedJobsToBook = [
@@ -93,13 +95,13 @@ const InterviewScheduler = () => {
         time: selectedSlot.time,
         round_name: activeJobIdForBooking === '2' ? 'Amazon SDE-1 Technical Round 1' : 'Deloitte Analyst Interview'
       });
-      alert('Interview slot booked successfully! Added to your schedule.');
+      setSuccessMessage('Interview slot booked successfully! Added to your schedule.');
       setActiveJobIdForBooking(null);
       setSelectedSlotId(null);
       setActiveTab('schedule');
       fetchInterviews();
     } catch (err) {
-      alert('Failed to book slot. You might have a scheduling conflict.');
+      setErrorMessage('Failed to book slot. You might have a scheduling conflict.');
     } finally {
       setBookingInProgress(false);
     }
@@ -141,7 +143,7 @@ const InterviewScheduler = () => {
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
+            <button onClick={() => { const u = JSON.parse(localStorage.getItem('user') || '{}'); navigate(u.role === 'faculty' ? '/faculty/career' : '/career'); }} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <div>
@@ -188,7 +190,7 @@ const InterviewScheduler = () => {
               <p className="text-sm text-slate-500 mt-1">Shortlisted drives will prompt slot bookings.</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-4 animate-slide-up">
+            <div className="flex flex-col gap-4 animate-slide-up pb-28">
               {upcoming.length > 0 && (
                 <>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">Upcoming Rounds</h3>
@@ -259,7 +261,7 @@ const InterviewScheduler = () => {
           )
         ) : (
           /* CALENDLY BOOKING TAB */
-          <div className="flex flex-col gap-4 animate-fade-in">
+          <div className="flex flex-col gap-4 animate-fade-in pb-28">
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">Shortlisted Placements</h3>
             <p className="text-xs text-slate-500 -mt-2 leading-relaxed">Select a drive to pick your preferred interview time slot.</p>
             
@@ -344,6 +346,44 @@ const InterviewScheduler = () => {
           </div>
         )}
       </div>
+
+      {/* Success Modal */}
+      {successMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 mb-2">Success</h3>
+            <p className="text-xs font-semibold text-slate-600 mb-6 leading-relaxed">{successMessage}</p>
+            <button 
+              onClick={() => setSuccessMessage(null)} 
+              className="w-full bg-slate-900 text-white py-3.5 rounded-2xl font-bold text-xs"
+            >
+              Okay
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {errorMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center">
+            <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 mb-2">Failed</h3>
+            <p className="text-xs font-semibold text-slate-600 mb-6 leading-relaxed">{errorMessage}</p>
+            <button 
+              onClick={() => setErrorMessage(null)} 
+              className="w-full bg-slate-900 text-white py-3.5 rounded-2xl font-bold text-xs"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>

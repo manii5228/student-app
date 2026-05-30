@@ -232,7 +232,12 @@ const CampusMap = () => {
       <div className="bg-slate-900 p-6 pt-12 shadow-md relative z-20">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+            <button onClick={() => {
+              const role = JSON.parse(localStorage.getItem('user') || '{}').role;
+              if (role === 'faculty') navigate('/faculty');
+              else if (role === 'admin') navigate('/admin');
+              else navigate(-1);
+            }} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <div>

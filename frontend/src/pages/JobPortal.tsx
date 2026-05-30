@@ -121,7 +121,7 @@ const JobPortal = () => {
     <div className="h-full bg-white flex flex-col font-sans animate-fade-in pb-24 relative">
       {/* Top Navigation */}
       <div className="flex justify-between items-center p-6 mt-4">
-        <button onClick={() => navigate('/career')} className="w-12 h-12 rounded-full border border-slate-100 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors">
+        <button onClick={() => navigate(studentUser.role === 'faculty' ? '/faculty/career' : '/career')} className="w-12 h-12 rounded-full border border-slate-100 flex items-center justify-center shadow-sm hover:bg-slate-50 transition-colors">
           <ChevronLeft className="w-5 h-5 text-slate-600" />
         </button>
         <div className="flex gap-2 items-center">

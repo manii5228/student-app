@@ -141,6 +141,8 @@ class User(db.Model):
                 "research_interests": self.research_interests,
                 "office_hours": self.office_hours,
                 "office_location": self.office_location,
+                "semester": self.semester,
+                "section": self.section,
             })
 
         return data
@@ -268,4 +270,29 @@ class BiometricAuditLog(db.Model):
 
     def __repr__(self):
         return f"<BiometricAuditLog {self.action} for user={self.user_id}>"
+
+
+class CoordinatorAssignment(db.Model):
+    """
+    Role-Based Coordinator Access Assignments.
+    Links a faculty member to specific dashboard features (e.g., job_portal, clubs, etc.)
+    or specific entities (e.g., a specific club_id or event_id).
+    """
+    __tablename__ = "coordinator_assignments"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    faculty_id = db.Column(db.String(36), db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    feature_key = db.Column(db.String(50), nullable=False)  # e.g., 'club', 'event', 'job_portal', 'syllabus', 'internal_marks'
+    entity_id = db.Column(db.String(36), nullable=True)     # Specific club ID or event ID (if applicable)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "faculty_id": self.faculty_id,
+            "feature_key": self.feature_key,
+            "entity_id": self.entity_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
+
 

@@ -316,7 +316,7 @@ def resolve_discrepancy(discrepancy_id):
     if not status or status not in ["resolved", "rejected"]:
         return jsonify({"error": "status must be 'resolved' or 'rejected'"}), 400
     if not remarks:
-        return jsonify({"error": "resolution_remarks is required"}), 400
+        remarks = "Resolved by faculty" if status == "resolved" else "Rejected by faculty"
 
     result, error = attendance_service.resolve_discrepancy(
         discrepancy_id, faculty_id, status, remarks, updated_status

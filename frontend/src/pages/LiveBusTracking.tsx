@@ -164,7 +164,12 @@ const LiveBusTracking = () => {
       <div className="p-4 pt-12 absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-slate-900/80 via-slate-900/40 to-transparent pointer-events-none">
         <div className="flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-colors">
+            <button onClick={() => {
+              const role = JSON.parse(localStorage.getItem('user') || '{}').role;
+              if (role === 'faculty') navigate('/faculty');
+              else if (role === 'admin') navigate('/admin');
+              else navigate(-1);
+            }} className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center shadow-lg hover:bg-white/30 transition-colors">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <div>

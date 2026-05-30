@@ -92,7 +92,13 @@ const AnonymousFeedback = () => {
     <div className="min-h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       <div className="bg-[#c9503d] p-6 pt-12 rounded-b-[36px] shadow-md text-white">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
+          <button onClick={() => {
+            const role = JSON.parse(localStorage.getItem('user') || '{}').role;
+            if (role === 'faculty') navigate('/faculty');
+            else if (role === 'admin') navigate('/admin');
+            else if (window.history.length > 2) { navigate(-1); }
+            else { navigate('/campus'); }
+          }} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div>

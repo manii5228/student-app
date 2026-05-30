@@ -1,103 +1,34 @@
-# Improvements: Faculty Module
 
-## 1. Bulk Attendance Marker
-### Frontend Improvements
-- **Photo Roster:** Display small thumbnails of students next to their names to help faculty learn faces.
-- **Voice Dictation:** "Mark Roll Number 12 Absent" via microphone.
+# Status: Faculty Module
 
-### Backend Improvements
-- **Geofencing:** Ensure attendance can only be marked if the faculty member's device is physically near the scheduled classroom.
-- **Audit Trails:** Strict logging of who marked attendance and when, preventing unauthorized changes, add time of class to the attendance record.
+This section tracks the completed, balance, and existing features for the **Faculty Module** improvements pass.
 
-## 2. QR Attendance Generator
-### Frontend Improvements
-- **Dynamic Animations:** Make the QR code pulsate or change color to clearly indicate it's actively refreshing.
-- **Live Counter:** Show the number of students successfully scanned in real-time.
+## 1. Existing Completed Features
+- **Attendance Registry:** Basic QR attendance code scanning and bulk attendance lists. — **[Currently Completed]**
+- **Marks Entry:** Basic internal marks grid entry. — **[Currently Completed]**
+- **Mentees Dashboard:** Base list view of assigned mentees with performance summaries. — **[Currently Completed]**
 
-### Backend Improvements
-- **Proximity Checks:** Cross-reference student IP addresses or GPS coordinates with the projector's location to prevent scanning from a photo sent to a WhatsApp group, make the time to atleasast 5 mins,qr need to be different every single time for every faulty and for every period, the qr need to be generated in the frontend with the help of the backend api, we have to pass the faculty id, subject id, period no, date and time to generate the qr code.
-- **Token Cryptography:** Use rotating JWTs within the QR code for absolute security.
+## 2. Existing Balance Features (Partially Completed/Fixed in this pass)
+- **Syllabus Tracker Database Integration:** Linked the unit checklists in the frontend to the backend database so completion states persist. — **[Currently Completed]**
+- **Student Meeting Scheduler:** Integrated a "Book Meeting" helper directly in the Faculty Directory. — — **[Currently Completed]**
+- **Anonymous Feedback Back Redirection:** Secured back button routing inside the Anonymous Feedback page to correctly handle user roles. — **[Currently Completed]**
 
-## 3. Marks Entry Portal
-### Frontend Improvements
-- **Excel Import/Export:** Allow faculty to download an Excel template, fill it offline, and bulk upload it.
-- **Validation Highlighting:** Instantly highlight cells red if a mark exceeds the maximum allowed for that exam.
-
-### Backend Improvements
-- **Locking Mechanism:** Prevent further edits once the Head of Department approves the finalized marks.
-- **Version History:** Track all changes to marks, allowing rollback to previous states if mistakes occur, each department should have their own marks data.
-
-## 4. Assignment Grader
-### Frontend Improvements
-- **Annotation Tools:** A drawing and highlighting toolset (similar to GoodNotes) directly over student PDF submissions.
-- **Rubric UI:** Clickable rubric grids (e.g., Content: 5/5, Formatting: 3/5) that auto-sum the total grade.
-
-### Backend Improvements
-- **Similarity Scoring:** Background tasks using AI to compare submissions against each other to detect copying.
-- **Automated Feedback:** Pre-generated AI comments based on the rubric scores.
-
-## 5. Broadcast to Class
-### Frontend Improvements
-- **Scheduling:** Options to send a message immediately or schedule it for a later date/time.
-- **Attachments:** Support for attaching files directly from the Resource Uploader.
-
-### Backend Improvements
-- **Multi-Channel Delivery:** For urgent broadcasts, trigger SMS and Email in addition to app push notifications.
-- **Delivery Receipts:** API to track exactly which students have seen the broadcast.
-
-## 6. Leave Approval System
-### Frontend Improvements
-- **Contextual Info:** Display the student's current attendance percentage directly on the leave request card to aid decision-making.
-- **Bulk Actions:** Select multiple requests and approve/reject them simultaneously.
-
-### Backend Improvements
-- **Automated Rules:** Automatically reject leaves if the student is already below a critical attendance threshold (unless marked as a medical emergency).
-- **Escalation Path:** If a faculty member doesn't respond in 48 hours, auto-escalate the request to the HOD.
-
-## 7. Syllabus Progress Tracker
-### Frontend Improvements
-- **Pace Indicator:** Visual indicator showing if the faculty is ahead or behind the expected schedule for the semester.
-- **Shared View:** Allow students to see the progress bar for transparency.
-
-### Backend Improvements
-- **Comparative Analytics:** Compare syllabus completion rates across different sections of the same subject taught by different faculty.
-
-## 8. Automated Report Generator
-### Frontend Improvements
-- **Custom Branding:** Option to include the college logo and specific header formatting.
-- **Preview Modal:** View the PDF directly in the browser before downloading.
-
-### Backend Improvements
-- **Background Processing:** Generate heavy consolidated reports asynchronously via Celery/Redis to avoid HTTP timeouts.
-- **Scheduled Delivery:** Allow faculty to configure weekly automated emails containing updated reports.
-
-## 9. Meeting Scheduler
-### Frontend Improvements
-- **Google Calendar Sync:** Two-way synchronization with the faculty's primary Google Calendar to avoid double-booking.
-- **Reschedule UI:** Easy drag-and-drop to move a meeting, automatically notifying the student.
-
-### Backend Improvements
-- **Smart Routing:** Route meeting requests to specific TAs (Teaching Assistants) first if applicable.
-- **Video Conferencing Integration:** Auto-generate Zoom or Google Meet links for online meetings.
-
-## 10. Resource Uploader
-### Frontend Improvements
-- **Folder Structure:** A visual file manager UI with folders (e.g., "Unit 1", "Past Papers") instead of a flat list.
-- **Drag-and-Drop Reordering:** Easily rearrange the order of uploaded materials.
-
-### Backend Improvements
-- **CDN Integration:** Serve uploaded materials via a Content Delivery Network for faster global access.
-- **Automatic Compression:** Compress large PDFs and images on upload to save storage space.
-the bittom navigation bar is clashing and here make it as what faculty is adding pyqs or class notes if pyqs connect it respective pyqs page,if class notes connect it resource uploader page.
-
-## 10. Club Management
-culb are just printed by according to my college these are not the culbs im having assigned faculty can create culbs there cna be technicla nad non techincal culbs so they can create it,assigning culb presidents can be done by the faculty 
-clicking back is directly taking to normal campus instaed of faculty dashboard campus secure all back navigation routes to respective roles 
+## 3. Newly Completed Features (Implemented in this pass)
+- **Resource Uploader vs PYQs Integration:** Implemented path-sensitive routing in `FacultyResourceUploader.tsx`. Added dual uploader routes under `/faculty/resources` (saving to notes endpoint) and `/faculty/question-bank` (saving to pyqs endpoint), and resolved styling overlap with the bottom navigation bar (added `pb-32` and `z-[100]` z-index). — **[Currently Completed]**
+- **Faculty Class Scope Boundaries:** Restrict leave approval lists, class announcements, and meeting requests to matches in department, semester, and section. — **[Currently Completed]**
+- **Role-Based Back Navigation:** Audited and secured back-redirection handlers on NoticeBoard, EventHub, VolunteerPortal, DigitalCanteen, LiveBusTracking, HostelPass, LibraryPortal, and Anonymous Feedback. — **[Currently Completed]**
+- **Skill Badges Management:** Designed a template builder for technical events, claims request inbox, and an award/nominate screen for awarding badges to students in `SkillBadges.tsx`. — **[Currently Completed]**
+- **Connected Marks Entry Portal:** Connected the marks entry portal to `/internal-marks/class` and `/internal-marks/bulk` endpoints, added subject selection dropdown, exam selection dropdown (CAT 1, CAT 2, Model Exam, Lab Internals, End Semester) with dynamic max marks validation, and input validation red highlighting in `FacultyMarksEntry.tsx`. — **[Currently Completed]**
+- **Simplified Attendance Disputes:** Updated dispute resolution options in `FacultyDiscrepancies.tsx` to only display "Present" and "Absent" (removed "Late"), and completely removed the remarks textarea input and submit checks from the UI. — **[Currently Completed]**
+- **Dashboard Cleanup:** Removed "Mock Tests" navigation entries from both the academic and career tabs in `FacultyHub.tsx` to clean up loose ends. — **[Currently Completed]**
 
 
-see here we have boardcast,leave apporaval,meeting schulder all these are we have to make it as faculty of respective class can see these, faculty can control it only if it is asigned to them else they cant and students need to see only their respective faculty's broadcast,leave apporaval,meeting schulder. and one more thing is each faculty is assigned to a class so make it as if 2nd sem CSE faculty is assigned to 2nd sem CSE class then he can see only 2nd sem CSE students broadcast,leave apporaval,meeting schulder. also faculty should not be able to see the details of the students who are not in their class or batch.
 
-
-so when faculities counducts any technical events they also need to add the skills badges so studnets earn them or automatical genrate teh skill badge and faculty need to have access to so studnets can get rewards if they earned from different college or outside of the college
-
-you need to be very precise with the faculty cause different faculty has different functionalities so want do you think lets give ascces to all facutlites to all features or to respective faculties adn you also need to make different interfaces if do bot give access to all faculties and do not forget teh all features that faculties can edit because currently there are many loose end which are present in studnet but not in the facutlies or present in facutlies but not in students so we need to clear those things
+the culb managememt is same opreation as students , okay lets amke this way if your a faculties assigned with any culb as coordadinator u can acceess them adn add presidents,link,social media handles etc and if not assigned then just resict culb function this need to be work for all other fucntionalites if your assigned then u can open let your are resitrced 
+event need to be edited,where is rooster manager
+i guess we should remove voice ,geoloaction in bulk attdence
+remove the proxmit hash,remove the plusing glow no use just pressue on the servers,if faculty reavtivate it it should remove already present students cause in 1 mintue all 60 studnets cant scan the QR
+assigment garder need to unloacked for all faculties casue each subkjects has their own assigements,report genarator also unlocked for all faculities
+office hours thing i asked to create  adummy time table and match all the free hours as office hours 
+SKILL BAdges need automaticlly update to the skill badge section
+better unloack all thing sin the career for all faculties

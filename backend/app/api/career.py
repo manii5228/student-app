@@ -594,6 +594,49 @@ def create_badge():
     return jsonify({"message": "Badge created", "badge": b.to_dict()}), 201
 
 
+@career_bp.route("/badges/<bid>", methods=["PUT"])
+@jwt_required()
+@role_required("admin", "faculty")
+def edit_badge(bid):
+    """Edit badge template details."""
+    badge = db.session.get(SkillBadge, bid)
+    if not badge:
+        return jsonify({"error": "Badge template not found"}), 404
+        
+    data = request.get_json()
+    if "name" in data:
+        badge.name = data["name"]
+    if "description" in data:
+        badge.description = data["description"]
+    if "category" in data:
+        badge.category = data["category"]
+    if "icon" in data:
+        badge.icon = data["icon"]
+    if "color" in data:
+        badge.color = data["color"]
+    if "criteria" in data:
+        badge.criteria = data["criteria"]
+    if "points" in data:
+        badge.points = int(data["points"])
+        
+    db.session.commit()
+    return jsonify({"message": "Badge updated successfully", "badge": badge.to_dict()}), 200
+
+
+@career_bp.route("/badges/<bid>", methods=["DELETE"])
+@jwt_required()
+@role_required("admin", "faculty")
+def delete_badge(bid):
+    """Delete badge template."""
+    badge = db.session.get(SkillBadge, bid)
+    if not badge:
+        return jsonify({"error": "Badge template not found"}), 404
+        
+    db.session.delete(badge)
+    db.session.commit()
+    return jsonify({"message": "Badge template deleted successfully"}), 200
+
+
 @career_bp.route("/badges/<bid>/award", methods=["POST"])
 @jwt_required()
 @role_required("admin", "faculty")
@@ -686,6 +729,80 @@ def badge_holders(bid):
                 "earned_at": e.earned_at.isoformat() if e.earned_at else None,
             })
     return jsonify({"holders": holders}), 200
+
+
+@career_bp.route("/badges/claims", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def claim_badge():
+    """Student nominates themselves or claims a badge with note/proof."""
+    data = request.get_json()
+    badge_id = data.get("badge_id")
+    note = data.get("note") # proof description or outside college event info
+    
+    if not badge_id:
+        return jsonify({"error": "badge_id is required"}), 400
+        
+    # Check if already earned or claimed
+    existing = EarnedBadge.query.filter_by(
+        student_id=get_jwt_identity(), badge_id=badge_id
+    ).first()
+    if existing:
+        if existing.status == "pending":
+            return jsonify({"error": "Badge claim is already pending approval"}), 400
+        return jsonify({"error": "Badge has already been earned"}), 400
+        
+    eb = EarnedBadge(
+        student_id=get_jwt_identity(),
+        badge_id=badge_id,
+        note=note,
+        status="pending"
+    )
+    db.session.add(eb)
+    db.session.commit()
+    return jsonify({"message": "Badge claim submitted successfully", "claim": eb.to_dict()}), 201
+
+
+@career_bp.route("/badges/claims/pending", methods=["GET"])
+@jwt_required()
+@role_required("admin", "faculty")
+def pending_badge_claims():
+    """Retrieve all pending badge claims/nominations."""
+    claims = EarnedBadge.query.filter_by(status="pending").all()
+    res = []
+    for c in claims:
+        d = c.to_dict()
+        student = db.session.get(User, c.student_id)
+        if student:
+            d["student_name"] = student.full_name
+            d["student_roll"] = student.roll_number
+            d["student_email"] = student.email
+            d["student_department"] = student.department
+        res.append(d)
+    return jsonify({"claims": res}), 200
+
+
+@career_bp.route("/badges/claims/<claim_id>", methods=["PUT"])
+@jwt_required()
+@role_required("admin", "faculty")
+def resolve_badge_claim(claim_id):
+    """Approve or reject a student badge claim nomination."""
+    earned = db.session.get(EarnedBadge, claim_id)
+    if not earned:
+        return jsonify({"error": "Claim not found"}), 404
+        
+    data = request.get_json()
+    status = data.get("status") # approved / rejected
+    if status not in ("approved", "rejected"):
+        return jsonify({"error": "Invalid status"}), 400
+        
+    earned.status = status
+    earned.awarded_by = get_jwt_identity()
+    if data.get("note"):
+        earned.note = data.get("note")
+        
+    db.session.commit()
+    return jsonify({"message": f"Badge claim {status}", "earned": earned.to_dict()}), 200
 
 
 # ── Team Finder ───────────────────────────────────────────────────

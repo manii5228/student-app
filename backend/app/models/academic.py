@@ -134,6 +134,7 @@ class Syllabus(db.Model):
     hours = db.Column(db.Integer, default=10)
     is_completed = db.Column(db.Boolean, default=False)
     completed_by = db.Column(db.String(36), nullable=True)
+    completed_topics = db.Column(db.Text, nullable=True)  # Comma-separated or JSON list of completed topics
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     academic_year = db.Column(db.String(20), default="2025-2026")
     version = db.Column(db.Integer, default=1)
@@ -146,6 +147,7 @@ class Syllabus(db.Model):
             "unit_title": self.unit_title, "topics": self.topics,
             "hours": self.hours, "is_completed": self.is_completed,
             "academic_year": self.academic_year, "version": self.version,
+            "completed_topics": self.completed_topics,
         }
 
 

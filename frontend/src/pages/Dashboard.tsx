@@ -4,11 +4,21 @@ import {
   Bell, Search, X, ChevronRight, Clock, BookOpen, FileText,
   CalendarDays, QrCode, Bus, MapPin, Briefcase, GraduationCap,
   Activity, TrendingUp, CheckCircle, AlertTriangle, DollarSign,
-  Calendar, Users, Coffee, Heart, Zap, Lock, Command
+  Calendar, Users, Coffee, Zap, Command
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import UpsellModal from '../components/UpsellModal';
 import { api } from '../lib/api';
+
+/* ═══════════════════════════════════════════════════════════════
+   COLOR PALETTE (VTU)
+   ─────────────────────────────────────────────────────────────
+   #a91f23  → vtuRed   (alerts, urgency)
+   #22346c  → vtuNavy  (text, dark card)
+   #0080c7  → vtuBlue  (primary accent)
+   #c9503d  → vtuTerra (warm accent)
+   #27bcd1  → vtuCyan  (fresh accent)
+   ═══════════════════════════════════════════════════════════════ */
 
 // ── Types ────────────────────────────────────────────────────────
 interface FeedData {
@@ -33,14 +43,14 @@ interface SearchResult {
 
 // ── Quick Actions ────────────────────────────────────────────────
 const QUICK_ACTIONS = [
-  { name: 'Timetable', icon: CalendarDays, color: 'from-indigo-500 to-violet-600', path: '/academic/timetable' },
-  { name: 'Attendance', icon: QrCode, color: 'from-emerald-500 to-teal-600', path: '/academic/attendance' },
-  { name: 'Assignments', icon: FileText, color: 'from-amber-500 to-orange-600', path: '/academic/assignments' },
-  { name: 'Results', icon: TrendingUp, color: 'from-rose-500 to-pink-600', path: '/academic/results' },
-  { name: 'Bus Tracker', icon: Bus, color: 'from-blue-500 to-cyan-600', path: '/campus/bus' },
-  { name: 'Canteen', icon: Coffee, color: 'from-orange-500 to-red-500', path: '/campus/canteen' },
-  { name: 'Jobs', icon: Briefcase, color: 'from-emerald-600 to-green-700', path: '/career/jobs' },
-  { name: 'Library', icon: BookOpen, color: 'from-purple-500 to-fuchsia-600', path: '/campus/library' },
+  { name: 'Timetable', icon: CalendarDays, path: '/academic/timetable',  accent: '#0080c7' },
+  { name: 'Attendance', icon: QrCode,      path: '/academic/attendance', accent: '#27bcd1' },
+  { name: 'Assignments', icon: FileText,   path: '/academic/assignments', accent: '#c9503d' },
+  { name: 'Results', icon: TrendingUp,     path: '/academic/results',    accent: '#a91f23' },
+  { name: 'Bus Timings', icon: Bus,        path: '/campus/bus',          accent: '#22346c' },
+  { name: 'Canteen', icon: Coffee,         path: '/campus/canteen',      accent: '#c9503d' },
+  { name: 'Jobs', icon: Briefcase,         path: '/career/jobs',         accent: '#0080c7' },
+  { name: 'Library', icon: BookOpen,       path: '/campus/library',      accent: '#27bcd1' },
 ];
 
 // ── Fallback Data ────────────────────────────────────────────────
@@ -73,13 +83,13 @@ const Dashboard = () => {
   const [feed, setFeed] = useState<FeedData>(FALLBACK_FEED);
   const [loading, setLoading] = useState(true);
 
-  // Notification drawer state
+  // Notification drawer
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notifCategory, setNotifCategory] = useState('all');
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Search (Command Palette) state
+  // Command palette
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -89,63 +99,49 @@ const Dashboard = () => {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchTimerRef = useRef<any>(null);
 
-  // ── Role redirect ────────────────────────────────────────────
+  // ── Role redirect ──────────────────────────────────────────
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
   if (user?.role === 'faculty') return <Navigate to="/faculty" replace />;
   if (user?.role === 'admin') return <Navigate to="/admin" replace />;
   const isGuest = user?.is_guest || user?.role === 'guest';
 
-  // ── Fetch feed data ──────────────────────────────────────────
+  // ── Data fetching ──────────────────────────────────────────
   useEffect(() => {
-    const fetchFeed = async () => {
+    (async () => {
       try {
         const { data } = await api.get('/home/feed');
         setFeed({ ...FALLBACK_FEED, ...data });
-      } catch {
-        // Keep fallback data
-      }
+      } catch { /* keep fallback */ }
       setLoading(false);
-    };
-    fetchFeed();
+    })();
   }, []);
 
-  // ── Fetch notifications ──────────────────────────────────────
   useEffect(() => {
-    const fetchNotifs = async () => {
+    (async () => {
       try {
         const { data } = await api.get('/home/notifications');
         setNotifications(data.notifications || []);
         setUnreadCount(data.unread_count || 0);
       } catch { }
-    };
-    fetchNotifs();
+    })();
   }, []);
 
-  // ── Keyboard shortcut (Ctrl+K) ──────────────────────────────
+  // ── Keyboard shortcut ──────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setSearchOpen(true);
-      }
-      if (e.key === 'Escape') {
-        setSearchOpen(false);
-        setNotifOpen(false);
-      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); setSearchOpen(true); }
+      if (e.key === 'Escape') { setSearchOpen(false); setNotifOpen(false); }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Focus search input when opened
   useEffect(() => {
-    if (searchOpen && searchInputRef.current) {
-      setTimeout(() => searchInputRef.current?.focus(), 100);
-    }
+    if (searchOpen && searchInputRef.current) setTimeout(() => searchInputRef.current?.focus(), 100);
   }, [searchOpen]);
 
-  // ── Search handler with debounce ─────────────────────────────
+  // ── Search ─────────────────────────────────────────────────
   const performSearch = useCallback(async (q: string) => {
     if (q.length < 2) { setSearchResults([]); return; }
     try {
@@ -164,12 +160,11 @@ const Dashboard = () => {
     const updated = [title, ...recentSearches.filter(s => s !== title)].slice(0, 5);
     setRecentSearches(updated);
     localStorage.setItem('recent_searches', JSON.stringify(updated));
-    setSearchOpen(false);
-    setSearchQuery('');
+    setSearchOpen(false); setSearchQuery('');
     navigate(path);
   };
 
-  // ── Mark all notifications as read ───────────────────────────
+  // ── Notifications ──────────────────────────────────────────
   const markAllRead = async () => {
     try { await api.post('/home/notifications/read-all'); } catch { }
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -180,7 +175,7 @@ const Dashboard = () => {
     ? notifications
     : notifications.filter(n => n.category === notifCategory);
 
-  // ── Time helpers ─────────────────────────────────────────────
+  // ── Helpers ────────────────────────────────────────────────
   const getRelativeTime = (ts: string) => {
     const diff = Date.now() - new Date(ts).getTime();
     const mins = Math.floor(diff / 60000);
@@ -194,14 +189,8 @@ const Dashboard = () => {
     const diff = new Date(date).getTime() - Date.now();
     const days = Math.floor(diff / 86400000);
     if (days === 0) return 'Due today';
-    if (days === 1) return 'Due tomorrow';
-    return `${days} days left`;
-  };
-
-  const getAttendanceColor = (pct: number) => {
-    if (pct >= 85) return 'text-emerald-600';
-    if (pct >= 75) return 'text-amber-600';
-    return 'text-red-600';
+    if (days === 1) return 'Tomorrow';
+    return `${days} days`;
   };
 
   const getNotifIcon = (cat: string) => {
@@ -213,283 +202,223 @@ const Dashboard = () => {
 
   const getSearchIcon = (icon: string) => {
     const map: Record<string, React.ReactNode> = {
-      user: <Users className="w-4 h-4" />,
-      bell: <Bell className="w-4 h-4" />,
-      calendar: <Calendar className="w-4 h-4" />,
-      compass: <MapPin className="w-4 h-4" />,
+      user: <Users className="w-4 h-4" />, bell: <Bell className="w-4 h-4" />,
+      calendar: <Calendar className="w-4 h-4" />, compass: <MapPin className="w-4 h-4" />,
     };
     return map[icon] || <Search className="w-4 h-4" />;
   };
 
-  // ── Render ───────────────────────────────────────────────────
+  const todayDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+
+  // ── SVG donut helper ───────────────────────────────────────
+  const DonutChart = ({ pct, color, size = 56 }: { pct: number; color: string; size?: number }) => {
+    const r = 22; const c = 2 * Math.PI * r;
+    return (
+      <svg width={size} height={size} viewBox="0 0 56 56">
+        <circle cx="28" cy="28" r={r} fill="none" stroke="#e9ecef" strokeWidth="5" />
+        <circle cx="28" cy="28" r={r} fill="none" stroke={color} strokeWidth="5"
+          strokeLinecap="round" strokeDasharray={`${(pct / 100) * c} ${c}`}
+          transform="rotate(-90 28 28)" className="transition-all duration-700" />
+      </svg>
+    );
+  };
+
+  // ── Activity bar chart (like reference) ────────────────────
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const classData = feed.today_classes.length > 0
+    ? [3, 4, 2, feed.stats.classes_today, 3, 1]
+    : [2, 3, 1, 0, 2, 1];
+  const maxBar = Math.max(...classData, 1);
+
+  // ── RENDER ─────────────────────────────────────────────────
   return (
-    <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
+    <div className="dash-root">
 
-      {/* ═══ HEADER ═══ */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 p-6 pt-12 pb-8 relative overflow-hidden">
-        <div className="absolute -right-16 -top-16 w-48 h-48 bg-indigo-500/15 rounded-full blur-3xl" />
-        <div className="absolute -left-10 bottom-0 w-36 h-36 bg-violet-500/10 rounded-full blur-2xl" />
-
-        <div className="relative z-10">
-          {/* Top bar: greeting + actions */}
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <p className="text-xs font-bold text-indigo-300 uppercase tracking-widest mb-1">
-                {feed.greeting} 👋
-              </p>
-              <h1 className="text-2xl font-black text-white tracking-tight">
-                {feed.user.first_name || 'Student'}
-              </h1>
-            </div>
-            <div className="flex gap-2">
-              {/* Search button */}
-              <button
-                onClick={() => setSearchOpen(true)}
-                className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/20 transition-all border border-white/10"
-              >
-                <Search className="w-5 h-5" />
-              </button>
-              {/* Notification bell */}
-              <button
-                onClick={() => setNotifOpen(true)}
-                className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/20 transition-all border border-white/10 relative"
-              >
-                <Bell className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 rounded-full text-[10px] font-black flex items-center justify-center text-white shadow-lg animate-pulse">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-            </div>
+      {/* ═══ TOP AREA ═══ */}
+      <div className="dash-top">
+        <div className="dash-top-row">
+          <div>
+            <p className="dash-date">{todayDate}</p>
+            <h1 className="dash-greeting">{feed.greeting},<br/>{feed.user.first_name || 'Student'}</h1>
           </div>
-
-          {/* Next action banner */}
-          {feed.next_action && (
-            <button
-              onClick={() => navigate(feed.next_action!.path)}
-              className="w-full bg-white/10 backdrop-blur-sm border border-white/15 rounded-2xl px-4 py-3 flex items-center gap-3 text-left hover:bg-white/15 transition-all group"
-            >
-              <div className="w-9 h-9 rounded-xl bg-indigo-500/30 flex items-center justify-center shrink-0">
-                <Zap className="w-4 h-4 text-indigo-300" />
-              </div>
-              <p className="text-sm text-white/90 font-medium flex-1 line-clamp-1">
-                {feed.next_action.message}
-              </p>
-              <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-white/70 transition-colors" />
+          <div className="dash-top-actions">
+            <button className="dash-icon-btn" onClick={() => setSearchOpen(true)} aria-label="Search">
+              <Search size={18} />
             </button>
-          )}
-
-          {/* Quick stat chips */}
-          <div className="flex gap-2 mt-4 overflow-x-auto hide-scrollbar">
-            <div className="shrink-0 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/10 flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-indigo-300" />
-              <div>
-                <p className="text-lg font-black text-white leading-none">{feed.stats.classes_today}</p>
-                <p className="text-[9px] font-bold text-white/50 uppercase">Classes</p>
-              </div>
-            </div>
-            <div className="shrink-0 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/10 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-amber-300" />
-              <div>
-                <p className="text-lg font-black text-white leading-none">{feed.stats.pending_assignments}</p>
-                <p className="text-[9px] font-bold text-white/50 uppercase">Due</p>
-              </div>
-            </div>
-            <div className="shrink-0 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/10 flex items-center gap-2">
-              <Activity className={`w-4 h-4 ${feed.stats.attendance_pct >= 85 ? 'text-emerald-300' : feed.stats.attendance_pct >= 75 ? 'text-amber-300' : 'text-red-300'}`} />
-              <div>
-                <p className="text-lg font-black text-white leading-none">{feed.stats.attendance_pct}%</p>
-                <p className="text-[9px] font-bold text-white/50 uppercase">Attend</p>
-              </div>
-            </div>
-            <div className="shrink-0 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-2.5 border border-white/10 flex items-center gap-2">
-              <Bell className="w-4 h-4 text-rose-300" />
-              <div>
-                <p className="text-lg font-black text-white leading-none">{feed.stats.unread_notices}</p>
-                <p className="text-[9px] font-bold text-white/50 uppercase">Alerts</p>
-              </div>
-            </div>
+            <button className="dash-icon-btn" onClick={() => setNotifOpen(true)} aria-label="Notifications">
+              <Bell size={18} />
+              {unreadCount > 0 && <span className="dash-badge">{unreadCount}</span>}
+            </button>
           </div>
         </div>
+
+        {/* Next action pill */}
+        {feed.next_action && (
+          <button className="dash-next-action" onClick={() => navigate(feed.next_action!.path)}>
+            <Zap size={14} color="#0080c7" />
+            <span>{feed.next_action.message}</span>
+            <ChevronRight size={14} color="#adb5bd" />
+          </button>
+        )}
+      </div>
+
+      {/* ═══ STAT CARDS (like reference image) ═══ */}
+      <div className="dash-stats-row">
+        <button className="dash-stat-card dash-stat-blue" onClick={() => navigate('/academic/attendance')}>
+          <div className="dash-stat-label">Attendance <Activity size={14} /></div>
+          <div className="dash-stat-value">{feed.stats.attendance_pct}<span className="dash-stat-unit">%</span></div>
+        </button>
+        <button className="dash-stat-card dash-stat-cyan" onClick={() => navigate('/academic/timetable')}>
+          <div className="dash-stat-label">Classes <CalendarDays size={14} /></div>
+          <div className="dash-stat-value">{feed.stats.classes_today}<span className="dash-stat-unit"> today</span></div>
+        </button>
       </div>
 
       {/* ═══ SCROLLABLE CONTENT ═══ */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="dash-scroll">
 
-        {/* ── Quick Actions Grid ────────────────────────────────── */}
-        <div className="px-5 pt-5">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Actions</h2>
-          <div className="grid grid-cols-4 gap-3">
-            {QUICK_ACTIONS.map((action) => (
+        {/* ── Quick Actions (circular icons like badges) ──────── */}
+        <div className="dash-section">
+          <div className="dash-section-header">
+            <h2 className="dash-section-title">Quick Actions</h2>
+          </div>
+          <div className="dash-actions-grid">
+            {QUICK_ACTIONS.map(a => (
               <button
-                key={action.name}
+                key={a.name}
+                className="dash-action-item"
                 onClick={() => {
-                  if (isGuest && ['Assignments', 'Jobs', 'Library'].includes(action.name)) {
-                    setUpsellOpen(true);
-                  } else {
-                    navigate(action.path);
-                  }
+                  if (isGuest && ['Assignments', 'Jobs', 'Library'].includes(a.name)) setUpsellOpen(true);
+                  else navigate(a.path);
                 }}
-                className="flex flex-col items-center gap-2 group"
               >
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-md group-hover:shadow-lg group-active:scale-90 transition-all`}>
-                  <action.icon className="w-6 h-6" />
+                <div className="dash-action-circle" style={{ background: a.accent + '14', color: a.accent }}>
+                  <a.icon size={20} />
                 </div>
-                <span className="text-[10px] font-bold text-slate-600 text-center leading-tight">{action.name}</span>
+                <span className="dash-action-label">{a.name}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* ── Today's Schedule ──────────────────────────────────── */}
-        <div className="px-5 mt-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Today's Schedule</h2>
-            <button onClick={() => navigate('/academic/timetable')} className="text-[10px] font-bold text-indigo-500 flex items-center gap-0.5 hover:text-indigo-700">
-              View All <ChevronRight className="w-3 h-3" />
+        {/* ── Today's Schedule ────────────────────────────────── */}
+        <div className="dash-section">
+          <div className="dash-section-header">
+            <h2 className="dash-section-title">Today's Schedule</h2>
+            <button className="dash-see-all" onClick={() => navigate('/academic/timetable')}>
+              View all <ChevronRight size={13} />
             </button>
           </div>
 
           {feed.today_classes.length === 0 ? (
-            <div className="bg-white rounded-[20px] p-6 shadow-sm border border-slate-100 text-center">
-              <p className="text-sm text-slate-500">No classes today 🎉</p>
-            </div>
+            <div className="dash-empty">No classes today 🎉</div>
           ) : (
-            <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar snap-x">
-              {feed.today_classes.map((cls, i) => {
-                const colors = ['from-indigo-500 to-violet-600', 'from-emerald-500 to-teal-600', 'from-amber-500 to-orange-600', 'from-rose-500 to-pink-600'];
-                return (
-                  <div
-                    key={cls.id || i}
-                    className={`shrink-0 w-[160px] bg-gradient-to-br ${colors[i % 4]} rounded-[20px] p-4 text-white snap-start shadow-md hover:shadow-lg transition-shadow cursor-pointer`}
-                    onClick={() => navigate('/academic/timetable')}
-                  >
-                    <p className="text-[10px] font-bold text-white/60 uppercase">{cls.start_time} - {cls.end_time}</p>
-                    <h3 className="text-sm font-black mt-1 leading-tight line-clamp-2">{cls.subject_name}</h3>
-                    <div className="flex items-center gap-1 mt-2 text-[10px] text-white/70">
-                      <MapPin className="w-3 h-3" /> {cls.room || 'TBD'}
-                    </div>
+            <div className="dash-schedule-list">
+              {feed.today_classes.map((cls, i) => (
+                <button key={cls.id || i} className="dash-schedule-item" onClick={() => navigate('/academic/timetable')}>
+                  <div className="dash-schedule-time">
+                    <span className="dash-time-text">{cls.start_time}</span>
+                    <span className="dash-time-dot" />
+                    <span className="dash-time-sub">{cls.end_time}</span>
                   </div>
-                );
-              })}
+                  <div className="dash-schedule-info">
+                    <h3 className="dash-schedule-name">{cls.subject_name}</h3>
+                    <p className="dash-schedule-meta">{cls.faculty_name} · {cls.room || 'TBD'}</p>
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>
 
-        {/* ── Attendance Overview ───────────────────────────────── */}
-        <div className="px-5 mt-6">
-          <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 relative overflow-hidden">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-slate-900">Attendance Overview</h2>
-              <button onClick={() => navigate('/academic/attendance')} className="text-[10px] font-bold text-indigo-500">Details →</button>
-            </div>
-            <div className="flex items-center gap-5">
-              {/* Circular progress */}
-              <div className="relative w-20 h-20 shrink-0">
-                <svg className="w-20 h-20 -rotate-90" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="#f1f5f9" strokeWidth="3" />
-                  <circle
-                    cx="18" cy="18" r="15.5" fill="none"
-                    stroke={feed.attendance.percentage >= 85 ? '#10b981' : feed.attendance.percentage >= 75 ? '#f59e0b' : '#ef4444'}
-                    strokeWidth="3" strokeLinecap="round"
-                    strokeDasharray={`${feed.attendance.percentage * 0.975} 97.5`}
-                    className="transition-all duration-1000"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className={`text-lg font-black ${getAttendanceColor(feed.attendance.percentage)}`}>
-                    {feed.attendance.percentage}%
-                  </span>
-                </div>
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between text-xs mb-2">
-                  <span className="text-slate-500">Present</span>
-                  <span className="font-bold text-emerald-600">{feed.attendance.present}</span>
-                </div>
-                <div className="flex justify-between text-xs mb-2">
-                  <span className="text-slate-500">Total Classes</span>
-                  <span className="font-bold text-slate-700">{feed.attendance.total_classes}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-500">Absent</span>
-                  <span className="font-bold text-red-500">{feed.attendance.total_classes - feed.attendance.present}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Upcoming Assignments ─────────────────────────────── */}
+        {/* ── Upcoming Deadlines ──────────────────────────────── */}
         {feed.upcoming_assignments.length > 0 && (
-          <div className="px-5 mt-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Upcoming Deadlines</h2>
-              <button onClick={() => { if (isGuest) { setUpsellOpen(true); } else { navigate('/academic/assignments'); } }} className="text-[10px] font-bold text-indigo-500 flex items-center gap-0.5">
-                View All <ChevronRight className="w-3 h-3" />
+          <div className="dash-section">
+            <div className="dash-section-header">
+              <h2 className="dash-section-title">Deadlines</h2>
+              <button className="dash-see-all" onClick={() => { isGuest ? setUpsellOpen(true) : navigate('/academic/assignments'); }}>
+                View all <ChevronRight size={13} />
               </button>
             </div>
-            <div className="flex flex-col gap-2">
-              {feed.upcoming_assignments.map((a, i) => (
-                <button
-                  key={a.id || i}
-                  onClick={() => { if (isGuest) { setUpsellOpen(true); } else { navigate('/academic/assignments'); } }}
-                  className="bg-white rounded-[18px] p-4 shadow-sm border border-slate-100 flex items-center gap-3 text-left hover:shadow-md active:scale-[0.98] transition-all"
-                >
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                    getDaysLeft(a.due_date) === 'Due today' ? 'bg-red-100' : getDaysLeft(a.due_date) === 'Due tomorrow' ? 'bg-amber-100' : 'bg-indigo-100'
-                  }`}>
-                    <FileText className={`w-5 h-5 ${
-                      getDaysLeft(a.due_date) === 'Due today' ? 'text-red-600' : getDaysLeft(a.due_date) === 'Due tomorrow' ? 'text-amber-600' : 'text-indigo-600'
-                    }`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 truncate">{a.title}</h3>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{a.subject || 'Assignment'}</p>
-                  </div>
-                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-full shrink-0 ${
-                    getDaysLeft(a.due_date) === 'Due today' ? 'bg-red-100 text-red-700' : getDaysLeft(a.due_date) === 'Due tomorrow' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'
-                  }`}>
-                    {getDaysLeft(a.due_date)}
-                  </span>
-                </button>
-              ))}
+            <div className="dash-deadline-list">
+              {feed.upcoming_assignments.map((a, i) => {
+                const dl = getDaysLeft(a.due_date);
+                const urgent = dl === 'Due today';
+                return (
+                  <button key={a.id || i} className="dash-deadline-item" onClick={() => isGuest ? setUpsellOpen(true) : navigate('/academic/assignments')}>
+                    <div className="dash-deadline-icon" style={{ background: urgent ? '#a91f2314' : '#0080c714' }}>
+                      <FileText size={16} color={urgent ? '#a91f23' : '#0080c7'} />
+                    </div>
+                    <div className="dash-deadline-info">
+                      <h3>{a.title}</h3>
+                      <p>{a.subject || 'Assignment'}</p>
+                    </div>
+                    <span className="dash-deadline-badge" style={{ background: urgent ? '#a91f2314' : '#e9ecef', color: urgent ? '#a91f23' : '#495057' }}>
+                      {dl}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* ── Recent Notices ───────────────────────────────────── */}
+        {/* ── Activity Card (dark, like reference) ────────────── */}
+        <div className="dash-section">
+          <div className="dash-activity-card">
+            <div className="dash-activity-header">
+              <div>
+                <p className="dash-activity-label">Your activity</p>
+                <p className="dash-activity-value">
+                  {feed.attendance.present}<span className="dash-activity-unit"> classes attended</span>
+                </p>
+              </div>
+              <div className="dash-activity-ring">
+                <DonutChart pct={feed.attendance.percentage} color="#27bcd1" size={44} />
+                <span className="dash-ring-text">{feed.attendance.percentage}%</span>
+              </div>
+            </div>
+            <div className="dash-bar-chart">
+              {days.map((d, i) => (
+                <div key={d} className="dash-bar-col">
+                  <div className="dash-bar-track">
+                    <div
+                      className="dash-bar-fill"
+                      style={{
+                        height: `${(classData[i] / maxBar) * 100}%`,
+                        background: i === 3 ? '#27bcd1' : '#495057',
+                      }}
+                    >
+                      {i === 3 && <span className="dash-bar-tip">{classData[i]}</span>}
+                    </div>
+                  </div>
+                  <span className="dash-bar-day">{d}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Recent Notices ──────────────────────────────────── */}
         {feed.recent_notices.length > 0 && (
-          <div className="px-5 mt-6 mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Recent Notices</h2>
-              <button onClick={() => navigate('/campus/notices')} className="text-[10px] font-bold text-indigo-500 flex items-center gap-0.5">
-                View All <ChevronRight className="w-3 h-3" />
+          <div className="dash-section" style={{ marginBottom: 24 }}>
+            <div className="dash-section-header">
+              <h2 className="dash-section-title">Notices</h2>
+              <button className="dash-see-all" onClick={() => navigate('/campus/notices')}>
+                View all <ChevronRight size={13} />
               </button>
             </div>
-            <div className="flex flex-col gap-2">
+            <div className="dash-deadline-list">
               {feed.recent_notices.map((n, i) => (
-                <button
-                  key={n.id || i}
-                  onClick={() => navigate('/campus/notices')}
-                  className="bg-white rounded-[18px] p-4 shadow-sm border border-slate-100 flex items-center gap-3 text-left hover:shadow-md active:scale-[0.98] transition-all"
-                >
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                    n.priority === 'high' ? 'bg-red-100' : 'bg-blue-100'
-                  }`}>
-                    {n.priority === 'high'
-                      ? <AlertTriangle className="w-5 h-5 text-red-600" />
-                      : <Bell className="w-5 h-5 text-blue-600" />
-                    }
+                <button key={n.id || i} className="dash-deadline-item" onClick={() => navigate('/campus/notices')}>
+                  <div className="dash-deadline-icon" style={{ background: n.priority === 'high' ? '#a91f2314' : '#0080c714' }}>
+                    {n.priority === 'high' ? <AlertTriangle size={16} color="#a91f23" /> : <Bell size={16} color="#0080c7" />}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900 truncate">{n.title}</h3>
-                    <p className="text-[10px] text-slate-400 mt-0.5 line-clamp-1">{n.content}</p>
+                  <div className="dash-deadline-info">
+                    <h3>{n.title}</h3>
+                    <p>{n.content}</p>
                   </div>
-                  {n.priority === 'high' && (
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                  )}
+                  {n.priority === 'high' && <span className="dash-urgency-dot" />}
                 </button>
               ))}
             </div>
@@ -497,86 +426,66 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* ═══ COMMAND PALETTE (Ctrl+K) ═══ */}
+      {/* ═══ COMMAND PALETTE ═══ */}
       {searchOpen && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in pt-16" onClick={() => setSearchOpen(false)}>
-          <div className="bg-white rounded-[24px] w-[92%] max-w-md shadow-2xl overflow-hidden animate-slide-up" onClick={e => e.stopPropagation()}>
-            {/* Search input */}
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
-              <Search className="w-5 h-5 text-slate-400 shrink-0" />
+        <div className="dash-overlay" onClick={() => setSearchOpen(false)}>
+          <div className="dash-palette" onClick={e => e.stopPropagation()}>
+            <div className="dash-palette-input-row">
+              <Search size={16} color="#adb5bd" />
               <input
                 ref={searchInputRef}
                 value={searchQuery}
                 onChange={e => handleSearchChange(e.target.value)}
-                placeholder="Search pages, people, events..."
-                className="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-none"
+                placeholder="Search pages, people, events…"
+                className="dash-palette-input"
               />
-              <div className="flex items-center gap-1">
-                <kbd className="hidden sm:inline-block text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">ESC</kbd>
-                <button onClick={() => setSearchOpen(false)} className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
-                  <X className="w-3.5 h-3.5 text-slate-500" />
-                </button>
-              </div>
+              <button className="dash-palette-close" onClick={() => setSearchOpen(false)}>
+                <X size={14} />
+              </button>
             </div>
-
-            {/* Results */}
-            <div className="max-h-[60vh] overflow-y-auto p-2">
+            <div className="dash-palette-body">
               {searchQuery.length < 2 ? (
                 <>
                   {recentSearches.length > 0 && (
-                    <div className="px-3 py-2">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Recent Searches</p>
+                    <div className="dash-palette-section">
+                      <p className="dash-palette-label">Recent</p>
                       {recentSearches.map((s, i) => (
-                        <button key={i} onClick={() => { setSearchQuery(s); performSearch(s); }}
-                          className="w-full text-left px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" /> {s}
+                        <button key={i} className="dash-palette-row" onClick={() => { setSearchQuery(s); performSearch(s); }}>
+                          <Clock size={14} color="#adb5bd" /> {s}
                         </button>
                       ))}
                     </div>
                   )}
-                  <div className="px-3 py-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Trending</p>
-                    {['Exam Schedule', 'Bus Tracker', 'Internal Marks', 'Job Portal'].map(t => (
-                      <button key={t} onClick={() => { setSearchQuery(t); performSearch(t); }}
-                        className="w-full text-left px-3 py-2 rounded-xl text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2">
-                        <TrendingUp className="w-3.5 h-3.5 text-indigo-400" /> {t}
+                  <div className="dash-palette-section">
+                    <p className="dash-palette-label">Trending</p>
+                    {['Exam Schedule', 'Bus Timings', 'Internal Marks', 'Job Portal'].map(t => (
+                      <button key={t} className="dash-palette-row" onClick={() => { setSearchQuery(t); performSearch(t); }}>
+                        <TrendingUp size={14} color="#0080c7" /> {t}
                       </button>
                     ))}
                   </div>
                 </>
               ) : searchResults.length === 0 ? (
-                <div className="text-center py-8">
-                  <Search className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm text-slate-500">No results for "<span className="font-bold">{searchQuery}</span>"</p>
+                <div className="dash-palette-empty">
+                  <Search size={24} color="#dee2e6" />
+                  <p>No results for "<strong>{searchQuery}</strong>"</p>
                 </div>
               ) : (
-                <div className="px-1">
-                  {searchResults.map((r, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleSearchNavigate(r.path, r.title)}
-                      className="w-full text-left px-3 py-3 rounded-xl hover:bg-slate-50 flex items-center gap-3 transition-colors"
-                    >
-                      <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 shrink-0">
-                        {getSearchIcon(r.icon)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-bold text-slate-900 truncate">{r.title}</h4>
-                        <p className="text-[10px] text-slate-400">{r.subtitle}</p>
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full uppercase shrink-0">{r.type}</span>
-                    </button>
-                  ))}
-                </div>
+                searchResults.map((r, i) => (
+                  <button key={i} className="dash-palette-result" onClick={() => handleSearchNavigate(r.path, r.title)}>
+                    <div className="dash-palette-result-icon">{getSearchIcon(r.icon)}</div>
+                    <div className="dash-palette-result-info">
+                      <h4>{r.title}</h4>
+                      <p>{r.subtitle}</p>
+                    </div>
+                    <span className="dash-palette-result-type">{r.type}</span>
+                  </button>
+                ))
               )}
             </div>
-
-            {/* Footer hint */}
-            <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-1 text-[10px] text-slate-400">
-                <Command className="w-3 h-3" /> <span className="font-bold">Ctrl+K</span> to search
-              </div>
-              <span className="text-[10px] text-slate-400">{searchResults.length} results</span>
+            <div className="dash-palette-footer">
+              <span><Command size={11} /> Ctrl+K</span>
+              <span>{searchResults.length} results</span>
             </div>
           </div>
         </div>
@@ -584,80 +493,53 @@ const Dashboard = () => {
 
       {/* ═══ NOTIFICATION DRAWER ═══ */}
       {notifOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setNotifOpen(false)}>
-          <div className="bg-white rounded-t-[32px] w-full max-w-md shadow-2xl animate-slide-up max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            {/* Header */}
-            <div className="p-5 pb-3 border-b border-slate-100 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <h2 className="text-lg font-black text-slate-900">Notifications</h2>
-                {unreadCount > 0 && (
-                  <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">{unreadCount} new</span>
-                )}
+        <div className="dash-overlay dash-overlay-bottom" onClick={() => setNotifOpen(false)}>
+          <div className="dash-drawer" onClick={e => e.stopPropagation()}>
+            <div className="dash-drawer-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <h2>Notifications</h2>
+                {unreadCount > 0 && <span className="dash-drawer-badge">{unreadCount}</span>}
               </div>
-              <div className="flex items-center gap-2">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {unreadCount > 0 && (
-                  <button onClick={markAllRead} className="text-[10px] font-bold text-indigo-500 hover:text-indigo-700">
-                    Mark all read
-                  </button>
+                  <button className="dash-drawer-mark" onClick={markAllRead}>Mark all read</button>
                 )}
-                <button onClick={() => setNotifOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                  <X className="w-4 h-4 text-slate-500" />
-                </button>
+                <button className="dash-palette-close" onClick={() => setNotifOpen(false)}><X size={14} /></button>
               </div>
             </div>
 
-            {/* Category tabs */}
-            <div className="flex gap-1 px-5 py-3 shrink-0 overflow-x-auto hide-scrollbar">
+            <div className="dash-drawer-tabs">
               {['all', 'academic', 'event', 'finance'].map(cat => (
                 <button key={cat} onClick={() => setNotifCategory(cat)}
-                  className={`px-3.5 py-1.5 rounded-xl text-[11px] font-bold capitalize transition-all ${
-                    notifCategory === cat ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'
-                  }`}>
+                  className={`dash-drawer-tab ${notifCategory === cat ? 'active' : ''}`}>
                   {cat}
                 </button>
               ))}
             </div>
 
-            {/* Notification list */}
-            <div className="flex-1 overflow-y-auto p-4 pt-1">
+            <div className="dash-drawer-list">
               {filteredNotifs.length === 0 ? (
-                <div className="text-center py-12">
-                  <CheckCircle className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-                  <p className="text-sm text-slate-400 font-bold">All caught up!</p>
+                <div className="dash-palette-empty" style={{ padding: '48px 0' }}>
+                  <CheckCircle size={28} color="#dee2e6" />
+                  <p>All caught up!</p>
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
-                  {filteredNotifs.map(n => (
-                    <button
-                      key={n.id}
-                      onClick={() => { setNotifOpen(false); navigate(n.path); }}
-                      className={`w-full text-left rounded-[18px] p-4 flex items-start gap-3 transition-all hover:shadow-sm active:scale-[0.98] ${
-                        n.read ? 'bg-slate-50 border border-slate-100' : 'bg-white border border-slate-200 shadow-sm'
-                      }`}
-                    >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                        n.category === 'academic' ? 'bg-indigo-100 text-indigo-600'
-                        : n.category === 'event' ? 'bg-pink-100 text-pink-600'
-                        : 'bg-amber-100 text-amber-600'
-                      }`}>
-                        {getNotifIcon(n.category)}
+                filteredNotifs.map(n => (
+                  <button key={n.id} className={`dash-notif-item ${n.read ? 'read' : ''}`}
+                    onClick={() => { setNotifOpen(false); navigate(n.path); }}>
+                    <div className="dash-notif-icon" data-cat={n.category}>
+                      {getNotifIcon(n.category)}
+                    </div>
+                    <div className="dash-notif-body">
+                      <div className="dash-notif-title-row">
+                        <h4>{n.title}</h4>
+                        {!n.read && <span className={`dash-notif-dot ${n.urgency === 'critical' ? 'critical' : ''}`} />}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <h4 className={`text-sm font-bold truncate ${n.read ? 'text-slate-600' : 'text-slate-900'}`}>{n.title}</h4>
-                          {!n.read && n.urgency === 'critical' && (
-                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                          )}
-                          {!n.read && n.urgency !== 'critical' && (
-                            <span className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-500 line-clamp-2">{n.message}</p>
-                        <p className="text-[9px] text-slate-400 font-bold mt-1">{getRelativeTime(n.timestamp)}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
+                      <p className="dash-notif-msg">{n.message}</p>
+                      <p className="dash-notif-time">{getRelativeTime(n.timestamp)}</p>
+                    </div>
+                  </button>
+                ))
               )}
             </div>
           </div>
@@ -667,13 +549,412 @@ const Dashboard = () => {
       <BottomNav />
       <UpsellModal isOpen={upsellOpen} onClose={() => setUpsellOpen(false)} />
 
+      {/* ═══ SCOPED STYLES ═══ */}
       <style>{`
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .animate-slide-up { animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade-in { animation: fade-in 0.2s ease-out; }
+        /* ── Root ─────────────────────────────────── */
+        .dash-root {
+          height: 100%; display: flex; flex-direction: column;
+          background: #f4f5f7; font-family: 'Inter', -apple-system, system-ui, sans-serif;
+          position: relative; padding-bottom: 80px;
+        }
+
+        /* ── Top (header) ────────────────────────── */
+        .dash-top {
+          background: #fff; padding: 48px 24px 20px; position: relative;
+        }
+        .dash-top-row {
+          display: flex; align-items: flex-start; justify-content: space-between;
+        }
+        .dash-date {
+          font-size: 11px; font-weight: 500; color: #adb5bd;
+          letter-spacing: 0.3px; margin-bottom: 4px;
+        }
+        .dash-greeting {
+          font-size: 22px; font-weight: 700; color: #22346c;
+          line-height: 1.25; letter-spacing: -0.3px;
+        }
+        .dash-top-actions { display: flex; gap: 8px; margin-top: 4px; }
+        .dash-icon-btn {
+          width: 40px; height: 40px; border-radius: 12px;
+          background: #f4f5f7; border: none; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          color: #22346c; position: relative; transition: background 0.15s;
+        }
+        .dash-icon-btn:hover { background: #e9ecef; }
+        .dash-badge {
+          position: absolute; top: -2px; right: -2px;
+          width: 18px; height: 18px; border-radius: 50%;
+          background: #a91f23; color: #fff; font-size: 9px;
+          font-weight: 700; display: flex; align-items: center;
+          justify-content: center;
+        }
+
+        /* Next action */
+        .dash-next-action {
+          display: flex; align-items: center; gap: 8px;
+          width: 100%; margin-top: 16px; padding: 10px 14px;
+          background: #f0f8fd; border-radius: 12px; border: none;
+          cursor: pointer; text-align: left; transition: background 0.15s;
+        }
+        .dash-next-action:hover { background: #dfeffa; }
+        .dash-next-action span {
+          flex: 1; font-size: 13px; font-weight: 500; color: #22346c;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
+        /* ── Stat cards (like reference) ─────────── */
+        .dash-stats-row {
+          display: grid; grid-template-columns: 1fr 1fr;
+          gap: 12px; padding: 16px 20px 0;
+        }
+        .dash-stat-card {
+          border-radius: 20px; padding: 20px 18px;
+          border: none; cursor: pointer; text-align: left;
+          transition: transform 0.15s;
+        }
+        .dash-stat-card:active { transform: scale(0.97); }
+        .dash-stat-blue { background: #dff0fb; }
+        .dash-stat-cyan { background: #e4f6f9; }
+        .dash-stat-label {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 12px; font-weight: 600; color: #495057;
+          margin-bottom: 8px;
+        }
+        .dash-stat-value {
+          font-size: 32px; font-weight: 800; color: #22346c;
+          letter-spacing: -1px; line-height: 1;
+        }
+        .dash-stat-unit {
+          font-size: 14px; font-weight: 600; color: #868e96;
+          letter-spacing: 0;
+        }
+
+        /* ── Sections ────────────────────────────── */
+        .dash-scroll {
+          flex: 1; overflow-y: auto; scrollbar-width: none;
+        }
+        .dash-scroll::-webkit-scrollbar { display: none; }
+        .dash-section { padding: 0 20px; margin-top: 24px; }
+        .dash-section-header {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 14px;
+        }
+        .dash-section-title {
+          font-size: 15px; font-weight: 700; color: #22346c;
+        }
+        .dash-see-all {
+          font-size: 12px; font-weight: 600; color: #0080c7;
+          display: flex; align-items: center; gap: 2px;
+          background: none; border: none; cursor: pointer;
+        }
+        .dash-see-all:hover { color: #035687; }
+        .dash-empty {
+          text-align: center; padding: 32px; color: #adb5bd;
+          font-size: 14px; background: #fff; border-radius: 16px;
+        }
+
+        /* ── Quick Actions (circular) ────────────── */
+        .dash-actions-grid {
+          display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px 8px;
+        }
+        .dash-action-item {
+          display: flex; flex-direction: column; align-items: center;
+          gap: 6px; background: none; border: none; cursor: pointer;
+        }
+        .dash-action-item:active .dash-action-circle { transform: scale(0.9); }
+        .dash-action-circle {
+          width: 52px; height: 52px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          transition: transform 0.15s;
+        }
+        .dash-action-label {
+          font-size: 10px; font-weight: 600; color: #495057;
+          text-align: center; line-height: 1.3;
+        }
+
+        /* ── Schedule ────────────────────────────── */
+        .dash-schedule-list { display: flex; flex-direction: column; gap: 8px; }
+        .dash-schedule-item {
+          display: flex; align-items: center; gap: 14px;
+          background: #fff; border-radius: 14px; padding: 14px 16px;
+          border: none; cursor: pointer; text-align: left;
+          transition: box-shadow 0.15s;
+        }
+        .dash-schedule-item:hover { box-shadow: 0 2px 8px rgba(34,52,108,0.06); }
+        .dash-schedule-time {
+          display: flex; flex-direction: column; align-items: center;
+          min-width: 42px;
+        }
+        .dash-time-text { font-size: 13px; font-weight: 700; color: #22346c; }
+        .dash-time-dot {
+          width: 4px; height: 4px; border-radius: 50%;
+          background: #ced4da; margin: 3px 0;
+        }
+        .dash-time-sub { font-size: 11px; color: #adb5bd; font-weight: 500; }
+        .dash-schedule-info { flex: 1; min-width: 0; }
+        .dash-schedule-name {
+          font-size: 14px; font-weight: 600; color: #22346c;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          margin: 0;
+        }
+        .dash-schedule-meta {
+          font-size: 11px; color: #adb5bd; margin: 3px 0 0;
+          font-weight: 500;
+        }
+
+        /* ── Deadlines / Notices ──────────────────── */
+        .dash-deadline-list { display: flex; flex-direction: column; gap: 8px; }
+        .dash-deadline-item {
+          display: flex; align-items: center; gap: 12px;
+          background: #fff; border-radius: 14px; padding: 14px 16px;
+          border: none; cursor: pointer; text-align: left;
+          transition: box-shadow 0.15s;
+        }
+        .dash-deadline-item:hover { box-shadow: 0 2px 8px rgba(34,52,108,0.06); }
+        .dash-deadline-icon {
+          width: 40px; height: 40px; border-radius: 12px;
+          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .dash-deadline-info { flex: 1; min-width: 0; }
+        .dash-deadline-info h3 {
+          font-size: 13px; font-weight: 600; color: #22346c;
+          margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .dash-deadline-info p {
+          font-size: 11px; color: #adb5bd; margin: 2px 0 0; font-weight: 500;
+        }
+        .dash-deadline-badge {
+          font-size: 10px; font-weight: 700; padding: 4px 10px;
+          border-radius: 8px; flex-shrink: 0;
+        }
+        .dash-urgency-dot {
+          width: 8px; height: 8px; border-radius: 50%;
+          background: #a91f23; flex-shrink: 0;
+          animation: pulse-dot 2s infinite;
+        }
+
+        /* ── Activity Card (dark) ────────────────── */
+        .dash-activity-card {
+          background: #22346c; border-radius: 24px; padding: 22px 20px;
+          color: #fff;
+        }
+        .dash-activity-header {
+          display: flex; align-items: center; justify-content: space-between;
+          margin-bottom: 20px;
+        }
+        .dash-activity-label { font-size: 12px; color: #adb5bd; font-weight: 500; margin: 0 0 4px; }
+        .dash-activity-value { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin: 0; }
+        .dash-activity-unit { font-size: 12px; font-weight: 500; color: #adb5bd; }
+        .dash-activity-ring { position: relative; }
+        .dash-ring-text {
+          position: absolute; inset: 0;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 11px; font-weight: 700; color: #27bcd1;
+        }
+        .dash-bar-chart {
+          display: flex; align-items: flex-end; justify-content: space-between;
+          gap: 8px; height: 80px;
+        }
+        .dash-bar-col {
+          flex: 1; display: flex; flex-direction: column;
+          align-items: center; gap: 6px; height: 100%;
+        }
+        .dash-bar-track {
+          flex: 1; width: 100%; display: flex; align-items: flex-end;
+          justify-content: center;
+        }
+        .dash-bar-fill {
+          width: 100%; max-width: 28px; border-radius: 6px;
+          position: relative; min-height: 8px;
+          transition: height 0.5s ease;
+        }
+        .dash-bar-tip {
+          position: absolute; top: -22px; left: 50%;
+          transform: translateX(-50%);
+          background: #27bcd1; color: #fff; font-size: 10px;
+          font-weight: 700; padding: 2px 7px; border-radius: 6px;
+        }
+        .dash-bar-tip::after {
+          content: ''; position: absolute; bottom: -4px; left: 50%;
+          transform: translateX(-50%);
+          border-left: 4px solid transparent; border-right: 4px solid transparent;
+          border-top: 4px solid #27bcd1;
+        }
+        .dash-bar-day { font-size: 10px; font-weight: 600; color: #adb5bd; }
+
+        /* ── Overlay ─────────────────────────────── */
+        .dash-overlay {
+          position: fixed; inset: 0; z-index: 100;
+          background: rgba(34,52,108,0.35); backdrop-filter: blur(4px);
+          display: flex; align-items: flex-start; justify-content: center;
+          padding-top: 72px;
+          animation: fadeIn 0.15s ease;
+        }
+        .dash-overlay-bottom { align-items: flex-end; padding-top: 0; }
+
+        /* ── Command Palette ──────────────────────── */
+        .dash-palette {
+          background: #fff; border-radius: 20px; width: 92%; max-width: 420px;
+          box-shadow: 0 12px 40px rgba(34,52,108,0.12);
+          overflow: hidden; animation: slideUp 0.25s cubic-bezier(0.16,1,0.3,1);
+        }
+        .dash-palette-input-row {
+          display: flex; align-items: center; gap: 10px;
+          padding: 14px 16px; border-bottom: 1px solid #f1f3f5;
+        }
+        .dash-palette-input {
+          flex: 1; border: none; outline: none; font-size: 14px;
+          font-weight: 500; color: #22346c; background: transparent;
+        }
+        .dash-palette-input::placeholder { color: #ced4da; }
+        .dash-palette-close {
+          width: 26px; height: 26px; border-radius: 8px;
+          background: #f1f3f5; border: none; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          color: #868e96; transition: background 0.15s;
+        }
+        .dash-palette-close:hover { background: #e9ecef; }
+        .dash-palette-body { max-height: 55vh; overflow-y: auto; padding: 8px; }
+        .dash-palette-section { padding: 8px; }
+        .dash-palette-label {
+          font-size: 10px; font-weight: 700; color: #adb5bd;
+          text-transform: uppercase; letter-spacing: 0.5px;
+          margin-bottom: 6px;
+        }
+        .dash-palette-row {
+          width: 100%; display: flex; align-items: center; gap: 10px;
+          padding: 8px 10px; border-radius: 10px; border: none;
+          background: transparent; cursor: pointer; font-size: 13px;
+          font-weight: 500; color: #495057; text-align: left;
+          transition: background 0.12s;
+        }
+        .dash-palette-row:hover { background: #f4f5f7; }
+        .dash-palette-empty {
+          text-align: center; padding: 32px 0;
+          display: flex; flex-direction: column; align-items: center; gap: 8px;
+        }
+        .dash-palette-empty p { font-size: 13px; color: #adb5bd; margin: 0; }
+        .dash-palette-result {
+          width: 100%; display: flex; align-items: center; gap: 10px;
+          padding: 10px 12px; border-radius: 10px; border: none;
+          background: transparent; cursor: pointer; text-align: left;
+          transition: background 0.12s;
+        }
+        .dash-palette-result:hover { background: #f4f5f7; }
+        .dash-palette-result-icon {
+          width: 34px; height: 34px; border-radius: 10px;
+          background: #f1f3f5; display: flex; align-items: center;
+          justify-content: center; color: #868e96; flex-shrink: 0;
+        }
+        .dash-palette-result-info { flex: 1; min-width: 0; }
+        .dash-palette-result-info h4 {
+          font-size: 13px; font-weight: 600; color: #22346c;
+          margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .dash-palette-result-info p { font-size: 10px; color: #adb5bd; margin: 2px 0 0; }
+        .dash-palette-result-type {
+          font-size: 9px; font-weight: 700; color: #adb5bd;
+          background: #f1f3f5; padding: 2px 8px; border-radius: 6px;
+          text-transform: uppercase; flex-shrink: 0;
+        }
+        .dash-palette-footer {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 10px 16px; border-top: 1px solid #f1f3f5;
+          font-size: 10px; font-weight: 600; color: #adb5bd;
+        }
+        .dash-palette-footer span { display: flex; align-items: center; gap: 4px; }
+
+        /* ── Notification Drawer ──────────────────── */
+        .dash-drawer {
+          background: #fff; border-radius: 24px 24px 0 0;
+          width: 100%; max-width: 480px; max-height: 82vh;
+          display: flex; flex-direction: column;
+          box-shadow: 0 -8px 40px rgba(34,52,108,0.1);
+          animation: slideUp 0.25s cubic-bezier(0.16,1,0.3,1);
+        }
+        .dash-drawer-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 20px 20px 12px; border-bottom: 1px solid #f1f3f5;
+        }
+        .dash-drawer-header h2 {
+          font-size: 17px; font-weight: 700; color: #22346c; margin: 0;
+        }
+        .dash-drawer-badge {
+          background: #a91f23; color: #fff; font-size: 10px;
+          font-weight: 700; padding: 2px 8px; border-radius: 10px;
+        }
+        .dash-drawer-mark {
+          font-size: 11px; font-weight: 600; color: #0080c7;
+          background: none; border: none; cursor: pointer;
+        }
+        .dash-drawer-tabs {
+          display: flex; gap: 6px; padding: 12px 20px; flex-shrink: 0;
+        }
+        .dash-drawer-tab {
+          padding: 6px 14px; border-radius: 10px; border: none;
+          font-size: 11px; font-weight: 600; text-transform: capitalize;
+          background: #f1f3f5; color: #868e96; cursor: pointer;
+          transition: all 0.15s;
+        }
+        .dash-drawer-tab.active {
+          background: #22346c; color: #fff;
+        }
+        .dash-drawer-list {
+          flex: 1; overflow-y: auto; padding: 8px 16px 16px;
+          display: flex; flex-direction: column; gap: 6px;
+        }
+        .dash-notif-item {
+          display: flex; align-items: flex-start; gap: 10px;
+          padding: 12px 14px; border-radius: 14px; border: none;
+          cursor: pointer; text-align: left; width: 100%;
+          background: #fff; border: 1px solid #e9ecef;
+          transition: box-shadow 0.15s;
+        }
+        .dash-notif-item.read { background: #f8f9fa; border-color: #f1f3f5; }
+        .dash-notif-item:hover { box-shadow: 0 2px 8px rgba(34,52,108,0.06); }
+        .dash-notif-icon {
+          width: 36px; height: 36px; border-radius: 10px;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .dash-notif-icon[data-cat="academic"] { background: #dff0fb; color: #0080c7; }
+        .dash-notif-icon[data-cat="event"] { background: #fdf3f3; color: #a91f23; }
+        .dash-notif-icon[data-cat="finance"] { background: #fcf5f4; color: #c9503d; }
+        .dash-notif-body { flex: 1; min-width: 0; }
+        .dash-notif-title-row {
+          display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
+        }
+        .dash-notif-title-row h4 {
+          font-size: 13px; font-weight: 600; color: #22346c; margin: 0;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .dash-notif-item.read .dash-notif-title-row h4 { color: #868e96; }
+        .dash-notif-dot {
+          width: 6px; height: 6px; border-radius: 50%;
+          background: #0080c7; flex-shrink: 0;
+        }
+        .dash-notif-dot.critical {
+          background: #a91f23; animation: pulse-dot 2s infinite;
+        }
+        .dash-notif-msg {
+          font-size: 11px; color: #868e96; margin: 0;
+          display: -webkit-box; -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .dash-notif-time {
+          font-size: 10px; color: #ced4da; font-weight: 600; margin: 4px 0 0;
+        }
+
+        /* ── Animations ──────────────────────────── */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp {
+          from { transform: translateY(40px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
       `}</style>
     </div>
   );

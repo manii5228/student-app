@@ -50,6 +50,7 @@ const ReferralHub = () => {
   const [selectedAlumnus, setSelectedAlumnus] = useState<Alumni | null>(null);
   const [customMessage, setCustomMessage] = useState('');
   const [targetRole, setTargetRole] = useState('Software Engineer');
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
@@ -144,7 +145,7 @@ ${nameStr}`;
     setRequestsLeft(prev => prev - 1);
     setSelectedAlumnus(null);
     setTargetRole('Software Engineer');
-    alert(`Outreach request sent to ${selectedAlumnus.name}!`);
+    setSuccessMsg(`Outreach request sent to ${selectedAlumnus.name}!`);
   };
 
   // Toggle status for reply / referred
@@ -173,7 +174,10 @@ ${nameStr}`;
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
+            <button onClick={() => {
+              if (user?.role === 'faculty') navigate('/faculty/career');
+              else navigate('/career');
+            }} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <div>
@@ -485,6 +489,25 @@ ${nameStr}`;
                 <Send className="w-3.5 h-3.5" /> Send Request
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal */}
+      {successMsg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 mb-2">Request Sent</h3>
+            <p className="text-xs font-semibold text-slate-600 mb-6 leading-relaxed">{successMsg}</p>
+            <button 
+              onClick={() => setSuccessMsg(null)} 
+              className="w-full bg-pink-600 text-white py-3.5 rounded-2xl font-bold text-xs shadow-lg shadow-pink-500/20"
+            >
+              Okay
+            </button>
           </div>
         </div>
       )}

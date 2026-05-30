@@ -219,12 +219,13 @@ def get_notifications():
     # Dynamic Project Reminders Aggregation
     try:
         from ..models.user import User
-        from ..models.career import Project, Milestone
+        from ..models.career import Project, Milestone, MeetingSlot
         from ..middleware.auth_middleware import resolve_student_identity
         
         real_uid = resolve_student_identity(user_id)
         user_obj = db.session.get(User, real_uid)
         if user_obj:
+            # 1. Project milestones reminders
             fullname = user_obj.full_name
             query = Project.query.filter(
                 (Project.student_id == real_uid) | 
@@ -270,8 +271,45 @@ def get_notifications():
                     "read": False,
                     "path": "/career/projects"
                 })
-    except Exception:
-        pass
+
+            # 2. Meeting notifications
+            if user_obj.role.value == "faculty":
+                # Find booked slots for this faculty member
+                booked_meetings = MeetingSlot.query.filter_by(faculty_id=real_uid, is_booked=True).all()
+                for slot in booked_meetings:
+                    student_obj = db.session.get(User, slot.booked_by)
+                    s_name = student_obj.full_name if student_obj else "Student"
+                    s_roll = student_obj.roll_number if student_obj else "N/A"
+                    notifications.insert(0, {
+                        "id": f"meet_{slot.id}",
+                        "category": "academic",
+                        "urgency": "normal",
+                        "title": "Meeting Slot Booked",
+                        "message": f"Student {s_name} ({s_roll}) booked a slot on {slot.date.isoformat()} at {slot.start_time.strftime('%H:%M')}.",
+                        "timestamp": slot.created_at.isoformat() if slot.created_at else datetime.now(timezone.utc).isoformat(),
+                        "read": False,
+                        "path": "/faculty/meetings"
+                    })
+            else:
+                # Find booked slots for this student
+                booked_meetings = MeetingSlot.query.filter_by(booked_by=real_uid).all()
+                for slot in booked_meetings:
+                    faculty_obj = db.session.get(User, slot.faculty_id)
+                    f_name = faculty_obj.full_name if faculty_obj else "Faculty"
+                    notifications.insert(0, {
+                        "id": f"meet_{slot.id}",
+                        "category": "academic",
+                        "urgency": "normal",
+                        "title": "Meeting Scheduled",
+                        "message": f"Your meeting with Prof. {f_name} is scheduled on {slot.date.isoformat()} at {slot.start_time.strftime('%H:%M')}.",
+                        "timestamp": slot.created_at.isoformat() if slot.created_at else datetime.now(timezone.utc).isoformat(),
+                        "read": False,
+                        "path": "/academic/meetings"
+                    })
+    except Exception as e:
+        import traceback
+        print("Error fetching dynamic notifications:", str(e))
+        traceback.print_exc()
 
     if category != "all":
         notifications = [n for n in notifications if n["category"] == category]

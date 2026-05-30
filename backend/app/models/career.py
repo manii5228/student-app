@@ -93,6 +93,7 @@ class EarnedBadge(db.Model):
     badge_id = db.Column(db.String(36), db.ForeignKey("skill_badges.id"), nullable=False)
     awarded_by = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
     note = db.Column(db.String(500), nullable=True)
+    status = db.Column(db.String(20), default="approved") # approved, pending, rejected
     earned_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     badge = db.relationship("SkillBadge", backref="earned_badges")
 
@@ -101,6 +102,7 @@ class EarnedBadge(db.Model):
             "id": self.id, "student_id": self.student_id,
             "badge": self.badge.to_dict() if self.badge else None,
             "note": self.note,
+            "status": self.status,
             "earned_at": self.earned_at.isoformat() if self.earned_at else None,
         }
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Users, Search, Mail, Phone, BookOpen, Filter } from 'lucide-react';
+import { ChevronLeft, Users, Search, Mail, Phone, BookOpen, Filter, CalendarDays, CheckCircle, Clock, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -17,6 +17,13 @@ interface Faculty {
   avatar_url: string | null;
 }
 
+interface MeetingSlot {
+  id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+}
+
 const FacultyDirectory = () => {
   const navigate = useNavigate();
   const [faculty, setFaculty] = useState<Faculty[]>([]);
@@ -25,7 +32,20 @@ const FacultyDirectory = () => {
   const [deptFilter, setDeptFilter] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
+  // Booking Modal States
+  const [selectedFacultyForMeeting, setSelectedFacultyForMeeting] = useState<Faculty | null>(null);
+  const [slots, setSlots] = useState<MeetingSlot[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [selectedSlotId, setSelectedSlotId] = useState('');
+  const [meetingPurpose, setMeetingPurpose] = useState('');
+  const [booking, setBooking] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+
   const departments = ['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'IT', 'AIDS', 'CSBS'];
+
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const role = user?.role;
 
   useEffect(() => {
     fetchFaculty();
@@ -50,6 +70,46 @@ const FacultyDirectory = () => {
     fetchFaculty();
   };
 
+  const openMeetingModal = async (f: Faculty) => {
+    setSelectedFacultyForMeeting(f);
+    setLoadingSlots(true);
+    setSlots([]);
+    setSelectedSlotId('');
+    setMeetingPurpose('');
+    setBookingSuccess(false);
+    try {
+      const { data } = await api.get(`/faculty/meetings/slots?faculty_id=${f.id}`);
+      setSlots(data.slots || []);
+    } catch (err) {
+      console.error('Failed to fetch slots:', err);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const handleBookMeeting = async () => {
+    if (!selectedSlotId) return;
+    setBooking(true);
+    try {
+      await api.post(`/faculty/meetings/slots/${selectedSlotId}/book`, { purpose: meetingPurpose });
+      setBookingSuccess(true);
+      setTimeout(() => {
+        setBookingSuccess(false);
+        setSelectedFacultyForMeeting(null);
+      }, 1500);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to book slot');
+    } finally {
+      setBooking(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (role === 'faculty') navigate('/faculty');
+    else if (role === 'admin') navigate('/admin');
+    else navigate('/academic');
+  };
+
   const filtered = faculty.filter(f =>
     f.full_name.toLowerCase().includes(search.toLowerCase()) ||
     f.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -65,11 +125,11 @@ const FacultyDirectory = () => {
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       {/* Header */}
-      <div className="bg-orange-500 p-6 pt-12 shadow-md relative overflow-hidden">
+      <div className="bg-orange-500 p-6 pt-12 shadow-md relative overflow-hidden shrink-0">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center justify-between relative z-10 mb-4">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
+            <button onClick={handleBack} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <div>
@@ -147,11 +207,18 @@ const FacultyDirectory = () => {
                   </p>
                   {f.specialization && (
                     <p className="text-xs text-slate-500 mt-1 flex items-center gap-1 truncate">
-                      <BookOpen className="w-3 h-3 shrink-0" /> {f.specialization}
+                      <BookOpen className="w-3.5 h-3.5 shrink-0" /> {f.specialization}
                     </p>
                   )}
                 </div>
-                <div className="flex flex-col gap-2 shrink-0">
+                <div className="flex flex-row gap-1.5 shrink-0">
+                  <button 
+                    onClick={() => openMeetingModal(f)} 
+                    className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 hover:bg-orange-100 transition-colors"
+                    title="Book Meeting Slot"
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                  </button>
                   <a href={`mailto:${f.email}`} className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition-colors">
                     <Mail className="w-4 h-4" />
                   </a>
@@ -166,6 +233,68 @@ const FacultyDirectory = () => {
           </div>
         )}
       </div>
+
+      {/* Book Office Hours Meeting Modal */}
+      {selectedFacultyForMeeting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 animate-fade-in">
+          <div className="bg-white rounded-[32px] p-6 w-full max-w-sm shadow-2xl animate-slide-up">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-slate-900">Book Office Hours</h3>
+              <button onClick={() => setSelectedFacultyForMeeting(null)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 mb-4">Schedule a slot to meet with <span className="font-bold text-slate-900">{selectedFacultyForMeeting.full_name}</span>.</p>
+
+            {bookingSuccess ? (
+              <div className="bg-emerald-50 text-emerald-700 rounded-2xl p-4 flex items-center gap-2 mb-2">
+                <CheckCircle className="w-5 h-5 text-emerald-600"/> Slot booked successfully!
+              </div>
+            ) : loadingSlots ? (
+              <div className="flex justify-center py-6"><span className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></span></div>
+            ) : slots.length === 0 ? (
+              <p className="text-xs text-slate-400 italic text-center py-6">No available meeting slots created by this professor.</p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Select Time Slot</label>
+                  <select
+                    value={selectedSlotId}
+                    onChange={e => setSelectedSlotId(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold"
+                  >
+                    <option value="">Choose a slot</option>
+                    {slots.map(slot => (
+                      <option key={slot.id} value={slot.id}>
+                        {new Date(slot.date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })} @ {slot.start_time} - {slot.end_time}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Purpose of Meeting</label>
+                  <input
+                    value={meetingPurpose}
+                    onChange={e => setMeetingPurpose(e.target.value)}
+                    placeholder="e.g. Doubts clarification on Unit 2, project discussion"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs"
+                  />
+                </div>
+
+                <button
+                  onClick={handleBookMeeting}
+                  disabled={booking || !selectedSlotId}
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white py-4 rounded-2xl font-bold text-sm transition-all disabled:opacity-40"
+                >
+                  {booking ? 'Booking...' : 'Book Meeting'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <BottomNav />
     </div>

@@ -63,7 +63,7 @@ const Profile = () => {
   const [sessionLoading, setSessionLoading] = useState<string | null>(null);
   const [confirmLogoutAll, setConfirmLogoutAll] = useState(false);
   const [biometricRegistering, setBiometricRegistering] = useState(false);
-  const [biometricMsg, setBiometricMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
+  const [biometricMsg, setBiometricMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [showBiometricNameModal, setShowBiometricNameModal] = useState(false);
   const [customDeviceName, setCustomDeviceName] = useState('');
 
@@ -85,7 +85,7 @@ const Profile = () => {
   const [achievements, setAchievements] = useState<any[]>(MOCK_ACHIEVEMENTS);
   const [skills, setSkills] = useState(MOCK_SKILLS);
   const [showQRScanner, setShowQRScanner] = useState(false);
-  const [attendanceMsg, setAttendanceMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
+  const [attendanceMsg, setAttendanceMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   // Add certification states
   const [showAddCertModal, setShowAddCertModal] = useState(false);
@@ -106,12 +106,12 @@ const Profile = () => {
       const res = await api.get('/auth/me');
       const u = res.data.user;
       setUser(u);
-      
+
       // Parse achievements
       if (u.achievements && u.achievements.length > 0) {
         setAchievements(u.achievements);
       }
-      
+
       // Parse skills
       if (u.skills && u.skills.length > 0) {
         const mappedSkills = u.skills.map((s: any) => ({
@@ -194,7 +194,7 @@ const Profile = () => {
         return;
       }
       setSessions(prev => prev.filter(s => s.id !== sessionId));
-    } catch {}
+    } catch { }
     setSessionLoading(null);
   };
 
@@ -206,7 +206,7 @@ const Profile = () => {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       navigate('/login');
-    } catch {}
+    } catch { }
   };
 
   const startBiometricRegistration = () => {
@@ -248,7 +248,7 @@ const Profile = () => {
   };
 
   const revokeBiometric = async (credId: string) => {
-    try { await api.delete(`/auth/biometric/credentials/${credId}`); setBiometrics(prev => prev.filter(b => b.id !== credId)); } catch {}
+    try { await api.delete(`/auth/biometric/credentials/${credId}`); setBiometrics(prev => prev.filter(b => b.id !== credId)); } catch { }
   };
 
   const handleLogout = () => {
@@ -356,7 +356,7 @@ const Profile = () => {
     localStorage.setItem('theme_preference', theme);
     localStorage.setItem('accent_color', accentColor);
     localStorage.setItem('offline_sync_settings', JSON.stringify(offlineSync));
-    try { await api.put('/auth/me/preferences', { theme_preference: theme, offline_sync_settings: offlineSync }); } catch {}
+    try { await api.put('/auth/me/preferences', { theme_preference: theme, offline_sync_settings: offlineSync }); } catch { }
   };
 
   const getDeviceIcon = (type: string) => {
@@ -647,11 +647,10 @@ const Profile = () => {
                     </div>
                     <button
                       onClick={() => endorseSkill(skill.name)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all ${
-                        skill.endorsed
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all ${skill.endorsed
                           ? 'bg-indigo-100 text-indigo-700 border border-indigo-200'
                           : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300'
-                      }`}
+                        }`}
                     >
                       <ThumbsUp className={`w-3.5 h-3.5 ${skill.endorsed ? 'fill-indigo-500' : ''}`} />
                       {skill.endorsed ? 'Endorsed' : 'Endorse'}
@@ -850,9 +849,8 @@ const Profile = () => {
                   { key: 'auto', label: 'Auto', icon: <Monitor className="w-4 h-4" /> },
                 ].map(t => (
                   <button key={t.key} onClick={() => setTheme(t.key)}
-                    className={`flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border-2 ${
-                      theme === t.key ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600'
-                    }`}>
+                    className={`flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all border-2 ${theme === t.key ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600'
+                      }`}>
                     {t.icon} {t.label}
                   </button>
                 ))}

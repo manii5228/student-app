@@ -29,7 +29,8 @@ def pending_leaves():
     if user.role.value == "faculty":
         query = query.join(User, LeaveRequest.student_id == User.id).filter(
             User.department == user.department,
-            User.semester == user.semester
+            User.semester == user.semester,
+            User.section == user.section
         )
         
     leaves = query.order_by(LeaveRequest.created_at).all()
@@ -75,11 +76,55 @@ def approve_leave(lid):
 @faculty_bp.route("/meetings/slots", methods=["GET"])
 @jwt_required()
 def list_meeting_slots():
-    """Get available office hour slots for a specific faculty."""
+    """Get available office hour slots for a specific faculty or automatically for the student's assigned faculty."""
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    
     fid = request.args.get("faculty_id")
     if not fid:
-        return jsonify({"error": "faculty_id is required"}), 400
-    slots = MeetingSlot.query.filter_by(faculty_id=fid, is_booked=False, date=date.today()).all()
+        if user.role.value == "student":
+            # Find faculty assigned to this student's class
+            faculties = User.query.filter_by(
+                role="faculty",
+                department=user.department,
+                semester=user.semester,
+                section=user.section
+            ).all()
+            if not faculties:
+                return jsonify({"slots": []}), 200
+            fid_list = [f.id for f in faculties]
+            slots = MeetingSlot.query.filter(
+                MeetingSlot.faculty_id.in_(fid_list),
+                MeetingSlot.is_booked == False
+            ).all()
+            slot_list = []
+            for s in slots:
+                d = s.to_dict()
+                fac = db.session.get(User, s.faculty_id)
+                if fac:
+                    d["faculty_name"] = fac.full_name
+                    d["faculty_email"] = fac.email
+                slot_list.append(d)
+            return jsonify({"slots": slot_list}), 200
+        elif user.role.value == "faculty":
+            # For faculty, fetch their own slots and attach student details if booked
+            slots = MeetingSlot.query.filter_by(faculty_id=user_id).all()
+            slot_list = []
+            for s in slots:
+                d = s.to_dict()
+                if s.is_booked and s.booked_by:
+                    student = db.session.get(User, s.booked_by)
+                    if student:
+                        d["student_name"] = student.full_name
+                        d["student_email"] = student.email
+                        d["student_roll"] = student.roll_number
+                slot_list.append(d)
+            return jsonify({"slots": slot_list}), 200
+        else:
+            return jsonify({"error": "faculty_id is required"}), 400
+            
+    # If specific faculty_id is passed, get their available slots
+    slots = MeetingSlot.query.filter_by(faculty_id=fid, is_booked=False).all()
     return jsonify({"slots": [s.to_dict() for s in slots]}), 200
 
 
@@ -101,6 +146,103 @@ def create_slots():
         slots_created.append(slot)
     db.session.commit()
     return jsonify({"message": f"{len(slots_created)} slots created"}), 201
+
+
+@faculty_bp.route("/meetings/slots/auto-fill", methods=["POST"])
+@jwt_required()
+@role_required("faculty")
+def auto_fill_slots():
+    """Auto-fill 1-hour office slots for a date by checking faculty timetable."""
+    data = request.get_json()
+    if not data or not data.get("date"):
+        return jsonify({"error": "date is required"}), 400
+        
+    date_str = data["date"]
+    try:
+        target_date = date.fromisoformat(date_str)
+    except ValueError:
+        return jsonify({"error": "Invalid date format, use YYYY-MM-DD"}), 400
+        
+    # Get day of week
+    day_name = target_date.strftime("%A").lower()  # monday, tuesday...
+    
+    from ..models.timetable import TimetableSlot, DayOfWeek
+    try:
+        day_enum = DayOfWeek(day_name)
+    except ValueError:
+        return jsonify({"error": f"Invalid day of week for date {date_str}"}), 400
+        
+    faculty_id = get_jwt_identity()
+    
+    # Query all active timetable slots for this faculty on this day
+    class_slots = TimetableSlot.query.filter_by(
+        faculty_id=faculty_id,
+        day=day_enum,
+        is_cancelled=False
+    ).all()
+    
+    # Define standard 1-hour slots from 09:00 to 17:00
+    from datetime import time
+    standard_slots = [
+        ("09:00", "10:00", time(9, 0), time(10, 0)),
+        ("10:00", "11:00", time(10, 0), time(11, 0)),
+        ("11:00", "12:00", time(11, 0), time(12, 0)),
+        ("12:00", "13:00", time(12, 0), time(13, 0)),
+        ("13:00", "14:00", time(13, 0), time(14, 0)),
+        ("14:00", "15:00", time(14, 0), time(15, 0)),
+        ("15:00", "16:00", time(15, 0), time(16, 0)),
+        ("16:00", "17:00", time(16, 0), time(17, 0)),
+    ]
+    
+    available_slots = []
+    
+    for start_str, end_str, start_time, end_time in standard_slots:
+        overlap = False
+        for c in class_slots:
+            if c.start_time and c.end_time:
+                # check if start_time/end_time overlaps with class
+                if not (end_time <= c.start_time or start_time >= c.end_time):
+                    overlap = True
+                    break
+        if not overlap:
+            existing = MeetingSlot.query.filter_by(
+                faculty_id=faculty_id,
+                date=target_date,
+                start_time=start_time,
+                end_time=end_time
+            ).first()
+            if not existing:
+                available_slots.append({
+                    "date": date_str,
+                    "start_time": start_str,
+                    "end_time": end_str
+                })
+                
+    return jsonify({"suggested_slots": available_slots}), 200
+
+
+@faculty_bp.route("/meetings/booked", methods=["GET"])
+@jwt_required()
+@role_required("faculty")
+def get_booked_meetings():
+    """Get list of booked meetings for the faculty."""
+    faculty_id = get_jwt_identity()
+    booked = MeetingSlot.query.filter_by(faculty_id=faculty_id, is_booked=True).order_by(MeetingSlot.date.desc(), MeetingSlot.start_time.desc()).all()
+    
+    result = []
+    for slot in booked:
+        student_obj = db.session.get(User, slot.booked_by)
+        result.append({
+            "id": slot.id,
+            "date": slot.date.isoformat(),
+            "start_time": slot.start_time.strftime("%H:%M"),
+            "end_time": slot.end_time.strftime("%H:%M"),
+            "purpose": slot.purpose,
+            "student_name": student_obj.full_name if student_obj else "Student",
+            "student_email": student_obj.email if student_obj else "N/A",
+            "student_roll": student_obj.roll_number if student_obj else "N/A"
+        })
+    return jsonify({"meetings": result}), 200
 
 
 @faculty_bp.route("/meetings/slots/<sid>/book", methods=["POST"])
@@ -161,24 +303,68 @@ def list_resources():
 @jwt_required()
 @role_required("faculty", "admin")
 def broadcast_message():
-    """Send a notification to a specific class/batch."""
-    # In a full implementation, this would trigger a push notification via Firebase/Celery
+    """Send a notification to a specific class/batch and save it as a notice."""
+    from ..models.campus import Notice
+    import json
     data = request.get_json()
     user_id = get_jwt_identity()
     user = db.session.get(User, user_id)
     
     target = data.get("target_class")
+    content = data.get("message")
+    title = data.get("title", f"Class Broadcast from Prof. {user.last_name}")
     
     # Enforce faculty can only broadcast to their assigned class
+    branch = None
+    year = None
+    section = None
+    target_audience = "all"
+    
     if user.role.value == "faculty":
         assigned_target = f"{user.department}-{user.section} Sem {user.semester}"
         if target != assigned_target and target != "All Students": # UI sends these formats
             return jsonify({"error": f"You are only authorized to broadcast to your assigned class ({assigned_target})."}), 403
+            
+        if target == assigned_target:
+            branch = user.department
+            year = user.semester
+            section = user.section
+            target_audience = "class"
+    else:
+        # Admin can target anything, parse target class if in format DEPT-SEC Sem SEM
+        if target and target != "All Students":
+            try:
+                parts = target.split(" Sem ")
+                dept_sec = parts[0].split("-")
+                branch = dept_sec[0]
+                section = dept_sec[1] if len(dept_sec) > 1 else None
+                year = int(parts[1])
+                target_audience = "class"
+            except Exception:
+                pass
+
+    # Save to Notice database so students see it!
+    notice = Notice(
+        title=title,
+        content=content,
+        author_id=user_id,
+        priority="high",
+        target_audience=target_audience,
+        is_pinned=True,
+        branch=branch,
+        year=year,
+        section=section,
+        media_json='[]',
+        files_json='[]'
+    )
+    db.session.add(notice)
+    db.session.commit()
 
     return jsonify({
-        "message": "Broadcast sent",
+        "message": "Broadcast sent and notice board updated",
         "target": target,
-        "content": data.get("message")
+        "content": content,
+        "notice": notice.to_dict()
     }), 200
 
 
@@ -223,3 +409,65 @@ def mentee_performance():
             "attendance_pct": pct, "total_classes": total,
         })
     return jsonify({"mentees": summary}), 200
+
+
+@faculty_bp.route("/class-students", methods=["GET"])
+@jwt_required()
+@role_required("faculty", "admin")
+def get_class_students():
+    """Get all students in the faculty's assigned class/section."""
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    
+    query = User.query.filter_by(role="student")
+    if user.role.value == "faculty":
+        query = query.filter_by(
+            department=user.department,
+            semester=user.semester,
+            section=user.section
+        )
+    students = query.order_by(User.first_name).all()
+    return jsonify({"students": [
+        {
+            "id": s.id,
+            "name": s.full_name,
+            "email": s.email,
+            "roll_number": s.roll_number,
+            "department": s.department,
+            "semester": s.semester,
+            "section": s.section
+        } for s in students
+    ]}), 200
+
+
+@faculty_bp.route("/assignments", methods=["GET"])
+@jwt_required()
+@role_required("faculty")
+def get_faculty_assignments():
+    """Get the active coordinator assignments for the logged-in faculty member."""
+    fid = get_jwt_identity()
+    
+    from ..models.user import CoordinatorAssignment
+    assignments = CoordinatorAssignment.query.filter_by(faculty_id=fid).all()
+    
+    # Auto-seed defaults if none exist (so it works immediately for testing)
+    if not assignments:
+        default_keys = ["syllabus_tracker", "internal_marks", "job_portal", "interview_schedule"]
+        for key in default_keys:
+            a = CoordinatorAssignment(faculty_id=fid, feature_key=key)
+            db.session.add(a)
+        db.session.commit()
+        assignments = CoordinatorAssignment.query.filter_by(faculty_id=fid).all()
+        
+    assigned_features = [a.feature_key for a in assignments]
+    
+    # Query clubs advisor matches
+    from ..models.campus import Club
+    clubs = Club.query.filter_by(faculty_advisor_id=fid).all()
+    assigned_clubs = [c.id for c in clubs]
+    
+    return jsonify({
+        "assigned_features": assigned_features,
+        "assigned_clubs": assigned_clubs
+    }), 200
+

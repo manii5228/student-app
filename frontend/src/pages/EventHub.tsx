@@ -29,12 +29,24 @@ import {
   ExternalLink,
   ChevronRight,
   X,
+  Plus,
   FileSpreadsheet
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 import UpsellModal from '../components/UpsellModal';
+
+interface Badge { 
+  id: string; 
+  name: string; 
+  description: string | null; 
+  category: string; 
+  icon: string; 
+  color: string; 
+  criteria: string | null; 
+  points: number; 
+}
 
 interface CampusEvent {
   id: string;
@@ -46,6 +58,8 @@ interface CampusEvent {
   end_date?: string | null;
   max_participants?: number | null;
   registration_count: number;
+  organizer_id?: string | null;
+  badge_id?: string | null;
 }
 
 const FALLBACK_EVENTS: CampusEvent[] = [
@@ -158,6 +172,29 @@ const EventHub = () => {
   const [events, setEvents] = useState<CampusEvent[]>(FALLBACK_EVENTS);
   const [activeType, setActiveType] = useState('all');
   const [registered, setRegistered] = useState<string[]>([]);
+  
+  // Faculty/Admin Event CRUD States
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [showEditEvent, setShowEditEvent] = useState(false);
+  const [selectedEventForEdit, setSelectedEventForEdit] = useState<CampusEvent | null>(null);
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    description: '',
+    event_type: 'fest',
+    venue: '',
+    start_date: '',
+    end_date: '',
+    max_participants: '',
+    badge_id: ''
+  });
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [savingEvent, setSavingEvent] = useState(false);
+  
+  // Event Registrations State
+  const [showRegistrations, setShowRegistrations] = useState(false);
+  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [selectedEventForRegistrations, setSelectedEventForRegistrations] = useState<CampusEvent | null>(null);
+  const [loadingRegistrations, setLoadingRegistrations] = useState(false);
 
   // Clubs State
   const [clubs, setClubs] = useState<Club[]>(FALLBACK_CLUBS);
@@ -282,11 +319,18 @@ const EventHub = () => {
         if (Array.isArray(data.clubs) && data.clubs.length > 0) setClubs(data.clubs);
       } catch (error) { console.warn('Offline clubs:', error); }
     };
+    const fetchBadges = async () => {
+      try {
+        const { data } = await api.get('/career/badges');
+        if (Array.isArray(data.badges)) setBadges(data.badges);
+      } catch (error) { console.warn('Offline badges:', error); }
+    };
 
     fetchEvents();
     if (!isGuest) {
       fetchMyRegistrations();
       fetchClubs();
+      fetchBadges();
     }
   }, [isGuest]);
 
@@ -310,6 +354,100 @@ const EventHub = () => {
         });
     }
   }, [activeClubFeed, clubFeeds]);
+
+  const handleCreateEvent = async () => {
+    if (!eventForm.title.trim() || !eventForm.start_date) return;
+    setSavingEvent(true);
+    try {
+      const payload = {
+        ...eventForm,
+        max_participants: eventForm.max_participants ? parseInt(eventForm.max_participants) : null,
+        badge_id: eventForm.badge_id || null
+      };
+      await api.post('/campus/events', payload);
+      setShowCreateEvent(false);
+      setEventForm({ title: '', description: '', event_type: 'fest', venue: '', start_date: '', end_date: '', max_participants: '', badge_id: '' });
+      const { data } = await api.get('/campus/events');
+      if (Array.isArray(data.events)) setEvents(data.events);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to create event');
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
+  const handleEditEvent = (event: CampusEvent) => {
+    setSelectedEventForEdit(event);
+    setEventForm({
+      title: event.title,
+      description: event.description || '',
+      event_type: event.event_type,
+      venue: event.venue || '',
+      start_date: event.start_date ? event.start_date.substring(0, 16) : '',
+      end_date: event.end_date ? event.end_date.substring(0, 16) : '',
+      max_participants: event.max_participants ? String(event.max_participants) : '',
+      badge_id: (event as any).badge_id || ''
+    });
+    setShowEditEvent(true);
+  };
+
+  const handleUpdateEvent = async () => {
+    if (!selectedEventForEdit || !eventForm.title.trim()) return;
+    setSavingEvent(true);
+    try {
+      const payload = {
+        ...eventForm,
+        max_participants: eventForm.max_participants ? parseInt(eventForm.max_participants) : null,
+        badge_id: eventForm.badge_id || null
+      };
+      await api.put(`/campus/events/${selectedEventForEdit.id}`, payload);
+      setShowEditEvent(false);
+      setSelectedEventForEdit(null);
+      const { data } = await api.get('/campus/events');
+      if (Array.isArray(data.events)) setEvents(data.events);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to update event');
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!window.confirm('Are you sure you want to delete this event?')) return;
+    try {
+      await api.delete(`/campus/events/${eventId}`);
+      const { data } = await api.get('/campus/events');
+      if (Array.isArray(data.events)) setEvents(data.events);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete event');
+    }
+  };
+
+  const handleManageRegistrations = async (event: CampusEvent) => {
+    setSelectedEventForRegistrations(event);
+    setShowRegistrations(true);
+    setLoadingRegistrations(true);
+    try {
+      const { data } = await api.get(`/campus/events/${event.id}/registrations`);
+      setRegistrations(data.registrations || []);
+    } catch (err) {
+      console.error("Failed to load registrations", err);
+    } finally {
+      setLoadingRegistrations(false);
+    }
+  };
+
+  const handleUpdateRegistrationStatus = async (regId: string, status: string) => {
+    if (!selectedEventForRegistrations) return;
+    try {
+      await api.put(`/campus/events/${selectedEventForRegistrations.id}/registrations/${regId}`, { status });
+      // Reload registrations
+      const { data } = await api.get(`/campus/events/${selectedEventForRegistrations.id}/registrations`);
+      setRegistrations(data.registrations || []);
+    } catch (err: any) {
+      alert(err.response?.data?.error || "Failed to update status");
+    }
+  };
 
   const handleRegisterEvent = async (eventId: string) => {
     if (isGuest) { setUpsellOpen(true); return; }
@@ -353,7 +491,7 @@ const EventHub = () => {
   const handleCreatePresPost = async (clubId: string, content: string) => {
     if (!content.trim()) return;
     try {
-      const res = await api.post(`/clubs/${clubId}/posts`, { content });
+      const res = await api.post(`/campus/clubs/${clubId}/posts`, { content });
       setClubFeeds(prev => ({
         ...prev,
         [clubId]: [res.data.post, ...(prev[clubId] || [])]
@@ -641,18 +779,30 @@ const EventHub = () => {
     <div className="min-h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       {/* Header */}
       <div className="bg-[#0080c7] p-6 pt-12 rounded-b-[36px] shadow-md text-white shrink-0">
-        <div className="flex items-center gap-3">
-          <button onClick={() => {
-              const role = JSON.parse(localStorage.getItem('user') || '{}').role;
-              if (window.history.length > 2) { navigate(-1); }
-              else { navigate(role === 'faculty' ? '/faculty' : role === 'admin' ? '/admin' : '/campus'); }
-            }} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold">Event & Comm Hub</h1>
-            <p className="text-xs text-white/75">Fests, clubs, volunteer, and highlights</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => {
+                const role = JSON.parse(localStorage.getItem('user') || '{}').role;
+                if (role === 'faculty') navigate('/faculty');
+                else if (role === 'admin') navigate('/admin');
+                else if (window.history.length > 2) { navigate(-1); }
+                else { navigate('/campus'); }
+              }} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold">Event & Comm Hub</h1>
+              <p className="text-xs text-white/75">Fests, clubs, volunteer, and highlights</p>
+            </div>
           </div>
+          {user && (user.role === 'faculty' || user.role === 'admin') && activeView === 'events' && (
+            <button onClick={() => {
+              setEventForm({ title: '', description: '', event_type: 'fest', venue: '', start_date: '', end_date: '', max_participants: '', badge_id: '' });
+              setShowCreateEvent(true);
+            }} className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center hover:bg-white/25 transition-all text-white">
+              <Plus className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -696,19 +846,44 @@ const EventHub = () => {
                       <p className="text-xs text-slate-500 mt-1 leading-relaxed line-clamp-2">{event.description}</p>
                     </div>
                   </div>
-                  <div className="mt-4 flex items-center justify-between gap-3">
-                    <div className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                      <Ticket className="w-4 h-4 text-[#c9503d]" />
-                      {seatsLeft === null ? 'Open entry' : `${seatsLeft} seats left`}
+                  <div className="mt-4 flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                        <Ticket className="w-4 h-4 text-[#c9503d]" />
+                        {seatsLeft === null ? 'Open entry' : `${seatsLeft} seats left`}
+                      </div>
+                      <button
+                        onClick={() => handleRegisterEvent(event.id)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                          isReg ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-900 text-white active:scale-95'
+                        }`}
+                      >
+                        {isReg ? 'Registered' : 'Register'}
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleRegisterEvent(event.id)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                        isReg ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-900 text-white active:scale-95'
-                      }`}
-                    >
-                      {isReg ? 'Registered' : 'Register'}
-                    </button>
+
+                    {user && (user.role === 'admin' || user.role === 'faculty' || event.organizer_id === user.id) && (
+                      <div className="flex items-center gap-2 pt-2 border-t border-slate-100 mt-1">
+                        <button
+                          onClick={() => handleEditEvent(event)}
+                          className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEvent(event.id)}
+                          className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-655 rounded-xl text-xs font-bold transition-all"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => handleManageRegistrations(event)}
+                          className="flex-1 py-2 bg-[#0080c7]/10 hover:bg-[#0080c7]/20 text-[#0080c7] rounded-xl text-xs font-bold transition-all"
+                        >
+                          Registrations
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -1291,7 +1466,6 @@ const EventHub = () => {
           </div>
         )}
       </div>
-
       {/* Simulated Attendance QR Scanner Modal */}
       {showScanner && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-6">
@@ -1332,6 +1506,325 @@ const EventHub = () => {
                 Scan Session QR Code
               </button>
             )}
+          </div>
+        </div>
+      )}
+      {/* Create Event Modal */}
+      {showCreateEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-6 overflow-y-auto">
+          <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl relative p-6 border border-slate-100 my-8">
+            <button 
+              onClick={() => setShowCreateEvent(false)} 
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 text-slate-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="text-lg font-black text-slate-950 mb-4">Create Campus Event</h3>
+            
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Event Title *</label>
+                <input
+                  type="text"
+                  value={eventForm.title}
+                  onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+                  placeholder="e.g. HackGrid 36h"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#0080c7] text-slate-800"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Description</label>
+                <textarea
+                  value={eventForm.description}
+                  onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
+                  placeholder="Event details and instructions..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm h-20 resize-none outline-none focus:border-[#0080c7] text-slate-800"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Type</label>
+                  <select
+                    value={eventForm.event_type}
+                    onChange={(e) => setEventForm({ ...eventForm, event_type: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-sm outline-none focus:border-[#0080c7] text-slate-800"
+                  >
+                    <option value="fest">Fest</option>
+                    <option value="technical">Technical</option>
+                    <option value="cultural">Cultural</option>
+                    <option value="sports">Sports</option>
+                    <option value="seminar">Seminar</option>
+                    <option value="workshop">Workshop</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Venue</label>
+                  <input
+                    type="text"
+                    value={eventForm.venue}
+                    onChange={(e) => setEventForm({ ...eventForm, venue: e.target.value })}
+                    placeholder="e.g. Seminar Hall"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#0080c7] text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Start Date *</label>
+                  <input
+                    type="datetime-local"
+                    value={eventForm.start_date}
+                    onChange={(e) => setEventForm({ ...eventForm, start_date: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-xs outline-none focus:border-[#0080c7] text-slate-850"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">End Date</label>
+                  <input
+                    type="datetime-local"
+                    value={eventForm.end_date}
+                    onChange={(e) => setEventForm({ ...eventForm, end_date: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-xs outline-none focus:border-[#0080c7] text-slate-850"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Max Seats</label>
+                  <input
+                    type="number"
+                    value={eventForm.max_participants}
+                    onChange={(e) => setEventForm({ ...eventForm, max_participants: e.target.value })}
+                    placeholder="e.g. 100 (Optional)"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#0080c7] text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Associated Badge</label>
+                  <select
+                    value={eventForm.badge_id}
+                    onChange={(e) => setEventForm({ ...eventForm, badge_id: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-sm outline-none focus:border-[#0080c7] text-slate-800"
+                  >
+                    <option value="">No Badge</option>
+                    {badges.map(b => (
+                      <option key={b.id} value={b.id}>{b.name} ({b.points} pts)</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                onClick={handleCreateEvent}
+                disabled={savingEvent || !eventForm.title.trim() || !eventForm.start_date}
+                className="w-full mt-2 bg-[#0080c7] hover:bg-[#006ca8] text-white py-3.5 rounded-2xl text-sm font-bold shadow-lg transition-all disabled:opacity-50"
+              >
+                {savingEvent ? 'Saving...' : 'Publish Event'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Event Modal */}
+      {showEditEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-6 overflow-y-auto">
+          <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl relative p-6 border border-slate-100 my-8">
+            <button 
+              onClick={() => { setShowEditEvent(false); setSelectedEventForEdit(null); }} 
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 text-slate-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="text-lg font-black text-slate-950 mb-4">Edit Event Details</h3>
+            
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Event Title *</label>
+                <input
+                  type="text"
+                  value={eventForm.title}
+                  onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#0080c7] text-slate-805"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Description</label>
+                <textarea
+                  value={eventForm.description}
+                  onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm h-20 resize-none outline-none focus:border-[#0080c7] text-slate-805"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Type</label>
+                  <select
+                    value={eventForm.event_type}
+                    onChange={(e) => setEventForm({ ...eventForm, event_type: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-sm outline-none focus:border-[#0080c7] text-slate-805"
+                  >
+                    <option value="fest">Fest</option>
+                    <option value="technical">Technical</option>
+                    <option value="cultural">Cultural</option>
+                    <option value="sports">Sports</option>
+                    <option value="seminar">Seminar</option>
+                    <option value="workshop">Workshop</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Venue</label>
+                  <input
+                    type="text"
+                    value={eventForm.venue}
+                    onChange={(e) => setEventForm({ ...eventForm, venue: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#0080c7] text-slate-805"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Start Date *</label>
+                  <input
+                    type="datetime-local"
+                    value={eventForm.start_date}
+                    onChange={(e) => setEventForm({ ...eventForm, start_date: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-xs outline-none focus:border-[#0080c7] text-slate-850"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">End Date</label>
+                  <input
+                    type="datetime-local"
+                    value={eventForm.end_date}
+                    onChange={(e) => setEventForm({ ...eventForm, end_date: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-xs outline-none focus:border-[#0080c7] text-slate-850"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Max Seats</label>
+                  <input
+                    type="number"
+                    value={eventForm.max_participants}
+                    onChange={(e) => setEventForm({ ...eventForm, max_participants: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm outline-none focus:border-[#0080c7] text-slate-805"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Associated Badge</label>
+                  <select
+                    value={eventForm.badge_id}
+                    onChange={(e) => setEventForm({ ...eventForm, badge_id: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3 py-3 text-sm outline-none focus:border-[#0080c7] text-slate-805"
+                  >
+                    <option value="">No Badge</option>
+                    {badges.map(b => (
+                      <option key={b.id} value={b.id}>{b.name} ({b.points} pts)</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <button
+                onClick={handleUpdateEvent}
+                disabled={savingEvent || !eventForm.title.trim()}
+                className="w-full mt-2 bg-[#0080c7] hover:bg-[#006ca8] text-white py-3.5 rounded-2xl text-sm font-bold shadow-lg transition-all disabled:opacity-50"
+              >
+                {savingEvent ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Registrations Management Modal */}
+      {showRegistrations && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-6">
+          <div className="bg-white w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl relative p-6 border border-slate-100 flex flex-col max-h-[85vh]">
+            <button 
+              onClick={() => { setShowRegistrations(false); setSelectedEventForRegistrations(null); }} 
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 text-slate-700 z-10"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="mb-4">
+              <h3 className="text-lg font-black text-slate-950">Manage Event Roster</h3>
+              <p className="text-xs text-slate-500 mt-0.5">{selectedEventForRegistrations?.title}</p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+              {loadingRegistrations ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <span className="w-8 h-8 border-4 border-[#0080c7] border-t-transparent rounded-full animate-spin"></span>
+                  <p className="text-xs font-bold text-slate-400">Loading registrations...</p>
+                </div>
+              ) : registrations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
+                  <Users className="w-12 h-12 text-slate-200 mb-2" />
+                  <p className="text-sm font-bold">No students registered yet.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {registrations.map((reg) => (
+                    <div key={reg.id} className="bg-slate-50 border border-slate-100 rounded-2xl p-4 flex flex-col gap-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-sm font-black text-slate-900">{reg.student_name || 'Student'}</p>
+                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">
+                            {reg.student_roll || 'N/A'} • {reg.student_email || 'N/A'}
+                          </p>
+                        </div>
+                        <span className={`text-[9px] font-black px-2.5 py-1 rounded-full uppercase ${
+                          reg.status === 'winner' ? 'bg-amber-100 text-amber-700' :
+                          reg.status === 'attended' ? 'bg-emerald-100 text-emerald-700' :
+                          reg.status === 'approved' ? 'bg-blue-100 text-blue-700' :
+                          reg.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-slate-150 text-slate-650'
+                        }`}>
+                          {reg.status}
+                        </span>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUpdateRegistrationStatus(reg.id, 'attended')}
+                          disabled={reg.status === 'attended'}
+                          className="flex-1 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-xl transition-all disabled:opacity-40"
+                        >
+                          Mark Attended
+                        </button>
+                        <button
+                          onClick={() => handleUpdateRegistrationStatus(reg.id, 'winner')}
+                          disabled={reg.status === 'winner'}
+                          className="flex-1 py-2 bg-amber-50 hover:bg-amber-150 text-amber-700 text-xs font-bold rounded-xl transition-all disabled:opacity-40"
+                        >
+                          Mark Winner 🏆
+                        </button>
+                        <button
+                          onClick={() => handleUpdateRegistrationStatus(reg.id, 'rejected')}
+                          disabled={reg.status === 'rejected'}
+                          className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-655 text-xs font-bold rounded-xl transition-all disabled:opacity-40"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

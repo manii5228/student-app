@@ -58,7 +58,9 @@ import FacultyDiscrepancies from './pages/FacultyDiscrepancies';
 import FacultyMentees from './pages/FacultyMentees';
 import FacultyMeetingScheduler from './pages/FacultyMeetingScheduler';
 import FacultyResourceUploader from './pages/FacultyResourceUploader';
+import StudentMeetings from './pages/StudentMeetings';
 import FacultySyllabusTracker from './pages/FacultySyllabusTracker';
+import FacultyCareer from './pages/FacultyCareer';
 import FacultyAssignmentGrader from './pages/FacultyAssignmentGrader';
 import FacultyReportGenerator from './pages/FacultyReportGenerator';
 import AdminHub from './pages/AdminHub';
@@ -69,6 +71,7 @@ import AdminAccessControl from './pages/AdminAccessControl';
 import AdminDataExport from './pages/AdminDataExport';
 import AdminModeration from './pages/AdminModeration';
 import AdminPlacementAnalytics from './pages/AdminPlacementAnalytics';
+import AdminFacultyRoles from './pages/AdminFacultyRoles';
 
 import GuestLockedFeature from './components/GuestLockedFeature';
 
@@ -200,6 +203,7 @@ function App() {
             <Route path="/faculty/broadcast" element={<FacultyRoute><FacultyBroadcast /></FacultyRoute>} />
             <Route path="/faculty/mentees" element={<FacultyRoute><FacultyMentees /></FacultyRoute>} />
             <Route path="/faculty/meetings" element={<FacultyRoute><FacultyMeetingScheduler /></FacultyRoute>} />
+            <Route path="/academic/meetings" element={<ProtectedRoute><StudentMeetings /></ProtectedRoute>} />
             <Route path="/faculty/resources" element={<FacultyRoute><FacultyResourceUploader /></FacultyRoute>} />
             <Route path="/faculty/syllabus-tracker" element={<FacultyRoute><FacultySyllabusTracker /></FacultyRoute>} />
             <Route path="/faculty/grader" element={<FacultyRoute><FacultyAssignmentGrader /></FacultyRoute>} />
@@ -207,6 +211,7 @@ function App() {
             <Route path="/faculty/question-bank" element={<FacultyRoute><FacultyResourceUploader /></FacultyRoute>} />
             <Route path="/faculty/mock-tests-manage" element={<FacultyRoute><FacultyResourceUploader /></FacultyRoute>} />
             <Route path="/faculty/student-performance" element={<FacultyRoute><FacultyMentees /></FacultyRoute>} />
+            <Route path="/faculty/career" element={<FacultyRoute><FacultyCareer /></FacultyRoute>} />
 
             {/* Admin & Infrastructure Layer — Admin only */}
             <Route path="/admin" element={<AdminRoute><AdminHub /></AdminRoute>} />
@@ -219,6 +224,7 @@ function App() {
             <Route path="/admin/export" element={<AdminRoute><AdminDataExport /></AdminRoute>} />
             <Route path="/admin/moderation" element={<AdminRoute><AdminModeration /></AdminRoute>} />
             <Route path="/admin/placements" element={<AdminRoute><AdminPlacementAnalytics /></AdminRoute>} />
+            <Route path="/admin/faculty-roles" element={<AdminRoute><AdminFacultyRoles /></AdminRoute>} />
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/login" />} />

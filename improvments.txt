@@ -10,3 +10,7 @@ inka anni features deatila ga cheyali so search for eve2ry feature in detail
 remove market place,polls
 
  in student acdamic section syllabus, map,faculty dir,internal marks,exam schedule are redirecting to login page if clicked
+
+ logo need to be added 
+ make a branch for the ui and chang ethe ui like daddy change it is lifeless just white screen add more colours to it ,make it vibrant ,add more effects ,shadows ,Animations
+ app titile cart neeed to have college logo and college name

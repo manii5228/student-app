@@ -112,6 +112,8 @@ class Event(db.Model):
     registration_count = db.Column(db.Integer, default=0)
     is_approved = db.Column(db.Boolean, default=False)
     image_url = db.Column(db.String(500), nullable=True)
+    results = db.Column(db.Text, nullable=True)
+    badge_id = db.Column(db.String(36), db.ForeignKey("skill_badges.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     registrations = db.relationship("EventRegistration", backref="event", lazy="dynamic", cascade="all, delete-orphan")
 
@@ -121,7 +123,7 @@ class Event(db.Model):
                 "start_date": self.start_date.isoformat() if self.start_date else None,
                 "end_date": self.end_date.isoformat() if self.end_date else None,
                 "max_participants": self.max_participants, "registration_count": self.registration_count,
-                "is_approved": self.is_approved}
+                "is_approved": self.is_approved, "results": self.results, "badge_id": self.badge_id}
 
 
 class EventRegistration(db.Model):
@@ -130,10 +132,11 @@ class EventRegistration(db.Model):
     event_id = db.Column(db.String(36), db.ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
     student_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False)
     role = db.Column(db.String(30), default="participant")
+    status = db.Column(db.String(20), default="pending")  # pending, approved, rejected, attended, winner
     registered_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
-        return {"id": self.id, "event_id": self.event_id, "student_id": self.student_id, "role": self.role}
+        return {"id": self.id, "event_id": self.event_id, "student_id": self.student_id, "role": self.role, "status": self.status}
 
 
 class Notice(db.Model):
@@ -188,6 +191,9 @@ class Club(db.Model):
     member_count = db.Column(db.Integer, default=0)
     logo_url = db.Column(db.String(500), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    website_url = db.Column(db.String(500), nullable=True)
+    instagram_url = db.Column(db.String(500), nullable=True)
+    linkedin_url = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     memberships = db.relationship("ClubMembership", backref="club", lazy="dynamic", cascade="all, delete-orphan")
     posts = db.relationship("ClubPost", backref="club", lazy="dynamic", cascade="all, delete-orphan")
@@ -195,7 +201,11 @@ class Club(db.Model):
     def to_dict(self):
         return {"id": self.id, "name": self.name, "description": self.description,
                 "club_type": self.club_type, "member_count": self.member_count, 
-                "is_active": self.is_active, "president_id": self.president_id}
+                "is_active": self.is_active, "president_id": self.president_id,
+                "faculty_advisor_id": self.faculty_advisor_id,
+                "website_url": self.website_url,
+                "instagram_url": self.instagram_url,
+                "linkedin_url": self.linkedin_url}
 
 
 class ClubMembership(db.Model):

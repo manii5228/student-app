@@ -194,19 +194,163 @@ def list_events():
 @campus_bp.route("/events", methods=["POST"])
 @jwt_required()
 def create_event():
-    """Create an event (requires admin approval)."""
+    """Create an event (requires admin approval, unless created by faculty/admin)."""
     data = request.get_json()
+    creator_id = get_jwt_identity()
+    from ..models.user import User
+    creator = db.session.get(User, creator_id)
+    is_approved = False
+    if creator and creator.role.value in ("faculty", "admin"):
+        is_approved = True
+
     e = Event(
         title=data["title"], description=data.get("description"),
         event_type=data.get("event_type", "fest"),
-        organizer_id=get_jwt_identity(), venue=data.get("venue"),
+        organizer_id=creator_id, venue=data.get("venue"),
         start_date=datetime.fromisoformat(data["start_date"].replace("Z", "+00:00")),
         end_date=datetime.fromisoformat(data["end_date"].replace("Z", "+00:00")) if data.get("end_date") else None,
         max_participants=data.get("max_participants"),
+        is_approved=is_approved,
+        badge_id=data.get("badge_id")
     )
     db.session.add(e)
     db.session.commit()
-    return jsonify({"message": "Event submitted for approval", "event": e.to_dict()}), 201
+    msg = "Event created and published" if is_approved else "Event submitted for approval"
+    return jsonify({"message": msg, "event": e.to_dict()}), 201
+
+
+@campus_bp.route("/events/<eid>", methods=["PUT"])
+@jwt_required()
+def edit_event(eid):
+    """Edit event details (organizer or admin only)."""
+    event = db.session.get(Event, eid)
+    if not event:
+        return jsonify({"error": "Event not found"}), 404
+        
+    current_user_id = get_jwt_identity()
+    from ..models.user import User
+    current_user = db.session.get(User, current_user_id)
+    
+    if event.organizer_id != current_user_id and current_user.role.value != "admin":
+        return jsonify({"error": "Not authorized to edit this event"}), 403
+        
+    data = request.get_json()
+    if "title" in data:
+        event.title = data["title"]
+    if "description" in data:
+        event.description = data["description"]
+    if "event_type" in data:
+        event.event_type = data["event_type"]
+    if "venue" in data:
+        event.venue = data["venue"]
+    if "start_date" in data:
+        event.start_date = datetime.fromisoformat(data["start_date"].replace("Z", "+00:00"))
+    if "end_date" in data:
+        event.end_date = datetime.fromisoformat(data["end_date"].replace("Z", "+00:00")) if data["end_date"] else None
+    if "max_participants" in data:
+        event.max_participants = data["max_participants"]
+    if "results" in data:
+        event.results = data["results"]
+    if "badge_id" in data:
+        event.badge_id = data["badge_id"]
+        
+    db.session.commit()
+    return jsonify({"message": "Event updated successfully", "event": event.to_dict()}), 200
+
+
+@campus_bp.route("/events/<eid>", methods=["DELETE"])
+@jwt_required()
+def delete_event(eid):
+    """Delete event (organizer or admin only)."""
+    event = db.session.get(Event, eid)
+    if not event:
+        return jsonify({"error": "Event not found"}), 404
+        
+    current_user_id = get_jwt_identity()
+    from ..models.user import User
+    current_user = db.session.get(User, current_user_id)
+    
+    if event.organizer_id != current_user_id and current_user.role.value != "admin":
+        return jsonify({"error": "Not authorized to delete this event"}), 403
+        
+    db.session.delete(event)
+    db.session.commit()
+    return jsonify({"message": "Event deleted successfully"}), 200
+
+
+@campus_bp.route("/events/<eid>/registrations", methods=["GET"])
+@jwt_required()
+def get_event_registrations(eid):
+    """Get registrations for an event (organizer or admin only)."""
+    event = db.session.get(Event, eid)
+    if not event:
+        return jsonify({"error": "Event not found"}), 404
+        
+    current_user_id = get_jwt_identity()
+    from ..models.user import User
+    current_user = db.session.get(User, current_user_id)
+    
+    if event.organizer_id != current_user_id and current_user.role.value != "admin":
+        return jsonify({"error": "Not authorized"}), 403
+        
+    registrations = EventRegistration.query.filter_by(event_id=eid).all()
+    res = []
+    for r in registrations:
+        student = db.session.get(User, r.student_id)
+        d = r.to_dict()
+        if student:
+            d["student_name"] = student.full_name
+            d["student_roll"] = student.roll_number
+            d["student_email"] = student.email
+        res.append(d)
+    return jsonify({"registrations": res}), 200
+
+
+@campus_bp.route("/events/<eid>/registrations/<rid>", methods=["PUT"])
+@jwt_required()
+def update_event_registration(eid, rid):
+    """Approve/reject/grade a student registration, and award associated badge if attended/winner."""
+    event = db.session.get(Event, eid)
+    if not event:
+        return jsonify({"error": "Event not found"}), 404
+        
+    current_user_id = get_jwt_identity()
+    from ..models.user import User
+    current_user = db.session.get(User, current_user_id)
+    
+    if event.organizer_id != current_user_id and current_user.role.value != "admin":
+        return jsonify({"error": "Not authorized"}), 403
+        
+    reg = db.session.get(EventRegistration, rid)
+    if not reg or reg.event_id != eid:
+        return jsonify({"error": "Registration not found"}), 404
+        
+    data = request.get_json()
+    new_status = data.get("status") # pending, approved, rejected, attended, winner
+    if not new_status:
+        return jsonify({"error": "status is required"}), 400
+        
+    reg.status = new_status
+    
+    # Auto-award associated badge if status is 'attended' or 'winner'
+    if new_status in ("attended", "winner") and event.badge_id:
+        from ..models.career import EarnedBadge
+        # Check if student already has this badge
+        existing_badge = EarnedBadge.query.filter_by(
+            student_id=reg.student_id, badge_id=event.badge_id
+        ).first()
+        if not existing_badge:
+            eb = EarnedBadge(
+                student_id=reg.student_id,
+                badge_id=event.badge_id,
+                awarded_by=current_user_id,
+                note=f"Awarded for participating in event '{event.title}' as {new_status}.",
+                status="approved"
+            )
+            db.session.add(eb)
+            
+    db.session.commit()
+    return jsonify({"message": "Registration updated", "registration": reg.to_dict()}), 200
 
 
 @campus_bp.route("/events/<eid>/register", methods=["POST"])
@@ -223,6 +367,7 @@ def register_event(eid):
     reg = EventRegistration(
         event_id=eid, student_id=student_id,
         role=data.get("role", "participant"),
+        status="pending"
     )
     db.session.add(reg)
     event = db.session.get(Event, eid)
@@ -391,6 +536,36 @@ def list_clubs():
     return jsonify({"clubs": [c.to_dict() for c in clubs]}), 200
 
 
+@campus_bp.route("/clubs", methods=["POST"])
+@jwt_required()
+@role_required("faculty", "admin")
+def create_club():
+    """Create a new technical or non-technical club."""
+    data = request.get_json()
+    name = data.get("name")
+    description = data.get("description")
+    club_type = data.get("club_type", "technical") # technical / cultural / media etc.
+    
+    if not name:
+        return jsonify({"error": "Club name is required"}), 400
+        
+    existing = Club.query.filter_by(name=name).first()
+    if existing:
+        return jsonify({"error": "Club name already exists"}), 400
+        
+    club = Club(
+        name=name,
+        description=description,
+        club_type=club_type,
+        faculty_advisor_id=get_jwt_identity(),
+        is_active=True,
+        member_count=0
+    )
+    db.session.add(club)
+    db.session.commit()
+    return jsonify({"message": "Club created successfully", "club": club.to_dict()}), 201
+
+
 @campus_bp.route("/clubs/<cid>/join", methods=["POST"])
 @jwt_required()
 @role_required("student")
@@ -495,6 +670,69 @@ def set_club_president(cid):
     club.president_id = data.get("president_id")
     db.session.commit()
     return jsonify({"message": "President assigned", "club": club.to_dict()}), 200
+
+
+@campus_bp.route("/clubs/<cid>", methods=["PUT"])
+@jwt_required()
+@role_required("admin", "faculty")
+def update_club(cid):
+    """Update club details including name, description, type, advisor, and president."""
+    club = db.session.get(Club, cid)
+    if not club:
+        return jsonify({"error": "Club not found"}), 404
+        
+    current_user_id = get_jwt_identity()
+    from ..models.user import User
+    current_user = db.session.get(User, current_user_id)
+    if club.faculty_advisor_id != current_user_id and current_user.role.value != "admin":
+        return jsonify({"error": "Not authorized to edit this club"}), 403
+        
+    data = request.get_json()
+    if "name" in data:
+        name = data.get("name")
+        if name != club.name:
+            existing = Club.query.filter_by(name=name).first()
+            if existing:
+                return jsonify({"error": "Club name already exists"}), 400
+            club.name = name
+            
+    if "description" in data:
+        club.description = data.get("description")
+    if "club_type" in data:
+        club.club_type = data.get("club_type")
+    if "faculty_advisor_id" in data:
+        club.faculty_advisor_id = data.get("faculty_advisor_id")
+    if "president_id" in data:
+        club.president_id = data.get("president_id")
+    if "website_url" in data:
+        club.website_url = data.get("website_url")
+    if "instagram_url" in data:
+        club.instagram_url = data.get("instagram_url")
+    if "linkedin_url" in data:
+        club.linkedin_url = data.get("linkedin_url")
+        
+    db.session.commit()
+    return jsonify({"message": "Club updated successfully", "club": club.to_dict()}), 200
+
+
+@campus_bp.route("/clubs/<cid>", methods=["DELETE"])
+@jwt_required()
+@role_required("admin", "faculty")
+def delete_club(cid):
+    """Delete a club (requires admin/advisor role)."""
+    club = db.session.get(Club, cid)
+    if not club:
+        return jsonify({"error": "Club not found"}), 404
+        
+    current_user_id = get_jwt_identity()
+    from ..models.user import User
+    current_user = db.session.get(User, current_user_id)
+    if club.faculty_advisor_id != current_user_id and current_user.role.value != "admin":
+        return jsonify({"error": "Not authorized to delete this club"}), 403
+        
+    db.session.delete(club)
+    db.session.commit()
+    return jsonify({"message": "Club deleted successfully"}), 200
 
 
 # ── Anonymous Feedback ─────────────────────────────────────────────
