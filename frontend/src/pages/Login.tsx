@@ -78,6 +78,36 @@ const Login = () => {
     setShowServerSettings(false);
   };
 
+  const [processedLogo, setProcessedLogo] = useState<string>(veltechBannerLogo);
+
+  // Convert solid black background in the logo image to transparent
+  React.useEffect(() => {
+    const img = new Image();
+    img.src = veltechBannerLogo;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i+1];
+          const b = data[i+2];
+          // If pixel is black or near-black background, key it out (make transparent)
+          if (r < 30 && g < 30 && b < 30) {
+            data[i+3] = 0; // alpha = 0
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+        setProcessedLogo(canvas.toDataURL());
+      }
+    };
+  }, []);
+
   // Lock guests in guest mode & perform automatic storage migration/cleanup for new standalone build
   React.useEffect(() => {
     if (localStorage.getItem('standalone_migration_v3') !== 'true') {
@@ -290,8 +320,8 @@ const Login = () => {
 
       {/* Top Section — Brand */}
       <div className="flex-1 flex flex-col items-center justify-center px-8 pt-16 pb-8">
-        <div className="w-full max-w-[320px] bg-slate-950 p-4 rounded-3xl shadow-xl flex items-center justify-center mb-8 border border-slate-800 transition-all hover:scale-[1.02] duration-300">
-          <img src={veltechBannerLogo} alt="Vel Tech University" className="w-full h-auto object-contain rounded-xl" />
+        <div className="w-full max-w-[320px] bg-white p-2 flex items-center justify-center mb-8 transition-all hover:scale-[1.02] duration-300">
+          <img src={processedLogo} alt="Vel Tech University" className="w-full h-auto object-contain rounded-xl" />
         </div>
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</h1>
         <p className="text-sm text-slate-500 text-center">Sign in to your VelTech Super-App</p>
