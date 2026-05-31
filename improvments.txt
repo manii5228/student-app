@@ -15,4 +15,4 @@ remove market place,polls
  make a branch for the ui and chang ethe ui like daddy change it is lifeless just white screen add more colours to it ,make it vibrant ,add more effects ,shadows ,Animations
  app titile cart neeed to have college logo and college name
 
- we need to something because with only 20 users, the app is itself 6 mb, if we connect our college data which would consist of 25k- 30k students at a time,the apps mb will be increased we need to manage that. 
+ we need to something because with only 20 users, the app is itself 6.3 mb, if we connect our college data which would consist of 25k- 30k students at a time,the apps mb will be increased we need to manage that. 
