@@ -727,7 +727,7 @@ if __name__ == "__main__":
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == "seed":
         with app.app_context():
-            seed_db()
+            seed_db(args=[], standalone_mode=False)
     else:
         start_attendance_scheduler(app)
         app.run(host="0.0.0.0", port=5000, debug=True)

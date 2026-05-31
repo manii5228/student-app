@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Fingerprint, UserCircle, Shield, AlertTriangle, Globe, Building } from 'lucide-react';
-import { api } from '../lib/api';
+import { Mail, Lock, Eye, EyeOff, Fingerprint, UserCircle, Shield, AlertTriangle, Globe, Building, Settings, Server } from 'lucide-react';
+import { api, getApiBaseUrl, updateApiBaseUrl } from '../lib/api';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -20,8 +20,72 @@ const Login = () => {
   const [ssoProcessingMsg, setSsoProcessingMsg] = useState('');
   const [highlightPassword, setHighlightPassword] = useState(false);
 
-  // Lock guests in guest mode
+  // Server Settings state
+  const [showServerSettings, setShowServerSettings] = useState(false);
+  const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
+  const [connectionMode, setConnectionMode] = useState(() => localStorage.getItem('connection_mode') || 'mock');
+
+  const handleSaveServer = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('connection_mode', connectionMode);
+    
+    if (connectionMode === 'live') {
+      let input = serverUrl.trim();
+      if (input) {
+        // 1. Remove leading/trailing slashes
+        input = input.replace(/^\/+|\/+$/g, '');
+
+        // 2. Auto-prepend http:// if protocol is missing
+        if (!/^https?:\/\//i.test(input)) {
+          input = 'http://' + input;
+        }
+
+        // 3. Auto-append port :5000 if not specified and it is a local IP or localhost
+        const colonCount = (input.match(/:/g) || []).length;
+        if (colonCount === 1) {
+          // Extract hostname to check if it's an IP address or localhost
+          // e.g., http://192.168.1.5 or http://localhost
+          const hostMatch = input.match(/^https?:\/\/([^\/:]+)/i);
+          const hostname = hostMatch ? hostMatch[1] : '';
+          const isIpOrLocalhost = /^(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$/i.test(hostname);
+          
+          if (isIpOrLocalhost) {
+            const slashIndex = input.indexOf('/', 8);
+            if (slashIndex !== -1) {
+              input = input.slice(0, slashIndex) + ':5000' + input.slice(slashIndex);
+            } else {
+              input = input + ':5000';
+            }
+          }
+        }
+
+        // 4. Auto-append /api/v1 if not present
+        if (!input.includes('/api/v1')) {
+          const slashIndex = input.indexOf('/', 8);
+          if (slashIndex !== -1) {
+            input = input.slice(0, slashIndex) + '/api/v1';
+          } else {
+            input = input + '/api/v1';
+          }
+        }
+
+        updateApiBaseUrl(input);
+        setServerUrl(input);
+      }
+    }
+    
+    setShowServerSettings(false);
+  };
+
+  // Lock guests in guest mode & perform automatic storage migration/cleanup for new standalone build
   React.useEffect(() => {
+    if (localStorage.getItem('standalone_migration_v3') !== 'true') {
+      localStorage.setItem('connection_mode', 'mock');
+      localStorage.removeItem('custom_api_url');
+      localStorage.setItem('standalone_migration_v3', 'true');
+      setConnectionMode('mock');
+    }
+    
     const userStr = localStorage.getItem('user');
     if (userStr) {
       const u = JSON.parse(userStr);
@@ -38,6 +102,11 @@ const Login = () => {
     setError('');
     try {
       const res = await api.post('/auth/login', { email, password });
+      
+      if (!res.data || !res.data.user) {
+        throw new Error("Invalid response format: Missing 'user' payload from auth handler.");
+      }
+      
       localStorage.setItem('token', res.data.access_token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       const role = res.data.user.role;
@@ -49,7 +118,15 @@ const Login = () => {
         navigate('/');
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+      console.error(err);
+      if (err.message && err.message.includes("format")) {
+        setError(err.message);
+      } else if (!err.response) {
+        const mode = localStorage.getItem('connection_mode') || 'not_set';
+        setError(`Connection failed: ${err.message || err.toString()}. Mode: ${mode}. Target URL: ${getApiBaseUrl()}`);
+      } else {
+        setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -79,6 +156,11 @@ const Login = () => {
               email,
               sso_token: `mock-sso-token-from-${provider}`,
             });
+            
+            if (!res.data || !res.data.user) {
+              throw new Error("Invalid response format: Missing 'user' payload from SSO handler.");
+            }
+            
             localStorage.setItem('token', res.data.access_token);
             localStorage.setItem('user', JSON.stringify(res.data.user));
             const role = res.data.user.role;
@@ -90,7 +172,7 @@ const Login = () => {
               navigate('/');
             }
           } catch (err: any) {
-            setError(err.response?.data?.error || 'SSO authentication failed. Is your account registered?');
+            setError(err.message || err.response?.data?.error || 'SSO authentication failed. Is your account registered?');
           } finally {
             setLoading(false);
             setSsoProvider(null);
@@ -194,8 +276,17 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-full flex flex-col justify-between bg-white">
+    <div className="min-h-full flex flex-col justify-between bg-white relative">
       
+      {/* Server Connection Settings Button */}
+      <button
+        onClick={() => setShowServerSettings(true)}
+        className="absolute top-4 right-4 p-2.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all z-10"
+        title="Server Connection Settings"
+      >
+        <Settings className="w-6 h-6" />
+      </button>
+
       {/* Top Section — Brand */}
       <div className="flex-1 flex flex-col items-center justify-center px-8 pt-16 pb-8">
         <div className="w-24 h-24 rounded-[28px] bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-2xl mb-8">
@@ -454,6 +545,96 @@ const Login = () => {
             <p className="mt-6 text-xs text-slate-400 animate-pulse font-medium">
               {ssoProcessingMsg}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Server Settings Modal */}
+      {showServerSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-6 animate-fade-in">
+          <div className="bg-white rounded-[28px] p-6 shadow-2xl max-w-sm w-full animate-scale-in border border-slate-100">
+            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <Server className="w-7 h-7 text-indigo-600" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-900 text-center mb-1">App Connection Mode</h3>
+            <p className="text-xs text-slate-500 text-center mb-6">
+              Configure how the mobile app connects to the database.
+            </p>
+            
+            <form onSubmit={handleSaveServer}>
+              {/* Connection Mode Selection Segment */}
+              <div className="bg-slate-100 rounded-2xl p-1 mb-6 flex">
+                <button
+                  type="button"
+                  onClick={() => setConnectionMode('mock')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${connectionMode === 'mock' ? 'bg-slate-900 text-white shadow' : 'text-slate-500'}`}
+                >
+                  Standalone
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConnectionMode('live')}
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${connectionMode === 'live' ? 'bg-slate-900 text-white shadow' : 'text-slate-500'}`}
+                >
+                  Live Server
+                </button>
+              </div>
+
+              {connectionMode === 'mock' ? (
+                <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 mb-6 text-left">
+                  <h4 className="text-xs font-bold text-emerald-800 uppercase mb-1.5 flex items-center gap-1.5">
+                    ✅ Standalone Offline Mode
+                  </h4>
+                  <p className="text-[11px] text-emerald-700 font-medium leading-relaxed">
+                    Runs 100% locally on this device using an embedded database. The app will work perfectly even if your laptop is switched off and has no network requirements. Recommended!
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4 text-left">
+                    <label className="text-xs font-bold text-slate-500 uppercase block mb-2">
+                      Backend API URL
+                    </label>
+                    <input
+                      type="text"
+                      value={serverUrl}
+                      onChange={(e) => setServerUrl(e.target.value)}
+                      placeholder="http://192.168.x.x:5000/api/v1"
+                      className="w-full bg-slate-100 rounded-2xl py-3.5 px-4 text-sm font-semibold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all border border-slate-200"
+                      required
+                    />
+                  </div>
+
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6 text-left">
+                    <h4 className="text-xs font-bold text-amber-800 uppercase mb-2 flex items-center gap-1.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600" /> Local Network Setup
+                    </h4>
+                    <ul className="text-[11px] text-amber-700 font-medium space-y-1.5 list-decimal pl-4">
+                      <li>Connect both this device and your laptop to the <strong>same Wi-Fi network</strong>.</li>
+                      <li>On your laptop, open Terminal / Command Prompt and run <code>ipconfig</code> (Windows) or <code>ifconfig</code> (Mac/Linux).</li>
+                      <li>Find your IPv4 Address (e.g., <code>192.168.1.15</code>).</li>
+                      <li>Enter <code>http://192.168.1.15:5000/api/v1</code> above and click save.</li>
+                    </ul>
+                  </div>
+                </>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowServerSettings(false)}
+                  className="flex-1 bg-slate-100 text-slate-700 py-3.5 rounded-[16px] font-bold text-xs hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-slate-900 text-white py-3.5 rounded-[16px] font-bold text-xs hover:bg-slate-800 transition-colors shadow-md"
+                >
+                  Save Mode
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

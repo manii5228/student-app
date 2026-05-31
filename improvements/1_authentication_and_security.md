@@ -64,3 +64,6 @@ login need to have logo
 - **Developer Response:** 
   1. **SSO Logic Check:** Yes, the SSO is working correctly. When you authenticate using a College SSO provider, the backend checks if the email belongs to an existing user in the database. If you entered a pre-existing student email (like `student1@veltech.edu.in`), it logs you in directly because the identity provider (Google or Microsoft) has already verified your identity. If you enter an email that is not in the system (e.g., `random@veltech.edu.in`), it fails with a `401 Unauthorized` error stating that no account was found.
   2. **Guest Logout Option:** We have added a dedicated **"Exit Guest Mode"** button at the bottom of the Guest profile screen in [Profile.tsx](file:///d:/vtu/Projects/student_app_veltech/frontend/src/pages/Profile.tsx#L449-L457). Tapping it clears all local guest tokens and returns you to the login screen so you can log in with a different account.
+
+
+When using sso login any random email is getting logged into the app, without any verification even if it is not a sample mail id given in the seed.

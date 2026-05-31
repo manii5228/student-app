@@ -1,18 +1,58 @@
 import axios from 'axios';
+import { handleMockRequest } from './mockDb';
 
-// Get backend URL from env or fallback to localhost
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+// Get backend URL from localStorage, env or fallback to our secure public tunnel
+export const getApiBaseUrl = (): string => {
+  return localStorage.getItem('custom_api_url') || import.meta.env.VITE_API_URL || 'https://tricky-months-camp.loca.lt/api/v1';
+};
 
 export const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
+    'Bypass-Tunnel-Reminder': 'true', // Bypass localtunnel reminder landing page
   },
   withCredentials: true, // Send credentials (cookies) with requests
 });
 
-// Auto-attach JWT token if present
+export const updateApiBaseUrl = (newUrl: string) => {
+  if (newUrl) {
+    localStorage.setItem('custom_api_url', newUrl);
+    api.defaults.baseURL = newUrl;
+  } else {
+    localStorage.removeItem('custom_api_url');
+    api.defaults.baseURL = import.meta.env.VITE_API_URL || 'https://tricky-months-camp.loca.lt/api/v1';
+  }
+};
+
+// Auto-attach JWT token if present & run in standalone mock mode if configured
 api.interceptors.request.use((config) => {
+  const connectionMode = localStorage.getItem('connection_mode') || 'mock'; // Default to offline standalone mock mode!
+  if (connectionMode === 'mock') {
+    config.adapter = async (cfg) => {
+      const result = await handleMockRequest(cfg);
+      const status = result.status || 200;
+      
+      const response = {
+        data: result.data,
+        status: status,
+        statusText: status >= 200 && status < 300 ? 'OK' : 'Error',
+        headers: {},
+        config: cfg,
+      };
+
+      if (status >= 200 && status < 300) {
+        return response;
+      } else {
+        const error = new Error(`Request failed with status code ${status}`) as any;
+        error.response = response;
+        error.config = cfg;
+        error.status = status;
+        throw error;
+      }
+    };
+  }
+
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -42,12 +82,23 @@ api.interceptors.response.use(
 
     // Check if error is 401 and we haven't already retried this request
     if (error.response?.status === 401 && !originalRequest._retry) {
-      // If we are already trying to refresh or if the request itself was to refresh, log out
-      if (originalRequest.url === '/auth/refresh' || originalRequest.url?.endsWith('/auth/refresh')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+      // Do NOT attempt token refresh for authentication/credentials requests
+      const isAuthRequest = originalRequest.url?.includes('/auth/login') ||
+                            originalRequest.url?.includes('/auth/sso') ||
+                            originalRequest.url?.includes('/auth/register') ||
+                            originalRequest.url?.includes('/auth/guest') ||
+                            originalRequest.url?.includes('/auth/refresh') ||
+                            originalRequest.url?.endsWith('/auth/login') ||
+                            originalRequest.url?.endsWith('/auth/refresh');
+
+      if (isAuthRequest) {
+        // Clear tokens if it is an expired token refresh attempt itself
+        if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.endsWith('/auth/refresh')) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }
@@ -71,7 +122,7 @@ api.interceptors.response.use(
       try {
         // Fetch new access token by using the refresh cookie
         const response = await axios.post(
-          `${API_BASE_URL}/auth/refresh`,
+          `${getApiBaseUrl()}/auth/refresh`,
           {},
           { withCredentials: true }
         );
