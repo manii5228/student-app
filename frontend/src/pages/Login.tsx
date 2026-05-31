@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, Fingerprint, UserCircle, Shield, AlertTriangle, Globe, Building, Settings, Server } from 'lucide-react';
 import { api, getApiBaseUrl, updateApiBaseUrl } from '../lib/api';
+import veltechBannerLogo from '../assets/veltech_banner_logo.png';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -289,8 +290,8 @@ const Login = () => {
 
       {/* Top Section — Brand */}
       <div className="flex-1 flex flex-col items-center justify-center px-8 pt-16 pb-8">
-        <div className="w-24 h-24 rounded-[28px] bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-2xl mb-8">
-          <span className="text-5xl font-black text-white">V</span>
+        <div className="w-full max-w-[320px] bg-slate-950 p-4 rounded-3xl shadow-xl flex items-center justify-center mb-8 border border-slate-800 transition-all hover:scale-[1.02] duration-300">
+          <img src={veltechBannerLogo} alt="Vel Tech University" className="w-full h-auto object-contain rounded-xl" />
         </div>
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome Back</h1>
         <p className="text-sm text-slate-500 text-center">Sign in to your VelTech Super-App</p>
