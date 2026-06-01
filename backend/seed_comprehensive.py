@@ -19,7 +19,7 @@ from app import create_app
 from app.extensions import db
 from app.models.user import User, UserRole, IDCardTemplate
 from app.models.academic import Assignment, AssignmentSubmission, Result, Syllabus, ExamSchedule, CreditProgress, InternalMark, QuestionPaper
-from app.models.career import TeamFinderProfile, SkillBadge, EarnedBadge, Project, Milestone, Portfolio, MockTest, MockTestQuestion, MockTestAttempt, JobPosting, JobApplication, SavedJob, InterviewSchedule, CompanyPrepQuestion, AlumniProfile
+from app.models.career import TeamFinderProfile, SkillBadge, EarnedBadge, Project, Milestone, Portfolio, MockTest, MockTestQuestion, MockTestAttempt, JobPosting, JobApplication, SavedJob, InterviewSchedule, CompanyPrepQuestion, AlumniProfile, Internship
 from app.models.campus import CanteenItem, CanteenOrder, Bus, LibraryBook, LibraryIssue, Event, EventRegistration, Notice, NoticeRead, Club, ClubMembership, ClubPost, ClubAttendance, Feedback, MarketListing, HostelPass, HealthAppointment, EmergencyAlert, Poll, PollVote
 from app.models.timetable import Timetable, TimetableSlot
 
@@ -384,6 +384,7 @@ def generate_seeds():
         tech_stacks = ["React/Node.js/PostgreSQL", "Python/Django/AWS", "Verilog/SystemVerilog", "C++/RTOS/Microcontrollers", "Python/PyTorch/Docker"]
         companies = ["Google", "Microsoft", "Intel", "Qualcomm", "Amazon", "Capgemini", "Tata Consultancy Services"]
 
+        job_postings_list = []
         for idx, comp in enumerate(companies):
             domain = job_domains[idx % len(job_domains)]
             stack = tech_stacks[idx % len(tech_stacks)]
@@ -402,6 +403,7 @@ def generate_seeds():
                 is_active=True
             )
             db.session.add(job)
+            job_postings_list.append(job)
         db.session.commit()
 
         # ── 10. PREVIOUS YEAR QUESTION PAPERS (PYQs) ───────────────────
@@ -529,9 +531,9 @@ def generate_seeds():
                 upvotes=15
             ))
             
-        # Create a mock test
-        test = MockTest(
-            title="Aptitude & Coding Mock Assessment I",
+        # Create mock tests
+        test1 = MockTest(
+            title="Academic & Programming Mock Assessment I",
             description="Assess your logic, data structure, and technical aptitude. Consist of core programming questions.",
             category="aptitude",
             duration_minutes=30,
@@ -539,22 +541,145 @@ def generate_seeds():
             difficulty="medium",
             is_active=True
         )
-        db.session.add(test)
+        test2 = MockTest(
+            title="Advanced Java & Core CS Fundamentals",
+            description="Comprehensive mock evaluating OOP design, threading, JVM garbage collection, and database systems.",
+            category="technical",
+            duration_minutes=45,
+            total_questions=5,
+            difficulty="hard",
+            is_active=True
+        )
+        test3 = MockTest(
+            title="Quantitative & Analytical Reasoning",
+            description="Speed test on permutations, combinations, work-time speed, probability, and logical deduction.",
+            category="aptitude",
+            duration_minutes=20,
+            total_questions=5,
+            difficulty="easy",
+            is_active=True
+        )
+        test4 = MockTest(
+            title="Full Stack Web & System Architecture",
+            description="Assessments on system boundaries, load balancers, HTTP/2, REST API paradigms, and SQL optimization.",
+            category="coding",
+            duration_minutes=40,
+            total_questions=4,
+            difficulty="medium",
+            is_active=True
+        )
+        db.session.add_all([test1, test2, test3, test4])
         db.session.flush()
         
-        # Add questions to mock test
-        questions = [
+        # Add questions to mock tests
+        questions1 = [
             {"text": "What is the worst case complexity of Quick Sort?", "a": "O(N)", "b": "O(N log N)", "c": "O(N^2)", "d": "O(2^N)", "ans": "c"},
             {"text": "Which data structure operates on a Last In First Out (LIFO) basis?", "a": "Queue", "b": "Stack", "c": "Tree", "d": "Graph", "ans": "b"},
             {"text": "Which of the following is not an operating system?", "a": "Linux", "b": "Windows", "c": "Oracle", "d": "macOS", "ans": "c"}
         ]
-        for idx, q in enumerate(questions):
+        for idx, q in enumerate(questions1):
             db.session.add(MockTestQuestion(
-                test_id=test.id, question_text=q["text"],
+                test_id=test1.id, question_text=q["text"],
                 option_a=q["a"], option_b=q["b"], option_c=q["c"], option_d=q["d"],
                 correct_option=q["ans"], explanation="Refer to basic programming notes.",
                 order_num=idx + 1
             ))
+
+        questions2 = [
+            {"text": "Which collection in Java does not allow duplicate elements?", "a": "List", "b": "Set", "c": "Map", "d": "Vector", "ans": "b"},
+            {"text": "Which of the following creates a thread in Java?", "a": "By implementing Runnable interface", "b": "By extending Thread class", "c": "Both A and B", "d": "None of these", "ans": "c"},
+            {"text": "What is the main purpose of garbage collection in Java?", "a": "To free unreferenced memory", "b": "To clear memory buffer manually", "c": "To compile code faster", "d": "To restrict variable scopes", "ans": "a"},
+            {"text": "What is isolation level in database transactions primarily resolving?", "a": "Concurrency interference issues", "b": "Disk write permanent failures", "c": "Incorrect syntax checks", "d": "Table column size constraints", "ans": "a"},
+            {"text": "What is the time complexity to search an element in a balanced Binary Search Tree?", "a": "O(1)", "b": "O(log N)", "c": "O(N)", "d": "O(N log N)", "ans": "b"}
+        ]
+        for idx, q in enumerate(questions2):
+            db.session.add(MockTestQuestion(
+                test_id=test2.id, question_text=q["text"],
+                option_a=q["a"], option_b=q["b"], option_c=q["c"], option_d=q["d"],
+                correct_option=q["ans"], explanation="OOP and data structure foundations.",
+                order_num=idx + 1
+            ))
+            
+        db.session.commit()
+
+        # Seed Mock Test Attempts for Mani
+        mani_student = student_list[0]
+        db.session.add(MockTestAttempt(
+            test_id=test1.id,
+            student_id=mani_student.id,
+            answers_json='{}',
+            score=2,
+            total=3,
+            time_taken_seconds=480,
+            completed_at=datetime.now() - timedelta(days=3)
+        ))
+        db.session.add(MockTestAttempt(
+            test_id=test3.id,
+            student_id=mani_student.id,
+            answers_json='{}',
+            score=4,
+            total=5,
+            time_taken_seconds=320,
+            completed_at=datetime.now() - timedelta(days=1)
+        ))
+
+        # Seed Internships for Mani
+        db.session.add(Internship(
+            student_id=mani_student.id,
+            company_name="Google",
+            role_title="Software Engineer Intern",
+            description="Developing high-performance, real-time backend microservices in Go.",
+            start_date=date.today() - timedelta(days=30),
+            stipend=75000.0,
+            mode="hybrid",
+            status="ongoing",
+            skills_learned="Go, Kubernetes, Protobuf",
+            is_verified=True
+        ))
+        db.session.add(Internship(
+            student_id=mani_student.id,
+            company_name="Microsoft",
+            role_title="Product Manager Intern",
+            description="Leading client console analytics tool specifications and dashboard designs.",
+            start_date=date.today() - timedelta(days=365),
+            end_date=date.today() - timedelta(days=275),
+            stipend=65000.0,
+            mode="onsite",
+            certificate_url="https://veltech.edu.in/certificates/ms_intern.pdf",
+            status="completed",
+            skills_learned="Product Specs, Azure, UI Design",
+            is_verified=True
+        ))
+
+        # Seed Interview Schedules for Mani
+        deloitte_job = next((j for j in job_postings_list if j.company_name == "Tata Consultancy Services"), job_postings_list[3])
+        amazon_job = next((j for j in job_postings_list if j.company_name == "Amazon"), job_postings_list[4])
+        google_job = next((j for j in job_postings_list if j.company_name == "Google"), job_postings_list[0])
+
+        db.session.add(InterviewSchedule(
+            posting_id=deloitte_job.id,
+            student_id=mani_student.id,
+            round_name="TCS Digital Interview - Technical Round 1",
+            scheduled_at=datetime.now() + timedelta(days=2),
+            venue="Main Block Cabin 104",
+            status="scheduled"
+        ))
+        db.session.add(InterviewSchedule(
+            posting_id=amazon_job.id,
+            student_id=mani_student.id,
+            round_name="Amazon SDE-1 Aptitude Screening",
+            scheduled_at=datetime.now() - timedelta(days=5),
+            venue="Online Test Center",
+            status="completed"
+        ))
+        db.session.add(InterviewSchedule(
+            posting_id=google_job.id,
+            student_id=mani_student.id,
+            round_name="Google SWE Intern Coding Assessment",
+            scheduled_at=datetime.now() + timedelta(days=5),
+            venue="Google Meet Room 4",
+            status="scheduled"
+        ))
         db.session.commit()
 
         # Seed default ID card templates

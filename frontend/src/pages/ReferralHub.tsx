@@ -51,6 +51,7 @@ const ReferralHub = () => {
   const [customMessage, setCustomMessage] = useState('');
   const [targetRole, setTargetRole] = useState('Software Engineer');
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [creditWarning, setCreditWarning] = useState<string | null>(null);
 
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
@@ -105,6 +106,10 @@ const ReferralHub = () => {
   };
 
   const openRequestModal = (alumnus: Alumni) => {
+    if (requestsLeft <= 0) {
+      setCreditWarning(`You have reached your limit of 3 alumni referral requests for this month. Outreach limit resets on the 1st of next month.`);
+      return;
+    }
     setSelectedAlumnus(alumnus);
     
     // Auto-generate template outreach message
@@ -294,12 +299,12 @@ ${nameStr}`;
                       <div className="flex flex-col gap-1.5 shrink-0">
                         <button
                           onClick={() => openRequestModal(alumnus)}
-                          disabled={requestsLeft <= 0 || alreadyRequested}
+                          disabled={alreadyRequested}
                           className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1 ${
                             alreadyRequested 
                               ? 'bg-slate-100 text-slate-400 border border-slate-200' 
                               : requestsLeft <= 0 
-                                ? 'bg-slate-50 text-slate-300 border border-slate-200' 
+                                ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200' 
                                 : 'bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-100'
                           }`}
                         >
@@ -495,7 +500,7 @@ ${nameStr}`;
 
       {/* Success Modal */}
       {successMsg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center">
             <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="w-8 h-8 text-emerald-600" />
@@ -507,6 +512,25 @@ ${nameStr}`;
               className="w-full bg-pink-600 text-white py-3.5 rounded-2xl font-bold text-xs shadow-lg shadow-pink-500/20"
             >
               Okay
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Credit Warning Modal */}
+      {creditWarning && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center">
+            <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4 border border-amber-200">
+              <AlertCircle className="w-8 h-8 text-amber-600" />
+            </div>
+            <h3 className="text-lg font-black text-slate-900 mb-2">Request Limit Reached</h3>
+            <p className="text-xs font-semibold text-slate-600 mb-6 leading-relaxed">{creditWarning}</p>
+            <button 
+              onClick={() => setCreditWarning(null)} 
+              className="w-full bg-slate-900 text-white py-3.5 rounded-2xl font-bold text-xs shadow-lg shadow-slate-900/20"
+            >
+              Okay, Understood
             </button>
           </div>
         </div>

@@ -565,13 +565,91 @@ const seedComprehensiveMockDb = () => {
       total_questions: 3,
       difficulty: "medium",
       is_active: true
+    },
+    {
+      id: "test_2",
+      title: "Advanced Java & Core CS Fundamentals",
+      description: "Comprehensive mock evaluating OOP design, threading, JVM garbage collection, and database systems.",
+      category: "technical",
+      duration_minutes: 45,
+      total_questions: 5,
+      difficulty: "hard",
+      is_active: true
+    },
+    {
+      id: "test_3",
+      title: "Quantitative & Analytical Reasoning",
+      description: "Speed test on permutations, combinations, work-time speed, probability, and logical deduction.",
+      category: "aptitude",
+      duration_minutes: 20,
+      total_questions: 5,
+      difficulty: "easy",
+      is_active: true
+    },
+    {
+      id: "test_4",
+      title: "Full Stack Web & System Architecture",
+      description: "Assessments on system boundaries, load balancers, HTTP/2, REST API paradigms, and SQL optimization.",
+      category: "coding",
+      duration_minutes: 40,
+      total_questions: 4,
+      difficulty: "medium",
+      is_active: true
     }
   ];
 
   const mockTestQuestions = [
     { id: "q1", test_id: "test_1", question_text: "What is the worst case complexity of Quick Sort?", option_a: "O(N)", option_b: "O(N log N)", option_c: "O(N^2)", option_d: "O(2^N)", correct_option: "c", explanation: "Pivot choice could lead to O(N^2) complexity in worst sorted sequences.", order_num: 1 },
     { id: "q2", test_id: "test_1", question_text: "Which data structure operates on a Last In First Out (LIFO) basis?", option_a: "Queue", option_b: "Stack", option_c: "Tree", option_d: "Graph", correct_option: "b", explanation: "A stack is a LIFO linear data structure.", order_num: 2 },
-    { id: "q3", test_id: "test_1", question_text: "Which of the following is not an operating system?", option_a: "Linux", option_b: "Windows", option_c: "Oracle", option_d: "macOS", correct_option: "c", explanation: "Oracle is a database engine company, not an OS.", order_num: 3 }
+    { id: "q3", test_id: "test_1", question_text: "Which of the following is not an operating system?", option_a: "Linux", option_b: "Windows", option_c: "Oracle", option_d: "macOS", correct_option: "c", explanation: "Oracle is a database engine company, not an OS.", order_num: 3 },
+    
+    // Test 2 Questions (Java & Core CS)
+    { id: "q2_1", test_id: "test_2", question_text: "Which collection in Java does not allow duplicate elements?", option_a: "List", option_b: "Set", option_c: "Map", option_d: "Vector", correct_option: "b", explanation: "Set interface guarantees no duplicate elements.", order_num: 1 },
+    { id: "q2_2", test_id: "test_2", question_text: "Which of the following creates a thread in Java?", option_a: "By implementing Runnable interface", option_b: "By extending Thread class", option_c: "Both A and B", option_d: "None of these", correct_option: "c", explanation: "Thread creation is supported by both extending Thread and implementing Runnable.", order_num: 2 },
+    { id: "q2_3", test_id: "test_2", question_text: "What is the main purpose of garbage collection in Java?", option_a: "To free unreferenced memory", option_b: "To clear memory buffer manually", option_c: "To compile code faster", option_d: "To restrict variable scopes", correct_option: "a", explanation: "Garbage collection automatically reclaims unreferenced heap memory.", order_num: 3 },
+    { id: "q2_4", test_id: "test_2", question_text: "What is isolation level in database transactions primarily resolving?", option_a: "Concurrency interference issues", option_b: "Disk write permanent failures", option_c: "Incorrect syntax checks", option_d: "Table column size constraints", correct_option: "a", explanation: "Isolation levels define transaction visibility rules during concurrent operations.", order_num: 4 },
+    { id: "q2_5", test_id: "test_2", question_text: "What is the time complexity to search an element in a balanced Binary Search Tree?", option_a: "O(1)", option_b: "O(log N)", option_c: "O(N)", option_d: "O(N log N)", correct_option: "b", explanation: "Balanced BST halves the search space at each level, leading to logarithmic complexity.", order_num: 5 },
+
+    // Test 3 Questions (Reasoning)
+    { id: "q3_1", test_id: "test_3", question_text: "If A is twice as fast as B, and B is thrice as fast as C. If C covers a distance in 42 mins, B will cover it in:", option_a: "14 mins", option_b: "7 mins", option_c: "21 mins", option_d: "28 mins", correct_option: "a", explanation: "Ratio of speeds A:B:C is 6:3:1. Speed B is 3x speed C, so B takes 1/3 of C's time (42/3 = 14).", order_num: 1 },
+    { id: "q3_2", test_id: "test_3", question_text: "Find the missing number in the series: 3, 5, 9, 17, 33, ...", option_a: "65", option_b: "48", option_c: "52", option_d: "60", correct_option: "a", explanation: "The difference doubles each time: +2, +4, +8, +16, next is +32, so 33 + 32 = 65.", order_num: 2 },
+    { id: "q3_3", test_id: "test_3", question_text: "What is the probability of drawing an Ace from a standard deck of 52 cards?", option_a: "1/13", option_b: "1/52", option_c: "4/13", option_d: "1/26", correct_option: "a", explanation: "There are 4 Aces in 52 cards. 4/52 = 1/13.", order_num: 3 },
+    { id: "q3_4", test_id: "test_3", question_text: "A train 120m long passes a pole in 6 seconds. What is its speed in km/h?", option_a: "72 km/h", option_b: "60 km/h", option_c: "80 km/h", option_d: "90 km/h", correct_option: "a", explanation: "Speed = Distance / Time = 120 / 6 = 20 m/s. 20 * (18/5) = 72 km/h.", order_num: 4 },
+    { id: "q3_5", test_id: "test_3", question_text: "A can do a piece of work in 10 days, B in 15 days. How many days will they take working together?", option_a: "6 days", option_b: "5 days", option_c: "7 days", option_d: "8 days", correct_option: "a", explanation: "Combined rate = 1/10 + 1/15 = 5/30 = 1/6. So 6 days total.", order_num: 5 },
+
+    // Test 4 Questions (System Arch)
+    { id: "q4_1", test_id: "test_4", question_text: "Which HTTP status code represents a successful resource creation?", option_a: "200 OK", option_b: "201 Created", option_c: "202 Accepted", option_d: "204 No Content", correct_option: "b", explanation: "201 Created represents successful asynchronous/synchronous resource creation.", order_num: 1 },
+    { id: "q4_2", test_id: "test_4", question_text: "What is the primary benefit of a reverse proxy like Nginx?", option_a: "Load balancing & SSL termination", option_b: "Compiling JavaScript bundles", option_c: "Encrypting database backups", option_d: "Managing local disk partitions", correct_option: "a", explanation: "Nginx excels at load balancing, SSL termination, and caching static resources.", order_num: 2 },
+    { id: "q4_3", test_id: "test_4", question_text: "What does horizontal scaling of a database involve?", option_a: "Adding more database server nodes", option_b: "Upgrading CPU/RAM of a single node", option_c: "Adding more columns to tables", option_d: "Creating indexes for search", correct_option: "a", explanation: "Horizontal scaling involves distributing database read/writes across multiple cluster nodes.", order_num: 3 },
+    { id: "q4_4", test_id: "test_4", question_text: "What is index coverage (covering index) in SQL?", option_a: "An index containing all fields needed in query select", option_b: "An index built over primary key exclusively", option_c: "An index that compresses data automatically", option_d: "An index that auto-deletes unused tables", correct_option: "a", explanation: "A covering index contains all query columns, bypassing the need to look up table rows entirely.", order_num: 4 }
+  ];
+
+  // 14. Mock Test Attempts
+  const mockTestAttempts = [
+    {
+      id: "attempt_1",
+      test_id: "test_1",
+      student_id: "std_1",
+      score: 2,
+      total: 3,
+      time_taken_seconds: 480,
+      completed_at: new Date(Date.now() - 3 * 864e5).toISOString()
+    },
+    {
+      id: "attempt_2",
+      test_id: "test_3",
+      student_id: "std_1",
+      score: 4,
+      total: 5,
+      time_taken_seconds: 320,
+      completed_at: new Date(Date.now() - 1 * 864e5).toISOString()
+    }
+  ];
+
+  // 15. Interviews
+  const interviews = [
+    { id: "iv_1", posting_id: "job_3", student_id: "std_1", round_name: "Deloitte Analyst Technical Round 1", scheduled_at: new Date(Date.now() + 172800000).toISOString(), venue: "Main Block Cabin 104", status: "scheduled" },
+    { id: "iv_2", posting_id: "job_2", student_id: "std_1", round_name: "Amazon SDE-1 Aptitude Screening", scheduled_at: new Date(Date.now() - 432000000).toISOString(), venue: "Online Test Center", status: "completed" }
   ];
 
   const completeDb = {
@@ -672,7 +750,8 @@ const seedComprehensiveMockDb = () => {
     companyPrep,
     mockTests,
     mockTestQuestions,
-    mockTestAttempts: [],
+    mockTestAttempts,
+    interviews,
     internships,
     earnedBadges,
     clubs: [
@@ -1459,7 +1538,11 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   if (cleanUrl === '/career/jobs/my-applications' && method === 'get') {
     const apps = db.jobApplications || [];
     const myApps = apps.filter((a: any) => a.student_id === activeUserId);
-    return { status: 200, data: myApps };
+    const enrichedApps = myApps.map((a: any) => ({
+      ...a,
+      posting_id: a.job_id
+    }));
+    return { status: 200, data: { applications: enrichedApps } };
   }
   if (cleanUrl.startsWith('/career/jobs/') && cleanUrl.endsWith('/save') && method === 'post') {
     const jid = cleanUrl.split('/')[3];
@@ -1595,6 +1678,44 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     const compFilter = urlParams.get('company')?.toLowerCase() || '';
     const filtered = db.alumni.filter((a: any) => !compFilter || a.company.toLowerCase().includes(compFilter));
     return { status: 200, data: filtered };
+  }
+
+  // ==========================================
+  // Interviews & Slot Booking Routes
+  // ==========================================
+  if (cleanUrl === '/career/interviews' && method === 'get') {
+    const list = db.interviews || [];
+    const myIvs = list.filter((i: any) => i.student_id === activeUserId);
+    return { status: 200, data: { interviews: myIvs } };
+  }
+  if (cleanUrl.startsWith('/career/jobs/') && cleanUrl.endsWith('/interview-slots') && method === 'get') {
+    const jobId = cleanUrl.split('/')[3];
+    const now = new Date();
+    const slots = Array.from({ length: 5 }, (_, i) => {
+      const t = new Date(now);
+      t.setDate(now.getDate() + i + 1);
+      t.setHours(10 + i, 0, 0, 0);
+      return { id: `slot-${jobId}-${i}`, time: t.toISOString(), available: true };
+    });
+    return { status: 200, data: { slots } };
+  }
+  if (cleanUrl.startsWith('/career/jobs/') && cleanUrl.endsWith('/book-interview') && method === 'post') {
+    const jobId = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    if (!db.interviews) db.interviews = [];
+    
+    const newIv = {
+      id: `iv_${Date.now()}`,
+      posting_id: jobId,
+      student_id: activeUserId,
+      round_name: payload.round_name || "Technical Interview",
+      scheduled_at: payload.time,
+      venue: "Main Block Room 102 (Offline)",
+      status: "scheduled"
+    };
+    db.interviews.push(newIv);
+    saveMockDb(db);
+    return { status: 201, data: { message: "Slot booked successfully", schedule: newIv } };
   }
 
   // ==========================================

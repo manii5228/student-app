@@ -294,7 +294,7 @@ const InterviewScheduler = () => {
 
             {/* Calendly booking picker modal */}
             {activeJobIdForBooking && (
-              <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm p-0">
+              <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm p-0">
                 <div className="bg-white rounded-t-[32px] w-full max-w-md p-6 pb-10 shadow-2xl animate-slide-up">
                   <div className="flex justify-between items-center mb-4">
                     <div>
@@ -349,7 +349,7 @@ const InterviewScheduler = () => {
 
       {/* Success Modal */}
       {successMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center">
             <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-emerald-600" />
@@ -368,7 +368,7 @@ const InterviewScheduler = () => {
 
       {/* Error Modal */}
       {errorMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center">
             <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-8 h-8 text-red-600" />

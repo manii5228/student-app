@@ -62,6 +62,11 @@ const MockTestPortal = () => {
   const [activeCardIdx, setActiveCardIdx] = useState(0);
   const [cardFlipped, setCardFlipped] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
+  const [bulkInput, setBulkInput] = useState('');
+  const [parsedPreview, setParsedPreview] = useState<Array<{ id: string; front: string; back: string; category: string }>>([]);
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
   
   const [cardFront, setCardFront] = useState('');
   const [cardBack, setCardBack] = useState('');
@@ -80,7 +85,97 @@ const MockTestPortal = () => {
     setCardFront('');
     setCardBack('');
     setShowAddCard(false);
-    alert("Revision Flash Card added successfully!");
+    setSuccessToast("Revision Flash Card added successfully!");
+    setTimeout(() => setSuccessToast(null), 4000);
+  };
+
+  const handleParseBulk = () => {
+    setBulkError(null);
+    const input = bulkInput.trim();
+    if (!input) {
+      setBulkError("Please paste some flashcards data to parse.");
+      return;
+    }
+
+    let parsed: Array<{ front: string; back: string; category: string }> = [];
+
+    // JSON format parsing
+    if (input.startsWith('[') || input.startsWith('{')) {
+      try {
+        const data = JSON.parse(input);
+        const list = Array.isArray(data) ? data : [data];
+        parsed = list.map((item: any, idx: number) => {
+          if (!item.front || !item.back) {
+            throw new Error(`Item ${idx + 1} is missing 'front' or 'back' fields.`);
+          }
+          return {
+            front: String(item.front).trim(),
+            back: String(item.back).trim(),
+            category: String(item.category || 'Algorithms').trim()
+          };
+        });
+      } catch (err: any) {
+        setBulkError(`JSON Parse Error: ${err.message}`);
+        return;
+      }
+    } else {
+      // CSV format parsing
+      const lines = input.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+        if (matches.length < 2) {
+          setBulkError(`CSV Parse Error at line ${i + 1}: Must contain Question and Answer separated by a comma.`);
+          return;
+        }
+        
+        const front = matches[0].replace(/^"|"$/g, '').trim();
+        const back = matches[1].replace(/^"|"$/g, '').trim();
+        const category = (matches[2] ? matches[2].replace(/^"|"$/g, '').trim() : 'Algorithms');
+        
+        if (!front || !back) {
+          setBulkError(`CSV Parse Error at line ${i + 1}: Question or Answer cannot be blank.`);
+          return;
+        }
+
+        parsed.push({ front, back, category });
+      }
+    }
+
+    if (parsed.length === 0) {
+      setBulkError("No records parsed successfully.");
+      return;
+    }
+
+    setParsedPreview(parsed.map((p, idx) => ({ ...p, id: `bulk_${idx}_${Date.now()}` })));
+  };
+
+  const handleImportBulk = () => {
+    if (parsedPreview.length === 0) return;
+    const newCards = parsedPreview.map(p => ({
+      id: p.id,
+      front: p.front,
+      back: p.back,
+      category: p.category,
+      isMastered: false
+    }));
+
+    setFlashcards([...flashcards, ...newCards]);
+    setBulkInput('');
+    setParsedPreview([]);
+    setShowBulkUpload(false);
+    setSuccessToast(`Successfully imported ${newCards.length} flashcards!`);
+    setTimeout(() => setSuccessToast(null), 4000);
+  };
+
+  const handleEditPreviewRow = (id: string, field: 'front' | 'back' | 'category', value: string) => {
+    setParsedPreview(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const handleDeletePreviewRow = (id: string) => {
+    setParsedPreview(prev => prev.filter(p => p.id !== id));
   };
 
   const toggleMastered = (id: string, e: React.MouseEvent) => {
@@ -256,14 +351,52 @@ const MockTestPortal = () => {
     // Keyboard shortcut interception
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Meta' || e.key === 'Alt' || e.altKey || e.metaKey || e.key === 'Escape') {
+        e.preventDefault();
         handleViolation("keyboard_shortcut");
+        return;
       }
+      if (e.key === 'F5' || (e.ctrlKey && e.key === 'r') || (e.metaKey && e.key === 'r')) {
+        e.preventDefault();
+        handleViolation("reload_attempt");
+        return;
+      }
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'i' || e.key === 'j' || e.key === 'c' || e.key === 'I' || e.key === 'J' || e.key === 'C')) ||
+        (e.metaKey && e.altKey && (e.key === 'i' || e.key === 'I'))
+      ) {
+        e.preventDefault();
+        handleViolation("devtools_attempt");
+        return;
+      }
+      if (e.ctrlKey || e.metaKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'c' || key === 'v' || key === 'x' || key === 'a') {
+          e.preventDefault();
+          handleViolation("keyboard_shortcut");
+          return;
+        }
+      }
+    };
+
+    const handleCopyPaste = (e: Event) => {
+      e.preventDefault();
+      handleViolation("copy_paste");
+    };
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      handleViolation("right_click");
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     window.addEventListener("blur", handleWindowBlur);
     window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("copy", handleCopyPaste);
+    document.addEventListener("paste", handleCopyPaste);
+    document.addEventListener("cut", handleCopyPaste);
+    document.addEventListener("contextmenu", handleContextMenu);
 
     return () => {
       clearInterval(timer);
@@ -271,6 +404,10 @@ const MockTestPortal = () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       window.removeEventListener("blur", handleWindowBlur);
       window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("copy", handleCopyPaste);
+      document.removeEventListener("paste", handleCopyPaste);
+      document.removeEventListener("cut", handleCopyPaste);
+      document.removeEventListener("contextmenu", handleContextMenu);
     };
   }, [activeTest, showResults, currentQ, questions]);
 
@@ -570,12 +707,20 @@ const MockTestPortal = () => {
               <p className="text-[10px] text-slate-400 font-bold mt-0.5">{filteredCards.length} card(s) remaining</p>
             </div>
             {isFacultyOrAdmin && (
-              <button 
-                onClick={() => setShowAddCard(true)} 
-                className="bg-rose-600 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md flex items-center gap-1 animate-pulse"
-              >
-                <Plus className="w-4 h-4" /> Add Card
-              </button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setShowBulkUpload(true)} 
+                  className="bg-slate-900 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md flex items-center gap-1.5 hover:bg-slate-800 transition-colors"
+                >
+                  📥 Bulk Upload
+                </button>
+                <button 
+                  onClick={() => setShowAddCard(true)} 
+                  className="bg-rose-600 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md flex items-center gap-1 animate-pulse"
+                >
+                  <Plus className="w-4 h-4" /> Add Card
+                </button>
+              </div>
             )}
           </div>
 
@@ -595,27 +740,29 @@ const MockTestPortal = () => {
             ) : (
               <div className="flex flex-col gap-6 items-center w-full">
                 {/* Visual Flipping Card */}
-                <div 
-                  onClick={() => setCardFlipped(!cardFlipped)}
-                  className="w-full aspect-[4/3] max-w-sm rounded-[32px] shadow-xl border border-slate-100 bg-white cursor-pointer relative flex items-center justify-center p-6 text-center transition-all duration-300 hover:shadow-2xl"
-                >
-                  {/* Front View */}
-                  <div className={`absolute inset-0 p-6 flex flex-col justify-between items-center transition-opacity duration-300 ${cardFlipped ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                    <span className="text-[9px] font-black uppercase bg-rose-50 text-rose-600 px-3 py-1 rounded-full tracking-wider">{filteredCards[activeCardIdx].category}</span>
-                    <h4 className="text-base font-black text-slate-800 leading-relaxed max-w-xs">{filteredCards[activeCardIdx].front}</h4>
-                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Tap to Flip Card</span>
-                  </div>
+                <div className="w-full aspect-[4/3] max-w-sm [perspective:1000px] cursor-pointer">
+                  <div 
+                    onClick={() => setCardFlipped(!cardFlipped)}
+                    className={`relative w-full h-full rounded-[32px] shadow-xl border border-slate-100 transition-transform duration-500 [transform-style:preserve-3d] ${cardFlipped ? '[transform:rotateY(180deg)]' : ''}`}
+                  >
+                    {/* Front View */}
+                    <div className="absolute inset-0 p-6 rounded-[32px] bg-white flex flex-col justify-between items-center [backface-visibility:hidden]">
+                      <span className="text-[9px] font-black uppercase bg-rose-50 text-rose-600 px-3 py-1 rounded-full tracking-wider">{filteredCards[activeCardIdx].category}</span>
+                      <h4 className="text-base font-black text-slate-800 leading-relaxed max-w-xs">{filteredCards[activeCardIdx].front}</h4>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Tap to Flip Card</span>
+                    </div>
 
-                  {/* Back View */}
-                  <div className={`absolute inset-0 p-6 flex flex-col justify-between items-center transition-opacity duration-300 ${cardFlipped ? 'opacity-100' : 'opacity-0 pointer-events-none bg-slate-50/50'}`}>
-                    <span className="text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full tracking-wider">Solution Explanation</span>
-                    <p className="text-xs text-slate-700 font-semibold leading-relaxed max-w-xs mt-4">{filteredCards[activeCardIdx].back}</p>
-                    <button
-                      onClick={(e) => toggleMastered(filteredCards[activeCardIdx].id, e)}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-md flex items-center gap-1"
-                    >
-                      <CheckCircle className="w-3.5 h-3.5" /> Mark Mastered
-                    </button>
+                    {/* Back View */}
+                    <div className="absolute inset-0 p-6 rounded-[32px] bg-white flex flex-col justify-between items-center [backface-visibility:hidden] [transform:rotateY(180deg)]">
+                      <span className="text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full tracking-wider">Solution Explanation</span>
+                      <p className="text-xs text-slate-700 font-semibold leading-relaxed max-w-xs mt-4">{filteredCards[activeCardIdx].back}</p>
+                      <button
+                        onClick={(e) => toggleMastered(filteredCards[activeCardIdx].id, e)}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-md flex items-center gap-1"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> Mark Mastered
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -647,6 +794,146 @@ const MockTestPortal = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* SUCCESS TOAST MESSAGE */}
+      {successToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl px-6 py-4 flex items-center gap-3 shadow-xl animate-fade-in">
+          <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
+          <span className="text-xs font-bold">{successToast}</span>
+        </div>
+      )}
+
+      {/* BULK UPLOAD MODAL (Faculty Revision) */}
+      {showBulkUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-lg rounded-[32px] p-6 shadow-2xl animate-slide-up flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-4 shrink-0">
+              <div>
+                <h3 className="text-lg font-black text-slate-900">Bulk Upload Flashcards</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Paste CSV or JSON format below</p>
+              </div>
+              <button 
+                onClick={() => { setShowBulkUpload(false); setParsedPreview([]); setBulkInput(''); setBulkError(null); }} 
+                className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
+              {/* Instructions */}
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-[11px] leading-relaxed text-slate-600 font-medium">
+                <p className="font-bold text-slate-800 uppercase tracking-wider mb-1 text-[9px]">Accepted Formats</p>
+                <ul className="list-disc pl-4 flex flex-col gap-1">
+                  <li><strong>CSV Format:</strong> Line-separated rows with <code>"Question","Answer","Category"</code> (optional).<br />Example: <code>"What is TCP?","Connection oriented protocol","Networks"</code></li>
+                  <li><strong>JSON Format:</strong> An array of objects.<br />Example: <code>{"["}{"{"}"front": "Q1", "back": "A1", "category": "DBMS"{"}"}{"]"}</code></li>
+                </ul>
+              </div>
+
+              {bulkError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-xs font-semibold">
+                  {bulkError}
+                </div>
+              )}
+
+              {parsedPreview.length === 0 ? (
+                <div>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1 block">Paste Flashcards Data *</label>
+                  <textarea
+                    value={bulkInput}
+                    onChange={e => setBulkInput(e.target.value)}
+                    placeholder={`"What is SQL?","Structured Query Language","DBMS"\n"What is HTML?","HyperText Markup Language","Web"`}
+                    rows={8}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-semibold font-mono text-slate-800 outline-none focus:border-rose-500 focus:bg-white resize-none"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Parsed Preview ({parsedPreview.length} items)</h4>
+                  <div className="flex flex-col gap-3">
+                    {parsedPreview.map((row) => (
+                      <div key={row.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col gap-2 relative">
+                        <button 
+                          onClick={() => handleDeletePreviewRow(row.id)}
+                          className="absolute top-3 right-3 text-red-500 hover:text-red-700 font-bold text-xs"
+                          title="Delete card"
+                        >
+                          ✕ Delete
+                        </button>
+                        <div className="pr-12">
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Question / Front</label>
+                          <input 
+                            type="text" 
+                            value={row.front} 
+                            onChange={e => handleEditPreviewRow(row.id, 'front', e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Answer / Solution</label>
+                          <textarea 
+                            value={row.back} 
+                            onChange={e => handleEditPreviewRow(row.id, 'back', e.target.value)}
+                            rows={2}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold resize-none"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[8px] font-black text-slate-400 uppercase tracking-wider block mb-0.5">Category</label>
+                            <select 
+                              value={row.category} 
+                              onChange={e => handleEditPreviewRow(row.id, 'category', e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg p-1 text-xs font-bold text-slate-700"
+                            >
+                              <option value="Algorithms">Algorithms</option>
+                              <option value="Computer Networks">Computer Networks</option>
+                              <option value="DBMS">DBMS</option>
+                              <option value="Operating Systems">Operating Systems</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6 shrink-0 border-t border-slate-100 pt-4">
+              <button 
+                onClick={() => {
+                  if (parsedPreview.length > 0) {
+                    setParsedPreview([]);
+                  } else {
+                    setShowBulkUpload(false);
+                    setBulkInput('');
+                    setBulkError(null);
+                  }
+                }} 
+                className="flex-1 py-3.5 text-xs font-black text-slate-500 bg-slate-100 rounded-2xl"
+              >
+                {parsedPreview.length > 0 ? "Back to Edit" : "Cancel"}
+              </button>
+              {parsedPreview.length === 0 ? (
+                <button 
+                  onClick={handleParseBulk}
+                  className="flex-1 py-3.5 text-xs font-black text-white bg-slate-900 hover:bg-slate-800 rounded-2xl"
+                >
+                  Parse Data
+                </button>
+              ) : (
+                <button 
+                  onClick={handleImportBulk}
+                  className="flex-1 py-3.5 text-xs font-black text-white bg-rose-600 hover:bg-rose-700 rounded-2xl shadow-lg shadow-rose-500/10"
+                >
+                  Import {parsedPreview.length} Cards
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
