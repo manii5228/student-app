@@ -411,6 +411,40 @@ const seedComprehensiveMockDb = () => {
     { id: "alum_4", name: "Alumni Pooja Hegde", email: "alumnipooja@gmail.com", batch_year: 2019, department: "Biomed", company: "Johnson & Johnson", designation: "Biomedical Systems Architect", linkedin_url: "https://linkedin.com/in/alumnipooja", is_open_to_referral: true }
   ];
 
+  // Internships
+  const internships = [
+    {
+      id: "int_1",
+      student_id: "std_1",
+      company_name: "Google",
+      role_title: "Software Engineer Intern",
+      description: "Working on performance critical core microservices in Go.",
+      start_date: "2026-05-01",
+      end_date: "2026-08-01",
+      stipend: 75000,
+      mode: "hybrid",
+      certificate_url: "",
+      status: "ongoing",
+      skills_learned: "Go, Kubernetes, Protobuf",
+      is_verified: true
+    },
+    {
+      id: "int_2",
+      student_id: "std_1",
+      company_name: "Microsoft",
+      role_title: "Product Manager Intern",
+      description: "Leading research and specification for cloud database console tools.",
+      start_date: "2025-05-01",
+      end_date: "2025-08-01",
+      stipend: 65000,
+      mode: "onsite",
+      certificate_url: "https://veltech.edu.in/certificates/ms_intern.pdf",
+      status: "completed",
+      skills_learned: "Product Specs, Azure, UI Design",
+      is_verified: true
+    }
+  ];
+
   // 10. Team Finder Profiles
   const teamProfiles: any[] = [];
   const skills_list = ["React,TypeScript,Tailwind", "Python,FastAPI,SQL", "Figma,UI/UX,React", "C++,Embedded,RTOS", "Machine Learning,PyTorch", "Data Science,Pandas"];
@@ -438,6 +472,26 @@ const seedComprehensiveMockDb = () => {
     { id: "b4", name: "Data Analytics", description: "Analyzed complex datasets using Pandas & Numpy", category: "technical", icon: "bar-chart", color: "#10b981", points: 30, criteria: "Data Cleaning + Wrangling pipelines" },
     { id: "b5", name: "Cloud Computing", description: "Successfully configured pipelines on AWS or GCP", category: "technical", icon: "cloud", color: "#eab308", points: 50, criteria: "Setup fully functional Docker CI pipelines" },
     { id: "b6", name: "Problem Solving", description: "Solved 250+ technical logic algorithm tasks", category: "technical", icon: "cpu", color: "#f97316", points: 100, criteria: "Clear advanced aptitude coding tests" }
+  ];
+
+  // Earned Badges
+  const earnedBadges = [
+    {
+      id: "eb1",
+      student_id: "std_1",
+      badge: badges[0],
+      note: "Excellent completion of Python workshop",
+      status: "approved",
+      earned_at: new Date(Date.now() - 5 * 864e5).toISOString()
+    },
+    {
+      id: "eb2",
+      student_id: "std_1",
+      badge: badges[1],
+      note: "Successfully built the university project frontend",
+      status: "approved",
+      earned_at: new Date(Date.now() - 2 * 864e5).toISOString()
+    }
   ];
 
   // 12. Company Prep Module Questions
@@ -527,7 +581,9 @@ const seedComprehensiveMockDb = () => {
     companyPrep,
     mockTests,
     mockTestQuestions,
-    mockTestAttempts: []
+    mockTestAttempts: [],
+    internships,
+    earnedBadges
   };
 
   localStorage.setItem('mock_db', JSON.stringify(completeDb));
@@ -811,10 +867,31 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   }
 
   if (cleanUrl === '/career/badges/my-badges' && method === 'get') {
+    const myEarned = db.earnedBadges.filter((eb: any) => eb.student_id === activeUserId);
     return {
       status: 200,
-      data: { earned_badges: db.badges.slice(0, 2) }
+      data: { earned_badges: myEarned }
     };
+  }
+
+  if (cleanUrl.startsWith('/career/badges/') && cleanUrl.endsWith('/award') && method === 'post') {
+    const bid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    const badge = db.badges.find((b: any) => b.id === bid);
+    if (badge) {
+      const newEarned = {
+        id: `eb_${Date.now()}`,
+        student_id: payload.student_id,
+        badge: badge,
+        note: payload.note || "",
+        status: "approved",
+        earned_at: new Date().toISOString()
+      };
+      if (!db.earnedBadges) db.earnedBadges = [];
+      db.earnedBadges.push(newEarned);
+      saveMockDb(db);
+      return { status: 201, data: newEarned };
+    }
   }
 
   // Notices
@@ -843,13 +920,19 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       deadline: payload.deadline || "",
       status: "todo",
       progress_pct: 0,
-      milestones: []
+      milestones: (payload.milestones || []).map((m: any, idx: number) => ({
+        id: `m_${Date.now()}_${idx}`,
+        title: m.title,
+        column: m.column || "todo",
+        assigned_to: m.assigned_to || null,
+        is_completed: m.column === "done"
+      }))
     };
     db.projects.push(newProject);
     saveMockDb(db);
     return {
       status: 201,
-      data: newProject
+      data: { message: "Project created", project: newProject }
     };
   }
 
@@ -896,6 +979,7 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     const payload = getPayload(config.data);
     
     let updatedMilestone = null;
+    let updatedProject = null;
     db.projects.forEach((proj: any) => {
       const ms = proj.milestones.find((m: any) => m.id === id);
       if (ms) {
@@ -908,12 +992,13 @@ export const handleMockRequest = async (config: any): Promise<any> => {
         proj.progress_pct = proj.milestones.length > 0 ? Math.round((doneCount / proj.milestones.length) * 100) : 0;
         
         updatedMilestone = ms;
+        updatedProject = proj;
       }
     });
     
     saveMockDb(db);
-    if (updatedMilestone) {
-      return { status: 200, data: updatedMilestone };
+    if (updatedMilestone && updatedProject) {
+      return { status: 200, data: { milestone: updatedMilestone, project: updatedProject } };
     }
   }
 
@@ -1356,7 +1441,7 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   // Alumni & Referral Hub Routes
   // ==========================================
   if (cleanUrl === '/career/alumni/referral-hub' && method === 'get') {
-    return { status: 200, data: db.alumni };
+    return { status: 200, data: { referral_alumni: db.alumni } };
   }
   if (cleanUrl === '/career/alumni' && method === 'get') {
     const compFilter = urlParams.get('company')?.toLowerCase() || '';
@@ -1479,12 +1564,62 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   // Mock Test Routes
   // ==========================================
   if (cleanUrl === '/career/mock-tests' && method === 'get') {
-    return { status: 200, data: db.mockTests };
+    return { status: 200, data: { tests: db.mockTests } };
   }
   if (cleanUrl.startsWith('/career/mock-tests/') && cleanUrl.endsWith('/questions') && method === 'get') {
     const tid = cleanUrl.split('/')[3];
     const questions = db.mockTestQuestions.filter((q: any) => q.test_id === tid);
-    return { status: 200, data: questions };
+    return { status: 200, data: { questions: questions } };
+  }
+
+  // ==========================================
+  // Internship Tracker Routes
+  // ==========================================
+  if (cleanUrl === '/career/internships' && method === 'get') {
+    const studentInts = db.internships.filter((i: any) => i.student_id === activeUserId);
+    return { status: 200, data: { internships: studentInts } };
+  }
+  if (cleanUrl === '/career/internships' && method === 'post') {
+    const payload = getPayload(config.data);
+    const newInt = {
+      id: `int_${Date.now()}`,
+      student_id: activeUserId,
+      company_name: payload.company_name,
+      role_title: payload.role_title,
+      description: payload.description || "",
+      start_date: payload.start_date || new Date().toISOString().split('T')[0],
+      end_date: payload.end_date || null,
+      stipend: parseFloat(payload.stipend) || 0,
+      mode: payload.mode || "onsite",
+      certificate_url: payload.certificate_url || "",
+      status: payload.status || "ongoing",
+      skills_learned: payload.skills_learned || "",
+      is_verified: false
+    };
+    db.internships.push(newInt);
+    saveMockDb(db);
+    return { status: 201, data: { success: true, internship: newInt } };
+  }
+  if (cleanUrl.startsWith('/career/internships/') && method === 'put') {
+    const id = cleanUrl.split('/').pop();
+    const payload = getPayload(config.data);
+    const idx = db.internships.findIndex((i: any) => i.id === id);
+    if (idx !== -1) {
+      db.internships[idx] = { ...db.internships[idx], ...payload };
+      saveMockDb(db);
+      return { status: 200, data: { success: true, internship: db.internships[idx] } };
+    }
+  }
+  if (cleanUrl.startsWith('/career/internships/') && method === 'delete') {
+    const id = cleanUrl.split('/').pop();
+    db.internships = db.internships.filter((i: any) => i.id !== id);
+    saveMockDb(db);
+    return { status: 200, data: { success: true } };
+  }
+  if (cleanUrl === '/career/internships/export' && method === 'get') {
+    const csvContent = "company_name,role_title,start_date,end_date,stipend,mode,status,is_verified\n" +
+      db.internships.map((i: any) => `"${i.company_name}","${i.role_title}","${i.start_date}","${i.end_date}",${i.stipend},"${i.mode}","${i.status}",${i.is_verified}`).join('\n');
+    return { status: 200, data: new Blob([csvContent], { type: 'text/csv' }) };
   }
   if (cleanUrl.startsWith('/career/mock-tests/') && cleanUrl.endsWith('/submit') && method === 'post') {
     const tid = cleanUrl.split('/')[3];

@@ -385,7 +385,7 @@ const InterviewScheduler = () => {
         </div>
       )}
 
-      <BottomNav />
+      {!activeJobIdForBooking && <BottomNav />}
     </div>
   );
 };

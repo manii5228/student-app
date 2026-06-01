@@ -56,11 +56,15 @@ const ProjectReminders = () => {
   };
 
   const create = async () => {
-    if(!form.title.trim()) return; setSubmitting(true);
+    if (!form.title.trim() || !form.desc.trim() || !form.deadline.trim() || !form.team.trim()) {
+      alert("All fields are compulsory! Please fill in Title, Description, Deadline, and Team Members.");
+      return;
+    }
+    setSubmitting(true);
     try {
       await api.post('/career/projects', {
-        title: form.title, description: form.desc||undefined,
-        deadline: form.deadline||undefined, team_members: form.team||undefined,
+        title: form.title, description: form.desc,
+        deadline: form.deadline, team_members: form.team,
         milestones: newMs,
       });
       setShowCreate(false); setForm({title:'',desc:'',deadline:'',team:''}); setNewMs([]); fetchProjects();
@@ -88,6 +92,26 @@ const ProjectReminders = () => {
     setShowTaskModal(true);
   };
 
+  const handleCycleStatus = async (ms: MilestoneT) => {
+    let nextCol = 'todo';
+    if (ms.column === 'todo') {
+      nextCol = 'in_progress';
+    } else if (ms.column === 'in_progress') {
+      // Done status supervisor approval prompt
+      const supervisorName = prompt("This task 'Done' status requires supervisor approval. Please enter the name of the Project Supervisor / Faculty to sign off:");
+      if (!supervisorName || !supervisorName.trim()) {
+        alert("Supervisor approval is required to mark this task as Done!");
+        return;
+      }
+      nextCol = 'done';
+      alert(`Task signed off and approved by Prof. ${supervisorName.trim()}!`);
+    } else if (ms.column === 'done') {
+      nextCol = 'todo';
+    }
+    
+    await moveMilestone(ms.id, nextCol);
+  };
+
   const createTask = async () => {
     if (!activeProject || !taskForm.title.trim()) return;
     setSubmitting(true);
@@ -98,7 +122,23 @@ const ProjectReminders = () => {
         assigned_to: taskForm.assigned_to || undefined,
         column: taskForm.column
       });
-      setProjects(p => p.map(x => x.id === data.project.id ? data.project : x));
+      // Handle both real backend and mock response schemas
+      if (data && data.project) {
+        setProjects(p => p.map(x => x.id === data.project.id ? data.project : x));
+      } else if (data && data.id) {
+        // Mock raw milestone response
+        setProjects(p => p.map(x => {
+          if (x.id === activeProject) {
+            const updatedMilestones = [...x.milestones, data];
+            const doneCount = updatedMilestones.filter(m => m.column === 'done').length;
+            const progress_pct = updatedMilestones.length > 0 ? Math.round((doneCount / updatedMilestones.length) * 100) : 0;
+            return { ...x, milestones: updatedMilestones, progress_pct };
+          }
+          return x;
+        }));
+      } else {
+        fetchProjects();
+      }
       setShowTaskModal(false);
     } catch {}
     setSubmitting(false);
@@ -107,7 +147,31 @@ const ProjectReminders = () => {
   const moveMilestone = async (mid: string, newColumn: string) => {
     try {
       const {data} = await api.put(`/career/milestones/${mid}`, { column: newColumn });
-      setProjects(p => p.map(x => x.id === data.project.id ? data.project : x));
+      if (data && data.project) {
+        setProjects(p => p.map(x => x.id === data.project.id ? data.project : x));
+      } else if (data && data.milestone && data.project) {
+        // Correct Python structure
+        setProjects(p => p.map(x => x.id === data.project.id ? data.project : x));
+      } else if (data && data.id) {
+        // Mock raw milestone response
+        setProjects(p => p.map(proj => {
+          const hasMs = proj.milestones.some(m => m.id === mid);
+          if (hasMs) {
+            const updatedMilestones = proj.milestones.map(m => {
+              if (m.id === mid) {
+                return { ...m, column: newColumn, is_completed: newColumn === 'done' };
+              }
+              return m;
+            });
+            const doneCount = updatedMilestones.filter(m => m.column === 'done').length;
+            const progress_pct = updatedMilestones.length > 0 ? Math.round((doneCount / updatedMilestones.length) * 100) : 0;
+            return { ...proj, milestones: updatedMilestones, progress_pct };
+          }
+          return proj;
+        }));
+      } else {
+        fetchProjects();
+      }
     } catch {}
   };
 
@@ -240,11 +304,19 @@ const ProjectReminders = () => {
                       {tasks.map(ms => (
                         <div
                           key={ms.id}
-                          draggable
-                          onDragStart={() => handleDragStart(ms.id)}
-                          className={`bg-white rounded-xl p-3 shadow-sm border border-white/80 cursor-grab active:cursor-grabbing hover:shadow-md transition-all ${dragItem === ms.id ? 'opacity-50 scale-95' : ''}`}
+                          className={`bg-white rounded-xl p-3 shadow-sm border border-white/80 hover:shadow-md transition-all ${dragItem === ms.id ? 'opacity-50 scale-95' : ''}`}
                         >
                           <div className="flex items-start gap-2">
+                            {/* Sequential status ticking button */}
+                            <button
+                              onClick={() => handleCycleStatus(ms)}
+                              className="mt-0.5 shrink-0 text-slate-400 hover:text-cyan-600 transition-colors"
+                              title="Cycle Status"
+                            >
+                              {ms.column === 'todo' && <Circle className="w-4.5 h-4.5 text-slate-400" />}
+                              {ms.column === 'in_progress' && <Clock className="w-4.5 h-4.5 text-amber-500 animate-pulse" />}
+                              {ms.column === 'done' && <CheckCircle className="w-4.5 h-4.5 text-emerald-500" />}
+                            </button>
                             <GripVertical className="w-3.5 h-3.5 text-slate-300 mt-0.5 shrink-0"/>
                             <div className="flex-1 min-w-0">
                               <p className={`text-xs font-bold leading-tight ${ms.is_completed ? 'line-through text-slate-400' : 'text-slate-800'}`}>{ms.title}</p>
@@ -376,7 +448,7 @@ const ProjectReminders = () => {
                   <button onClick={()=>{if(msInput.trim()){setNewMs(p=>[...p,{title:msInput.trim(),due_date:''}]);setMsInput('');}}} className="px-3 py-2 bg-cyan-50 text-cyan-600 rounded-xl text-sm font-bold">+</button>
                 </div>
               </div>
-              <button onClick={create} disabled={submitting||!form.title.trim()} className="w-full bg-cyan-600 text-white py-4 rounded-2xl font-bold text-sm hover:bg-cyan-700 active:scale-[0.98] transition-all disabled:opacity-40 mb-20">{submitting?'Creating...':'Create Project'}</button>
+              <button onClick={create} disabled={submitting||!form.title.trim()||!form.desc.trim()||!form.deadline.trim()||!form.team.trim()} className="w-full bg-cyan-600 text-white py-4 rounded-2xl font-bold text-sm hover:bg-cyan-700 active:scale-[0.98] transition-all disabled:opacity-40 mb-20">{submitting?'Creating...':'Create Project'}</button>
             </div>
           </div>
         </div>

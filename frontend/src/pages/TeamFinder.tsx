@@ -463,7 +463,7 @@ const TeamFinder = () => {
         </div>
       )}
 
-      <BottomNav/>
+      {!chatMatch && <BottomNav/>}
     </div>
   );
 };

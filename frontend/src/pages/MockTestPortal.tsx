@@ -42,6 +42,54 @@ const MockTestPortal = () => {
   const [loading, setLoading] = useState(true);
   const [catFilter, setCatFilter] = useState('');
 
+  // Flashcards state
+  const [subTab, setSubTab] = useState<'tests' | 'flashcards'>('tests');
+  const [flashcards, setFlashcards] = useState<Array<{ id: string; front: string; back: string; category: string; isMastered: boolean }>>(() => {
+    const saved = localStorage.getItem('mock_test_flashcards');
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: "mc_1", front: "What is the primary difference between TCP and UDP?", back: "TCP is connection-oriented, reliable, and guarantees packet delivery order. UDP is connectionless, faster, but does not guarantee delivery or packet order.", category: "Computer Networks", isMastered: false },
+      { id: "mc_2", front: "Explain ACID properties of Database Management Systems.", back: "Atomicity (all or nothing), Consistency (preserves database integrity), Isolation (concurrent transactions don't interfere), and Durability (permanent changes).", category: "DBMS", isMastered: false },
+      { id: "mc_3", front: "What is dynamic programming?", back: "An algorithmic technique that solves complex problems by breaking them down into simpler overlapping subproblems, solving each subproblem once, and caching their solutions (memoization).", category: "Algorithms", isMastered: false },
+      { id: "mc_4", front: "What is a deadlock and what are its four necessary conditions?", back: "A situation where set of processes are blocked because each holds a resource and waits for another. Conditions: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait.", category: "Operating Systems", isMastered: false }
+    ];
+  });
+  
+  useEffect(() => {
+    localStorage.setItem('mock_test_flashcards', JSON.stringify(flashcards));
+  }, [flashcards]);
+
+  const [activeCardIdx, setActiveCardIdx] = useState(0);
+  const [cardFlipped, setCardFlipped] = useState(false);
+  const [showAddCard, setShowAddCard] = useState(false);
+  
+  const [cardFront, setCardFront] = useState('');
+  const [cardBack, setCardBack] = useState('');
+  const [cardCat, setCardCat] = useState('Algorithms');
+
+  const handleCreateCard = () => {
+    if (!cardFront.trim() || !cardBack.trim()) return;
+    const newCard = {
+      id: `mc_${Date.now()}`,
+      front: cardFront.trim(),
+      back: cardBack.trim(),
+      category: cardCat,
+      isMastered: false
+    };
+    setFlashcards([...flashcards, newCard]);
+    setCardFront('');
+    setCardBack('');
+    setShowAddCard(false);
+    alert("Revision Flash Card added successfully!");
+  };
+
+  const toggleMastered = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFlashcards(flashcards.map(c => c.id === id ? { ...c, isMastered: !c.isMastered } : c));
+  };
+
+  const filteredCards = flashcards.filter(c => !c.isMastered);
+
   // Authentication/Role details
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
@@ -426,82 +474,221 @@ const MockTestPortal = () => {
         </div>
       </div>
 
+      {/* Sub-Tab Selector */}
       <div className="px-4 mt-4 shrink-0">
-        <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-          <button 
-            onClick={() => setCatFilter('')} 
-            className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${!catFilter ? 'bg-rose-600 text-white shadow-sm shadow-rose-500/10' : 'bg-white text-slate-500 border border-slate-100'}`}
-          >
-            All Packs
-          </button>
-          {cats.map(c => (
-            <button 
-              key={c} 
-              onClick={() => setCatFilter(c)} 
-              className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold capitalize transition-all ${catFilter === c ? 'bg-rose-600 text-white shadow-sm shadow-rose-500/10' : 'bg-white text-slate-500 border border-slate-100'}`}
-            >
-              {c}
-            </button>
-          ))}
+        <div className="flex bg-white rounded-2xl p-1.5 shadow-sm border border-slate-100">
+          <button onClick={() => setSubTab('tests')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${subTab === 'tests' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>📋 Mock Tests</button>
+          <button onClick={() => setSubTab('flashcards')} className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all ${subTab === 'flashcards' ? 'bg-rose-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>🎴 Revision Decks</button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-        {loading ? (
-          <div className="flex justify-center py-16">
-            <span className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></span>
+      {subTab === 'tests' ? (
+        <>
+          <div className="px-4 mt-4 shrink-0">
+            <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+              <button 
+                onClick={() => setCatFilter('')} 
+                className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${!catFilter ? 'bg-rose-600 text-white shadow-sm shadow-rose-500/10' : 'bg-white text-slate-500 border border-slate-100'}`}
+              >
+                All Packs
+              </button>
+              {cats.map(c => (
+                <button 
+                  key={c} 
+                  onClick={() => setCatFilter(c)} 
+                  className={`shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold capitalize transition-all ${catFilter === c ? 'bg-rose-600 text-white shadow-sm shadow-rose-500/10' : 'bg-white text-slate-500 border border-slate-100'}`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
           </div>
-        ) : tests.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 p-8">
-            <BarChart3 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h2 className="text-base font-bold text-slate-900">No Tests Listed</h2>
-            <p className="text-xs text-slate-500 mt-1">Please check back later or start a new test build.</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3 animate-slide-up">
-            {tests.map(t => {
-              const grad = catColors[t.category] || 'from-slate-500 to-slate-600';
-              return (
-                <div key={t.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 hover:shadow-md transition-all flex justify-between items-center gap-4">
-                  <div className="flex items-center gap-4 min-w-0">
-                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center text-white shrink-0 shadow-sm shadow-indigo-500/5`}>
-                      <BarChart3 className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-slate-800 truncate">{t.title}</h3>
-                      {t.description && <p className="text-xs text-slate-400 mt-0.5 truncate leading-relaxed">{t.description}</p>}
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${diffColors[t.difficulty] || ''}`}>{t.difficulty}</span>
-                        <span className="text-[10px] font-bold text-slate-400 flex items-center gap-0.5"><Clock className="w-3 h-3" />{t.duration_minutes}m</span>
-                        <span className="text-[10px] font-bold text-slate-400">{t.total_questions} Qs</span>
+
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            {loading ? (
+              <div className="flex justify-center py-16">
+                <span className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></span>
+              </div>
+            ) : tests.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 p-8">
+                <BarChart3 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <h2 className="text-base font-bold text-slate-900">No Tests Listed</h2>
+                <p className="text-xs text-slate-500 mt-1">Please check back later or start a new test build.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 animate-slide-up">
+                {tests.map(t => {
+                  const grad = catColors[t.category] || 'from-slate-500 to-slate-600';
+                  return (
+                    <div key={t.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 hover:shadow-md transition-all flex justify-between items-center gap-4">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center text-white shrink-0 shadow-sm shadow-indigo-500/5`}>
+                          <BarChart3 className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-slate-800 truncate">{t.title}</h3>
+                          {t.description && <p className="text-xs text-slate-400 mt-0.5 truncate leading-relaxed">{t.description}</p>}
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${diffColors[t.difficulty] || ''}`}>{t.difficulty}</span>
+                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-0.5"><Clock className="w-3 h-3" />{t.duration_minutes}m</span>
+                            <span className="text-[10px] font-bold text-slate-400">{t.total_questions} Qs</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isFacultyOrAdmin && (
+                          <>
+                            <button onClick={(e) => openEditModal(t, e)} className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-xl transition-colors border border-slate-100">
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={(e) => handleDeleteTest(t.id, e)} className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors border border-red-100">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                        <button 
+                          onClick={() => startTest(t)} 
+                          className="px-4 py-2.5 bg-rose-600 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-500/10 hover:bg-rose-700 active:scale-95 flex items-center gap-1 transition-all"
+                        >
+                          <Play className="w-3.5 h-3.5" /> Start
+                        </button>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        /* ─── FLASHCARDS VIEW ─── */
+        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+          <div className="flex justify-between items-center pl-1 shrink-0">
+            <div>
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Concept Deck</h3>
+              <p className="text-[10px] text-slate-400 font-bold mt-0.5">{filteredCards.length} card(s) remaining</p>
+            </div>
+            {isFacultyOrAdmin && (
+              <button 
+                onClick={() => setShowAddCard(true)} 
+                className="bg-rose-600 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md flex items-center gap-1 animate-pulse"
+              >
+                <Plus className="w-4 h-4" /> Add Card
+              </button>
+            )}
+          </div>
+
+          <div className="flex-1 flex flex-col justify-center items-center py-6 min-h-[350px]">
+            {filteredCards.length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 text-center border border-slate-100 shadow-sm w-full max-w-sm">
+                <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                <h3 className="text-base font-bold text-slate-900">Deck Completed!</h3>
+                <p className="text-xs text-slate-500 mt-1">Great job! You have revised all academic core concepts in this pack.</p>
+                <button 
+                  onClick={() => setFlashcards(flashcards.map(c => ({ ...c, isMastered: false })))}
+                  className="mt-6 bg-slate-900 text-white text-xs font-black px-6 py-3 rounded-2xl w-full"
+                >
+                  Reset Deck
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6 items-center w-full">
+                {/* Visual Flipping Card */}
+                <div 
+                  onClick={() => setCardFlipped(!cardFlipped)}
+                  className="w-full aspect-[4/3] max-w-sm rounded-[32px] shadow-xl border border-slate-100 bg-white cursor-pointer relative flex items-center justify-center p-6 text-center transition-all duration-300 hover:shadow-2xl"
+                >
+                  {/* Front View */}
+                  <div className={`absolute inset-0 p-6 flex flex-col justify-between items-center transition-opacity duration-300 ${cardFlipped ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+                    <span className="text-[9px] font-black uppercase bg-rose-50 text-rose-600 px-3 py-1 rounded-full tracking-wider">{filteredCards[activeCardIdx].category}</span>
+                    <h4 className="text-base font-black text-slate-800 leading-relaxed max-w-xs">{filteredCards[activeCardIdx].front}</h4>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Tap to Flip Card</span>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    {isFacultyOrAdmin && (
-                      <>
-                        <button onClick={(e) => openEditModal(t, e)} className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-xl transition-colors border border-slate-100">
-                          <Edit className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={(e) => handleDeleteTest(t.id, e)} className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-xl transition-colors border border-red-100">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </>
-                    )}
-                    <button 
-                      onClick={() => startTest(t)} 
-                      className="px-4 py-2.5 bg-rose-600 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-500/10 hover:bg-rose-700 active:scale-95 flex items-center gap-1 transition-all"
+                  {/* Back View */}
+                  <div className={`absolute inset-0 p-6 flex flex-col justify-between items-center transition-opacity duration-300 ${cardFlipped ? 'opacity-100' : 'opacity-0 pointer-events-none bg-slate-50/50'}`}>
+                    <span className="text-[9px] font-black uppercase bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full tracking-wider">Solution Explanation</span>
+                    <p className="text-xs text-slate-700 font-semibold leading-relaxed max-w-xs mt-4">{filteredCards[activeCardIdx].back}</p>
+                    <button
+                      onClick={(e) => toggleMastered(filteredCards[activeCardIdx].id, e)}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-md flex items-center gap-1"
                     >
-                      <Play className="w-3.5 h-3.5" /> Start
+                      <CheckCircle className="w-3.5 h-3.5" /> Mark Mastered
                     </button>
                   </div>
                 </div>
-              );
-            })}
+
+                {/* Card Controls */}
+                <div className="flex gap-4 items-center mt-2 w-full max-w-sm justify-between px-4">
+                  <button 
+                    onClick={() => {
+                      setActiveCardIdx(prev => Math.max(0, prev - 1));
+                      setCardFlipped(false);
+                    }}
+                    disabled={activeCardIdx === 0}
+                    className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 disabled:opacity-30"
+                  >
+                    ← Previous
+                  </button>
+                  <span className="text-xs text-slate-400 font-bold">
+                    {activeCardIdx + 1} of {filteredCards.length}
+                  </span>
+                  <button 
+                    onClick={() => {
+                      setActiveCardIdx(prev => Math.min(filteredCards.length - 1, prev + 1));
+                      setCardFlipped(false);
+                    }}
+                    disabled={activeCardIdx === filteredCards.length - 1}
+                    className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 disabled:opacity-30"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* ADD FLASHCARD MODAL (Faculty Revision) */}
+      {showAddCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-[32px] p-6 shadow-2xl animate-slide-up">
+            <h3 className="text-xl font-bold text-slate-900 mb-4">Create Revision Flash Card</h3>
+            <div className="flex flex-col gap-3.5">
+              <textarea
+                placeholder="Question (Front of the card)..."
+                value={cardFront}
+                onChange={e => setCardFront(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-medium text-slate-800 outline-none h-20 resize-none"
+              />
+              <textarea
+                placeholder="Answer explanation (Back of the card)..."
+                value={cardBack}
+                onChange={e => setCardBack(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-medium text-slate-800 outline-none h-24 resize-none"
+              />
+              <select
+                value={cardCat}
+                onChange={e => setCardCat(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-bold text-slate-700 outline-none"
+              >
+                <option value="Algorithms">Algorithms</option>
+                <option value="Computer Networks">Computer Networks</option>
+                <option value="DBMS">DBMS</option>
+                <option value="Operating Systems">Operating Systems</option>
+              </select>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowAddCard(false)} className="flex-1 py-3.5 text-xs font-black text-slate-500 bg-slate-100 rounded-2xl">Cancel</button>
+              <button onClick={handleCreateCard} disabled={!cardFront.trim() || !cardBack.trim()} className="flex-1 py-3.5 text-xs font-black text-white bg-rose-600 rounded-2xl disabled:opacity-50 shadow-lg shadow-rose-500/10">
+                Add to Deck
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* CREATE MOCK TEST MODAL (Faculty build) */}
       {showCreateModal && (

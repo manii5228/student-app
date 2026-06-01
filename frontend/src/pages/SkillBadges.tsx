@@ -317,7 +317,7 @@ const SkillBadges = () => {
                     {iconMap[b.icon] || <Award className="w-6 h-6"/>}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
+                    <div className="flex items-center gap-2 mb-2">
                       <h3 className={`text-sm font-bold truncate ${isEarned ? 'text-indigo-900' : 'text-slate-900'}`}>{b.name}</h3>
                       {isEarned && <span className="text-[8px] font-black px-1.5 py-0.5 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded shadow-sm">EARNED</span>}
                     </div>

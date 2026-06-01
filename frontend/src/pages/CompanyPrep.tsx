@@ -48,6 +48,10 @@ const CompanyPrep = () => {
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newCategory, setNewCategory] = useState('technical');
   const [newYear, setNewYear] = useState('');
+  const [likedQuestions, setLikedQuestions] = useState<string[]>(() => {
+    const saved = localStorage.getItem('liked_questions');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   // User auth details
   const userStr = localStorage.getItem('user');
@@ -83,12 +87,22 @@ const CompanyPrep = () => {
 
   const handleUpvote = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (likedQuestions.includes(id)) {
+      alert("You have already upvoted this question!");
+      return;
+    }
     try {
       await api.post(`/career/prep/question/${id}/upvote`);
       setQuestions(questions.map(q => q.id === id ? { ...q, upvotes: (q.upvotes || 0) + 1 } : q));
+      const newLikes = [...likedQuestions, id];
+      setLikedQuestions(newLikes);
+      localStorage.setItem('liked_questions', JSON.stringify(newLikes));
     } catch {
       // Mock upvote
       setQuestions(questions.map(q => q.id === id ? { ...q, upvotes: (q.upvotes || 0) + 1 } : q));
+      const newLikes = [...likedQuestions, id];
+      setLikedQuestions(newLikes);
+      localStorage.setItem('liked_questions', JSON.stringify(newLikes));
     }
   };
 
@@ -380,7 +394,15 @@ const CompanyPrep = () => {
                           </div>
                           
                           <div className="flex items-center gap-1">
-                            <button onClick={(e) => handleUpvote(q.id, e)} className="flex items-center gap-1 text-slate-400 hover:text-blue-500 bg-slate-50 hover:bg-blue-50/50 px-2.5 py-1 rounded-full text-[10px] font-bold">
+                            <button
+                              onClick={(e) => handleUpvote(q.id, e)}
+                              disabled={likedQuestions.includes(q.id)}
+                              className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
+                                likedQuestions.includes(q.id)
+                                  ? 'text-blue-600 bg-blue-100 cursor-not-allowed opacity-90'
+                                  : 'text-slate-400 hover:text-blue-500 bg-slate-50 hover:bg-blue-50/50'
+                              }`}
+                            >
                                 <ThumbsUp className="w-3 h-3" /> {q.upvotes || 0}
                             </button>
                             
