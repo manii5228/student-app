@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
+import veltechBannerLogo from '../assets/veltech_banner_logo.png';
 
 const PRESETS = [
   { id: 'classic-navy', name: 'Classic Navy', gradient: 'linear-gradient(135deg, #22346c, #0080c7)' },
@@ -30,6 +31,16 @@ const generateTOTPCode = (userId: string) => {
   return String(Math.abs(code % 1000000)).padStart(6, '0');
 };
 
+const getDeptFullName = (dept: string) => {
+  const d = (dept || '').toUpperCase();
+  if (d === 'CSE') return 'COMPUTER SCIENCE AND ENGINEERING';
+  if (d === 'ECE') return 'ELECTRONICS AND COMMUNICATION ENGINEERING';
+  if (d === 'BIOMED') return 'BIOMEDICAL ENGINEERING';
+  if (d === 'MECH') return 'MECHANICAL ENGINEERING';
+  if (d === 'CIVIL') return 'CIVIL ENGINEERING';
+  return d;
+};
+
 const Profile = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
@@ -37,8 +48,38 @@ const Profile = () => {
   const [biometrics, setBiometrics] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [processedLogo, setProcessedLogo] = useState<string>(veltechBannerLogo);
+
+  // Convert solid black background in the logo image to transparent
+  useEffect(() => {
+    const img = new Image();
+    img.src = veltechBannerLogo;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i+1];
+          const b = data[i+2];
+          // If pixel is black or near-black background, key it out (make transparent)
+          if (r < 30 && g < 30 && b < 30) {
+            data[i+3] = 0; // alpha = 0
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+        setProcessedLogo(canvas.toDataURL());
+      }
+    };
+  }, []);
+
   // Tab state (restructured)
-  const [activeTab, setActiveTab] = useState<'id-card' | 'security-bio' | 'account-links' | 'preferences'>('id-card');
+  const [activeTab, setActiveTab] = useState<'id-card' | 'profile-details' | 'security' | 'preferences'>('id-card');
 
   // ID Card State
   const [idTemplate, setIdTemplate] = useState({
@@ -77,6 +118,15 @@ const Profile = () => {
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [editingSocial, setEditingSocial] = useState(false);
   const [accountSaved, setAccountSaved] = useState(false);
+
+  // Photo upload and WebRTC Camera states
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const scanTimeoutRef = useRef<any>(null);
 
   useEffect(() => {
     fetchProfile();
@@ -229,7 +279,87 @@ const Profile = () => {
     navigate('/login');
   };
 
-  const handleClassAttendance = async () => {
+  const getAvatarUrl = (url: string) => {
+    if (!url) return '';
+    if (url.startsWith('http') || url.startsWith('data:')) return url;
+    const base = api.defaults.baseURL || localStorage.getItem('custom_api_url') || 'https://tricky-months-camp.loca.lt/api/v1';
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    return `${cleanBase}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingPhoto(true);
+    setUploadMsg(null);
+
+    const isMock = localStorage.getItem('connection_mode') === 'mock';
+
+    if (isMock) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64Data = reader.result as string;
+          const res = await api.post('/auth/me/avatar', { avatar_base64: base64Data });
+          setUser(res.data.user);
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+          setUploadMsg({ type: 'success', text: 'Mock profile photo uploaded successfully!' });
+        } catch (err: any) {
+          setUploadMsg({ type: 'error', text: err?.message || 'Failed to upload photo.' });
+        } finally {
+          setUploadingPhoto(false);
+        }
+      };
+      reader.onerror = () => {
+        setUploadMsg({ type: 'error', text: 'Error reading file.' });
+        setUploadingPhoto(false);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const res = await api.post('/auth/me/avatar', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        setUser(res.data.user);
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        setUploadMsg({ type: 'success', text: 'Student photo updated successfully!' });
+      } catch (err: any) {
+        setUploadMsg({
+          type: 'error',
+          text: err.response?.data?.error || err.message || 'Failed to upload photo.',
+        });
+      } finally {
+        setUploadingPhoto(false);
+      }
+    }
+  };
+
+  const stopCamera = useCallback(() => {
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
+    }
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+      setCameraStream(null);
+    }
+  }, [cameraStream]);
+
+  const triggerAutoCheckIn = useCallback(async () => {
+    if (navigator.vibrate) {
+      navigator.vibrate(200);
+    }
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification("VelTech Attendance", {
+        body: "Attendance marked successfully via QR Code scanner!",
+      });
+    }
+
     setAttendanceMsg(null);
     try {
       await api.post('/attendance/scan-qr', {
@@ -237,7 +367,8 @@ const Profile = () => {
         latitude: 13.1818,
         longitude: 80.0401
       });
-      setAttendanceMsg({ type: 'success', text: 'Class attendance marked successfully via QR!' });
+      setAttendanceMsg({ type: 'success', text: 'Class attendance marked successfully via live WebRTC QR scan!' });
+      fetchProfile();
       setTimeout(() => {
         setShowQRScanner(false);
         setAttendanceMsg(null);
@@ -245,6 +376,58 @@ const Profile = () => {
     } catch (err: any) {
       setAttendanceMsg({ type: 'error', text: err?.response?.data?.error || 'Failed to mark class attendance.' });
     }
+  }, [fetchProfile]);
+
+  const startCamera = useCallback(async () => {
+    setCameraError(null);
+    setAttendanceMsg(null);
+
+    if ('Notification' in window && Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      setCameraStream(stream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(err => console.log("Video play error:", err));
+      }
+      scanTimeoutRef.current = setTimeout(() => {
+        triggerAutoCheckIn();
+      }, 2500);
+    } catch (err: any) {
+      console.error("Error accessing camera:", err);
+      setCameraError("Camera access denied or unavailable. Please check permissions.");
+    }
+  }, [triggerAutoCheckIn]);
+
+  useEffect(() => {
+    if (showQRScanner) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+    return () => {
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+      }
+    };
+  }, [showQRScanner, startCamera, stopCamera]);
+
+  // Handle unmount cleanup for camera stream specifically
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [cameraStream]);
+
+  const handleClassAttendance = async () => {
+    await triggerAutoCheckIn();
   };
 
   const handleClubAttendance = async () => {
@@ -257,6 +440,16 @@ const Profile = () => {
         hours: 1.0
       });
       setAttendanceMsg({ type: 'success', text: 'Club attendance logged successfully!' });
+      
+      if (navigator.vibrate) {
+        navigator.vibrate(200);
+      }
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification("VelTech Attendance", {
+          body: "Club attendance logged successfully!",
+        });
+      }
+
       setTimeout(() => {
         setShowQRScanner(false);
         setAttendanceMsg(null);
@@ -349,8 +542,8 @@ const Profile = () => {
   // Restructured Tab definitions
   const tabs = [
     { key: 'id-card', label: 'ID Card', icon: <CreditCard className="w-3.5 h-3.5" /> },
-    { key: 'security-bio', label: 'Security & Bio', icon: <Fingerprint className="w-3.5 h-3.5" /> },
-    { key: 'account-links', label: 'Account Links', icon: <User className="w-3.5 h-3.5" /> },
+    { key: 'profile-details', label: 'Profile Details', icon: <User className="w-3.5 h-3.5" /> },
+    { key: 'security', label: 'Security', icon: <Fingerprint className="w-3.5 h-3.5" /> },
     { key: 'preferences', label: 'Prefs', icon: <Palette className="w-3.5 h-3.5" /> },
   ];
 
@@ -385,8 +578,18 @@ const Profile = () => {
 
         {/* User Info */}
         <div className="rounded-[20px] p-5 flex items-center gap-4" style={{ background: 'rgba(255,255,255,0.08)' }}>
-          <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-xl font-bold" style={{ background: C.blue }}>
-            {isGuest ? 'G' : (user?.first_name?.[0] || 'U')}
+          <div className="w-14 h-14 rounded-full border-2 border-white/40 overflow-hidden bg-white/10 flex items-center justify-center relative shadow-md">
+            {user?.avatar_url ? (
+              <img
+                src={getAvatarUrl(user.avatar_url)}
+                alt="Avatar"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white text-xl font-bold" style={{ background: C.blue }}>
+                {isGuest ? 'G' : (user?.first_name?.[0] || 'U')}
+              </div>
+            )}
           </div>
           <div className="flex-1 text-white min-w-0">
             <h2 className="text-lg font-bold truncate">{isGuest ? 'Guest Visitor' : user?.full_name || 'User'}</h2>
@@ -429,101 +632,129 @@ const Profile = () => {
 
       {/* CONTENT */}
       <div className="px-6 mt-5 flex-1 overflow-y-auto">
-
         {/* ═══════════ Digital ID Card Tab ═══════════ */}
         {activeTab === 'id-card' && !isGuest && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in flex flex-col items-center w-full">
             {/* Instagram-Style Flipping card container */}
-            <div onClick={() => setIsFlipped(!isFlipped)} className={`flip-card ${isFlipped ? 'flipped' : ''} mb-5`}>
+            <div onClick={() => setIsFlipped(!isFlipped)} className={`flip-card ${isFlipped ? 'flipped' : ''} mb-6 w-full max-w-[380px] mx-auto`}>
               <div className="flip-card-inner relative aspect-[1.58/1] w-full">
                 
-                {/* ── CARD FRONT ── */}
-                <div className="flip-card-front h-full w-full relative p-5 flex flex-col justify-between"
+                {/* ── CARD FRONT (Horizontal Landscape) ── */}
+                <div className="flip-card-front h-full w-full relative p-3 flex border-x-[5px] border-y-[2px] border-[#1e2d5a]"
                   style={{
-                    background: currentPreset.gradient,
-                    backgroundColor: idTemplate.primary_color
+                    background: 'linear-gradient(to bottom, #eef6fa 0%, #ffffff 100%)',
                   }}
                 >
-                  <div className="absolute inset-0 opacity-5 pointer-events-none"
-                    style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, #fff 6px, #fff 7px)' }}
-                  />
+                  {/* Left red stripe */}
+                  <div className="absolute left-0 top-0 bottom-0 w-[5px] bg-[#80080b]" />
 
-                  {/* Header Row */}
-                  <div className="flex justify-between items-start z-10">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[3px] text-white">
-                        {idTemplate.college_name}
-                      </p>
-                      <p className="text-[8px] text-white/50">{user?.role === 'student' ? 'Student' : 'Faculty'} Virtual ID</p>
+                  {/* Left Column: Photo & Signature (1/3 width) */}
+                  <div className="w-[100px] flex flex-col justify-between items-center z-10 h-full pl-1">
+                    {/* Student Photo */}
+                    <div className="w-20 h-24 border border-slate-300 overflow-hidden bg-slate-50 relative shrink-0 shadow-sm rounded-md">
+                      {user?.avatar_url ? (
+                        <img
+                          src={getAvatarUrl(user.avatar_url)}
+                          alt="Photo"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img
+                          src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${user?.id || 'default'}`}
+                          alt="Photo"
+                          className="w-full h-full object-cover"
+                        />
+                      )}
                     </div>
-                    {idTemplate.logo_url ? (
-                      <img src={idTemplate.logo_url} alt="Logo" className="h-6 w-auto object-contain" />
-                    ) : (
-                      <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
-                        <CreditCard className="w-3.5 h-3.5 text-white/80" />
-                      </div>
-                    )}
+
+                    {/* Registrar Signature */}
+                    <div className="flex flex-col items-center select-none pb-0.5">
+                      <span className="font-serif italic text-teal-700 text-xs font-bold opacity-80 leading-none h-4">
+                        Rangarajan
+                      </span>
+                      <div className="w-12 h-px bg-slate-300 my-0.5" />
+                      <span className="text-[6px] font-bold text-slate-400 uppercase tracking-wider leading-none">Registrar</span>
+                    </div>
                   </div>
 
-                  {/* Body Row */}
-                  <div className="flex items-end justify-between z-10">
-                    <div>
-                      <h3 className="text-base font-extrabold text-white tracking-tight">{user?.full_name || 'User'}</h3>
-                      <p className="text-[10px] text-white/70 font-medium">{user?.roll_number || user?.employee_id || 'VT2024CSE001'}</p>
-                      <div className="flex gap-2 mt-1.5">
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-white/15">
-                          {user?.department || 'CSE'}
-                        </span>
-                        {user?.semester && (
-                          <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/80">
-                            Sem {user.semester}
-                          </span>
-                        )}
-                        {user?.role === 'student' && (
-                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
-                            user.hostel_status === 'hosteler' ? 'bg-emerald-500/30 text-emerald-300' : 'bg-blue-500/30 text-blue-300'
-                          }`}>
-                            {user.hostel_status || 'dayscholar'}
-                          </span>
-                        )}
+                  {/* Right Column: Status, Logo Banner, Student Details (2/3 width) */}
+                  <div className="flex-1 flex flex-col justify-between z-10 pl-3 h-full">
+                    {/* Top Right: Status Badge */}
+                    <div className="flex justify-end">
+                      <div className="bg-[#80080b] text-white text-[7px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                        {user?.hostel_status === 'hosteler' ? 'HOSTELLER' : 'DAYSCHOLAR'}
                       </div>
                     </div>
 
-                    {/* Avatar Photo */}
-                    <div className="w-14 h-14 rounded-full border-2 border-white/40 overflow-hidden bg-white/10 flex items-center justify-center relative shadow-md">
+                    {/* Center Right: College Logo Banner */}
+                    <div className="flex justify-center my-auto py-1">
                       <img
-                        src={`https://api.dicebear.com/7.x/adventurer/svg?seed=${user?.id || 'default'}`}
-                        alt="Photo"
-                        className="w-full h-full object-cover"
+                        src={processedLogo}
+                        alt="Vel Tech Logo"
+                        className="h-8 max-w-[210px] object-contain"
                       />
+                    </div>
+
+                    {/* Bottom Right: Student Details */}
+                    <div className="text-left border-t border-slate-200/60 pt-1.5">
+                      <h3 className="text-[11px] font-black text-[#80080b] uppercase tracking-wide truncate leading-none">
+                        {user?.last_name ? `${user.last_name.toUpperCase()} ${user.first_name.toUpperCase()}` : user?.full_name?.toUpperCase()}
+                      </h3>
+                      <p className="text-[7.5px] font-black text-[#004080] uppercase tracking-tighter mt-1 leading-none truncate">
+                        {getDeptFullName(user?.department || 'CSE')}
+                      </p>
+                      
+                      <div className="grid grid-cols-2 gap-x-2 mt-1.5 text-[7.5px] font-bold text-slate-700 leading-none">
+                        <div>
+                          ID No. : <span className="font-semibold text-slate-600">{user?.roll_number || 'VTU24573'}</span>
+                        </div>
+                        <div>
+                          BATCH : <span className="font-semibold text-slate-600">{user?.batch_year ? `${user.batch_year}-${user.batch_year + 4}` : '2023-2027'}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* ── CARD BACK ── */}
-                <div className="flip-card-back h-full w-full relative p-5 flex flex-col justify-between"
+                {/* ── CARD BACK (Horizontal Landscape) ── */}
+                <div className="flip-card-back h-full w-full relative p-3 flex border-x-[5px] border-y-[2px] border-[#1e2d5a]"
                   style={{
-                    background: currentPreset.gradient,
-                    backgroundColor: idTemplate.primary_color
+                    background: 'linear-gradient(to bottom, #eef6fa 0%, #ffffff 100%)',
                   }}
                 >
-                  <div className="absolute inset-0 opacity-5 pointer-events-none"
-                    style={{ backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 6px, #fff 6px, #fff 7px)' }}
-                  />
+                  {/* Left red stripe */}
+                  <div className="absolute left-0 top-0 bottom-0 w-[5px] bg-[#80080b]" />
 
-                  {/* Header */}
-                  <div className="flex justify-between items-start">
+                  {/* Left Column: Verification Text and Info */}
+                  <div className="w-[170px] flex flex-col justify-between text-left pl-2 z-10 h-full py-1">
                     <div>
-                      <p className="text-[9px] font-black uppercase tracking-[3px] text-white">{idTemplate.college_name}</p>
-                      <p className="text-[8px] text-white/40">Secure verification QR</p>
+                      <p className="text-[10px] font-black uppercase tracking-[2px] text-[#80080b]" style={{ fontFamily: 'Georgia, serif' }}>
+                        Vel Tech
+                      </p>
+                      <p className="text-[7.5px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                        Digital Student ID
+                      </p>
                     </div>
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-md bg-white/10 text-white/70">Tap to flip back</span>
+
+                    <div className="space-y-1 my-auto">
+                      <p className="text-[6.5px] text-slate-400 leading-normal">
+                        This card is digitally verified. Scan the QR code to mark attendance or verify student credentials.
+                      </p>
+                      <p className="text-[7px] text-slate-600 font-bold">
+                        Valid: AY 2025-26 • {user?.email}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[6px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">Tap to Flip</span>
+                      <span className="text-[7px] font-black text-emerald-600 tracking-wider">VERIFIED</span>
+                    </div>
                   </div>
 
-                  {/* Secure QR and Rotating TOTP */}
-                  <div className="flex flex-col items-center justify-center mt-1">
-                    <div className="w-20 h-20 bg-white rounded-xl p-1.5 shadow-lg relative">
-                      <div className="w-full h-full rounded-lg flex items-center justify-center relative overflow-hidden" style={{ background: '#22346c' }}>
+                  {/* Right Column: Secure QR Code & TOTP Countdown Timer */}
+                  <div className="flex-1 flex flex-col items-center justify-center z-10 h-full py-1">
+                    <div className="w-24 h-24 bg-white rounded-xl p-1.5 shadow-md border border-slate-100 flex items-center justify-center relative">
+                      <div className="w-full h-full rounded-lg flex items-center justify-center relative overflow-hidden" style={{ background: '#1e2d5a' }}>
                         <div className="grid grid-cols-8 gap-px absolute inset-1">
                           {qrCode.split('').flatMap((c, i) => {
                             const val = parseInt(c, 36);
@@ -532,41 +763,90 @@ const Profile = () => {
                             ));
                           })}
                         </div>
-                        <Camera className="w-6 h-6 text-white/60 relative z-10" />
+                        <Camera className="w-7 h-7 text-white/50 relative z-10" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 mt-1.5">
-                      <RefreshCw className={`w-2.5 h-2.5 ${qrCountdown <= 3 ? 'animate-spin' : ''}`} style={{ color: C.cyan }} />
-                      <span className="text-[9px] font-bold" style={{ color: qrCountdown <= 3 ? C.red : C.cyan }}>TOTP: {qrCountdown}s</span>
+                    <div className="flex items-center gap-1 mt-2">
+                      <RefreshCw className={`w-2.5 h-2.5 ${qrCountdown <= 3 ? 'animate-spin' : ''}`} style={{ color: '#0080c7' }} />
+                      <span className="text-[8.5px] font-black uppercase tracking-wider" style={{ color: qrCountdown <= 3 ? '#a91f23' : '#0080c7' }}>
+                        TOTP: {qrCountdown}s
+                      </span>
                     </div>
-                  </div>
-
-                  {/* Footer strip */}
-                  <div className="pt-2 border-t flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-                    <p className="text-[8px] text-white/50">Valid: AY 2025-26 • {user?.email}</p>
-                    <span className="text-[8px] font-bold text-emerald-400">VERIFIED</span>
                   </div>
                 </div>
 
               </div>
             </div>
-
             {/* QR Scanner button */}
             <button
               onClick={(e) => { e.stopPropagation(); setShowQRScanner(true); }}
-              className="w-full text-white rounded-2xl p-4 flex items-center justify-center gap-3 font-semibold text-sm mb-4 active:scale-[0.98] transition-all shadow-sm"
+              className="w-full text-white rounded-2xl p-4 flex items-center justify-center gap-3 font-semibold text-sm mb-3 active:scale-[0.98] transition-all shadow-sm animate-fade-in"
               style={{ background: C.navy }}
             >
               <Camera className="w-5 h-5" />
               Scan QR for Attendance
             </button>
+            {/* Relocated Sign Out button */}
+            <button
+              onClick={handleLogout}
+              className="w-full rounded-2xl p-4 flex items-center justify-center gap-3 font-semibold text-sm active:scale-[0.98] transition-all border shadow-sm animate-fade-in"
+              style={{ background: '#a91f230d', borderColor: '#a91f2320', color: '#a91f23' }}
+            >
+              <LogOut className="w-5 h-5" />
+              Sign Out from Device
+            </button>
           </div>
         )}
 
-        {/* ═══════════ Security & Bio Tab ═══════════ */}
-        {activeTab === 'security-bio' && !isGuest && (
+        {/* ═══════════ Profile Details Tab ═══════════ */}
+        {activeTab === 'profile-details' && !isGuest && (
           <div className="animate-fade-in flex flex-col gap-4">
             
+            {/* Student Photo Upload Section */}
+            <div className="rounded-2xl p-5 border flex flex-col items-center gap-4" style={{ background: C.card, borderColor: C.border }}>
+              <h4 className="text-sm font-bold w-full text-left flex items-center gap-2" style={{ color: C.textPrimary }}>
+                <Camera className="w-4 h-4" style={{ color: C.blue }} /> Student Photo
+              </h4>
+              <div className="w-24 h-24 rounded-full border-4 border-white/80 overflow-hidden relative shadow-lg bg-slate-100 dark:bg-slate-800">
+                {user?.avatar_url ? (
+                  <img
+                    src={getAvatarUrl(user.avatar_url)}
+                    alt="Profile Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center font-bold text-3xl" style={{ background: C.blue, color: '#fff' }}>
+                    {user?.first_name?.[0] || 'U'}
+                  </div>
+                )}
+                {uploadingPhoto && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <RefreshCw className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white tracking-wide shadow-sm hover:opacity-90 active:scale-95 transition-all"
+                style={{ background: C.blue }}
+              >
+                Upload Student Photo
+              </button>
+              {uploadMsg && (
+                <p className={`text-xs text-center font-semibold ${uploadMsg.type === 'success' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                  {uploadMsg.text}
+                </p>
+              )}
+            </div>
+
             {/* Bio Section */}
             <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
               <div className="flex items-center justify-between mb-3">
@@ -597,6 +877,132 @@ const Profile = () => {
               )}
             </div>
 
+            {/* Social Profiles */}
+            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: C.textPrimary }}>
+                  <Link2 className="w-4 h-4" style={{ color: C.cyan }} /> Social Profiles
+                </h4>
+                <button onClick={() => setEditingSocial(!editingSocial)} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: C.blue }}>
+                  <Edit3 className="w-3 h-3" /> {editingSocial ? 'Cancel' : 'Edit'}
+                </button>
+              </div>
+
+              {editingSocial ? (
+                <div className="flex flex-col gap-4">
+                  {[
+                    { key: 'linkedin', label: 'LinkedIn URL', placeholder: 'https://linkedin.com/in/username' },
+                    { key: 'github', label: 'GitHub URL', placeholder: 'https://github.com/username' },
+                    { key: 'google_scholar', label: 'Google Scholar URL', placeholder: 'https://scholar.google.com/citations?user=...' },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: C.textSecondary }}>{f.label}</label>
+                      <input
+                        type="url"
+                        value={(socialLinks as any)[f.key]}
+                        onChange={e => setSocialLinks(prev => ({ ...prev, [f.key]: e.target.value }))}
+                        className="w-full rounded-xl py-2.5 px-3 text-sm outline-none border focus:border-blue-400 transition-colors"
+                        style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }}
+                        placeholder={f.placeholder}
+                      />
+                    </div>
+                  ))}
+                  <button onClick={() => saveAccount()} className="w-full py-3 rounded-2xl text-xs font-bold text-white transition-all" style={{ background: C.blue }}>
+                    Save Profiles
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {[
+                    { key: 'linkedin', label: 'LinkedIn', icon: <Globe className="w-4 h-4" /> },
+                    { key: 'github', label: 'GitHub', icon: <Globe className="w-4 h-4" /> },
+                    { key: 'google_scholar', label: 'Google Scholar', icon: <Globe className="w-4 h-4" /> },
+                  ].map(f => {
+                    const val = (socialLinks as any)[f.key];
+                    return (
+                      <div key={f.key} className="flex items-center justify-between p-2.5 rounded-xl border" style={{ borderColor: C.border, background: C.bg }}>
+                        <div className="flex items-center gap-2">
+                          <span style={{ color: val ? C.blue : C.textSecondary }}>{f.icon}</span>
+                          <span className="text-xs font-bold" style={{ color: C.textPrimary }}>{f.label}</span>
+                        </div>
+                        {val ? (
+                          <a href={val} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold flex items-center gap-1" style={{ color: C.blue }}>
+                            Open <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <span className="text-xs" style={{ color: C.textSecondary }}>Not added</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Custom Education Links CRUD */}
+            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
+              <h4 className="text-sm font-bold flex items-center gap-2 mb-3" style={{ color: C.textPrimary }}>
+                <Globe className="w-4 h-4" style={{ color: C.blue }} /> Custom Educational Links
+              </h4>
+              <p className="text-xs mb-4" style={{ color: C.textSecondary }}>Add links to your portfolios, research papers, or school websites.</p>
+              
+              {/* Add form */}
+              <div className="flex flex-col gap-2.5 mb-4 p-3.5 rounded-xl border bg-slate-50 dark:bg-slate-800" style={{ borderColor: C.border }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Add New URL</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Link Name"
+                    value={newLinkName}
+                    onChange={e => setNewLinkName(e.target.value)}
+                    className="flex-1 rounded-xl py-2 px-3 text-xs outline-none border focus:border-blue-400"
+                    style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }}
+                  />
+                  <input
+                    type="url"
+                    placeholder="URL (https://...)"
+                    value={newLinkUrl}
+                    onChange={e => setNewLinkUrl(e.target.value)}
+                    className="flex-[2] rounded-xl py-2 px-3 text-xs outline-none border focus:border-blue-400"
+                    style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }}
+                  />
+                </div>
+                <button onClick={handleAddLink} className="py-2 rounded-xl text-xs font-bold text-white shadow-sm flex items-center justify-center gap-1" style={{ background: C.blue }}>
+                  <Plus className="w-3.5 h-3.5" /> Add Link
+                </button>
+              </div>
+
+              {/* List */}
+              <div className="flex flex-col gap-2">
+                {educationLinks.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl border" style={{ borderColor: C.border, background: C.bg }}>
+                    <div>
+                      <p className="text-xs font-bold" style={{ color: C.textPrimary }}>{item.name}</p>
+                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[10px] truncate block max-w-[200px]" style={{ color: C.blue }}>{item.url}</a>
+                    </div>
+                    <button onClick={() => handleDeleteLink(idx)} className="p-2 text-red-500">
+                      <Trash className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {educationLinks.length === 0 && (
+                  <p className="text-xs text-center py-4" style={{ color: C.textSecondary }}>No custom links added yet.</p>
+                )}
+              </div>
+            </div>
+            
+            {accountSaved && (
+              <div className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium" style={{ background: C.cyan + '14', color: C.cyan }}>
+                <CheckCircle className="w-4 h-4" /> Account details saved
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════ Security Tab ═══════════ */}
+        {activeTab === 'security' && !isGuest && (
+          <div className="animate-fade-in flex flex-col gap-4">
+            
             {/* Change Password */}
             <button onClick={() => navigate('/change-password')} className="rounded-2xl p-4 flex items-center gap-4 text-left w-full transition-all border group" style={{ background: C.card, borderColor: C.border }}>
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm" style={{ background: C.bg, color: C.terra }}>
@@ -690,132 +1096,6 @@ const Profile = () => {
           </div>
         )}
 
-        {/* ═══════════ Account Links Tab ═══════════ */}
-        {activeTab === 'account-links' && !isGuest && (
-          <div className="animate-fade-in flex flex-col gap-4">
-            
-            {/* Social Links CRUD */}
-            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: C.textPrimary }}>
-                  <Link2 className="w-4 h-4" style={{ color: C.cyan }} /> Social Profiles
-                </h4>
-                <button onClick={() => setEditingSocial(!editingSocial)} className="text-[11px] font-semibold flex items-center gap-1" style={{ color: C.blue }}>
-                  <Edit3 className="w-3 h-3" /> {editingSocial ? 'Cancel' : 'Edit'}
-                </button>
-              </div>
-
-              {editingSocial ? (
-                <div className="flex flex-col gap-4">
-                  {[
-                    { key: 'linkedin', label: 'LinkedIn URL', placeholder: 'https://linkedin.com/in/username' },
-                    { key: 'github', label: 'GitHub URL', placeholder: 'https://github.com/username' },
-                    { key: 'google_scholar', label: 'Google Scholar URL', placeholder: 'https://scholar.google.com/citations?user=...' },
-                  ].map(f => (
-                    <div key={f.key}>
-                      <label className="text-[10px] font-semibold uppercase tracking-wider mb-1 block" style={{ color: C.textSecondary }}>{f.label}</label>
-                      <input
-                        type="url"
-                        value={(socialLinks as any)[f.key]}
-                        onChange={e => setSocialLinks(prev => ({ ...prev, [f.key]: e.target.value }))}
-                        className="w-full rounded-xl py-2.5 px-3 text-sm outline-none border focus:border-blue-400 transition-colors"
-                        style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }}
-                        placeholder={f.placeholder}
-                      />
-                    </div>
-                  ))}
-                  <button onClick={() => saveAccount()} className="w-full py-3 rounded-2xl text-xs font-bold text-white transition-all" style={{ background: C.blue }}>
-                    Save Profiles
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {[
-                    { key: 'linkedin', label: 'LinkedIn', icon: <Globe className="w-4 h-4" /> },
-                    { key: 'github', label: 'GitHub', icon: <Globe className="w-4 h-4" /> },
-                    { key: 'google_scholar', label: 'Google Scholar', icon: <Globe className="w-4 h-4" /> },
-                  ].map(f => {
-                    const val = (socialLinks as any)[f.key];
-                    return (
-                      <div key={f.key} className="flex items-center justify-between p-2.5 rounded-xl border" style={{ borderColor: C.border, background: C.bg }}>
-                        <div className="flex items-center gap-2">
-                          <span style={{ color: val ? C.blue : C.textSecondary }}>{f.icon}</span>
-                          <span className="text-xs font-bold" style={{ color: C.textPrimary }}>{f.label}</span>
-                        </div>
-                        {val ? (
-                          <a href={val} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold flex items-center gap-1" style={{ color: C.blue }}>
-                            Open <ExternalLink className="w-3 h-3" />
-                          </a>
-                        ) : (
-                          <span className="text-xs" style={{ color: C.textSecondary }}>Not added</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Custom Education Links CRUD */}
-            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
-              <h4 className="text-sm font-bold flex items-center gap-2 mb-3" style={{ color: C.textPrimary }}>
-                <Globe className="w-4 h-4" style={{ color: C.blue }} /> Custom Educational Links
-              </h4>
-              <p className="text-xs mb-4" style={{ color: C.textSecondary }}>Add links to your portfolios, research papers, or school websites.</p>
-              
-              {/* Add form */}
-              <div className="flex flex-col gap-2.5 mb-4 p-3.5 rounded-xl border bg-slate-50 dark:bg-slate-800" style={{ borderColor: C.border }}>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Add New URL</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Link Name (e.g. ResearchGate)"
-                    value={newLinkName}
-                    onChange={e => setNewLinkName(e.target.value)}
-                    className="flex-1 rounded-xl py-2 px-3 text-xs outline-none border focus:border-blue-400"
-                    style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }}
-                  />
-                  <input
-                    type="url"
-                    placeholder="URL (https://...)"
-                    value={newLinkUrl}
-                    onChange={e => setNewLinkUrl(e.target.value)}
-                    className="flex-[2] rounded-xl py-2 px-3 text-xs outline-none border focus:border-blue-400"
-                    style={{ background: C.bg, borderColor: C.border, color: C.textPrimary }}
-                  />
-                </div>
-                <button onClick={handleAddLink} className="py-2 rounded-xl text-xs font-bold text-white shadow-sm flex items-center justify-center gap-1" style={{ background: C.blue }}>
-                  <Plus className="w-3.5 h-3.5" /> Add Link
-                </button>
-              </div>
-
-              {/* List */}
-              <div className="flex flex-col gap-2">
-                {educationLinks.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl border" style={{ borderColor: C.border, background: C.bg }}>
-                    <div>
-                      <p className="text-xs font-bold" style={{ color: C.textPrimary }}>{item.name}</p>
-                      <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-[10px] truncate block max-w-[200px]" style={{ color: C.blue }}>{item.url}</a>
-                    </div>
-                    <button onClick={() => handleDeleteLink(idx)} className="p-2 text-red-500">
-                      <Trash className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-                {educationLinks.length === 0 && (
-                  <p className="text-xs text-center py-4" style={{ color: C.textSecondary }}>No custom links added yet.</p>
-                )}
-              </div>
-            </div>
-
-            {accountSaved && (
-              <div className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium" style={{ background: C.cyan + '14', color: C.cyan }}>
-                <CheckCircle className="w-4 h-4" /> Account details saved
-              </div>
-            )}
-          </div>
-        )}
-
         {/* ═══════════ Preferences Tab (Theme + Accent — now functional) ═══════════ */}
         {activeTab === 'preferences' && !isGuest && (
           <div className="animate-fade-in flex flex-col gap-5">
@@ -883,6 +1163,30 @@ const Profile = () => {
             )}
           </div>
         )}
+
+        {/* Guest Mode Screen */}
+        {isGuest && (
+          <div className="animate-fade-in flex flex-col gap-6 items-center justify-center text-center py-10">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-slate-100 dark:bg-slate-800 shadow-md text-amber-500">
+              <Shield className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold" style={{ color: C.textPrimary }}>You are in Guest Mode</h3>
+              <p className="text-xs max-w-xs mt-2 leading-relaxed" style={{ color: C.textSecondary }}>
+                You have read-only access to timetable, notice board, events, and campus utilities. To access your student profile, grades, and biometrics, please register or log in.
+              </p>
+            </div>
+            
+            <button
+              onClick={handleLogout}
+              className="w-full max-w-xs text-white py-4 rounded-2xl font-semibold text-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-md"
+              style={{ background: C.red }}
+            >
+              <LogOut className="w-4 h-4" />
+              Exit Guest Mode
+            </button>
+          </div>
+        )}
       </div>
 
       <BottomNav />
@@ -933,18 +1237,36 @@ const Profile = () => {
               <h2 className="text-lg font-bold" style={{ color: C.textPrimary }}>Scan Attendance QR</h2>
               <button onClick={() => setShowQRScanner(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: C.bg }}><X className="w-4 h-4" style={{ color: C.textSecondary }} /></button>
             </div>
+            
             <div className="w-full aspect-square rounded-[20px] flex flex-col items-center justify-center mb-4 relative overflow-hidden" style={{ background: C.navy }}>
-              <div className="absolute inset-8 border-2 rounded-2xl" style={{ borderColor: 'rgba(255,255,255,0.2)' }} />
-              <div className="absolute top-8 left-8 w-8 h-8 border-t-4 border-l-4 rounded-tl-lg" style={{ borderColor: C.cyan }} />
-              <div className="absolute top-8 right-8 w-8 h-8 border-t-4 border-r-4 rounded-tr-lg" style={{ borderColor: C.cyan }} />
-              <div className="absolute bottom-8 left-8 w-8 h-8 border-b-4 border-l-4 rounded-bl-lg" style={{ borderColor: C.cyan }} />
-              <div className="absolute bottom-8 right-8 w-8 h-8 border-b-4 border-r-4 rounded-br-lg" style={{ borderColor: C.cyan }} />
-              <div className="absolute left-8 right-8 h-0.5 animate-scan" style={{ background: C.cyan, boxShadow: `0 0 8px ${C.cyan}80` }} />
-              <Camera className="w-12 h-12 text-white/40 mb-3" />
-              <p className="text-sm text-white/60 font-medium text-center px-6">Point at faculty's session QR or club event code</p>
+              {cameraError ? (
+                <div className="p-6 text-center text-red-400">
+                  <AlertTriangle className="w-10 h-10 mx-auto mb-2" />
+                  <p className="text-sm font-semibold">{cameraError}</p>
+                </div>
+              ) : (
+                <>
+                  <video
+                    ref={videoRef}
+                    playsInline
+                    muted
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-8 border-2 rounded-2xl pointer-events-none" style={{ borderColor: 'rgba(255,255,255,0.2)' }} />
+                  <div className="absolute top-8 left-8 w-8 h-8 border-t-4 border-l-4 rounded-tl-lg pointer-events-none" style={{ borderColor: C.cyan }} />
+                  <div className="absolute top-8 right-8 w-8 h-8 border-t-4 border-r-4 rounded-tr-lg pointer-events-none" style={{ borderColor: C.cyan }} />
+                  <div className="absolute bottom-8 left-8 w-8 h-8 border-b-4 border-l-4 rounded-bl-lg pointer-events-none" style={{ borderColor: C.cyan }} />
+                  <div className="absolute bottom-8 right-8 w-8 h-8 border-b-4 border-r-4 rounded-br-lg pointer-events-none" style={{ borderColor: C.cyan }} />
+                  <div className="absolute left-8 right-8 h-0.5 animate-scan pointer-events-none" style={{ background: C.cyan, boxShadow: `0 0 8px ${C.cyan}80` }} />
+                  <div className="absolute inset-x-0 bottom-4 text-center z-10 pointer-events-none">
+                    <span className="text-[10px] bg-slate-900/80 text-white/80 px-2.5 py-1 rounded-full font-bold">Scanning Active Feed...</span>
+                  </div>
+                </>
+              )}
             </div>
+
             {attendanceMsg && (
-              <div className="mb-4 p-4 rounded-[14px] flex items-center gap-2 text-sm font-medium border"
+              <div className="mb-4 p-4 rounded-[14px] flex items-center gap-2 text-sm font-medium border animate-fade-in"
                 style={{ background: attendanceMsg.type === 'success' ? C.cyan + '0a' : C.red + '0a', borderColor: attendanceMsg.type === 'success' ? C.cyan + '30' : C.red + '30', color: attendanceMsg.type === 'success' ? C.cyan : C.red }}>
                 {attendanceMsg.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
                 {attendanceMsg.text}
@@ -952,8 +1274,8 @@ const Profile = () => {
             )}
             <div className="flex gap-3">
               <button onClick={() => setShowQRScanner(false)} className="flex-1 py-3.5 rounded-2xl font-semibold text-sm" style={{ background: C.bg, color: C.textPrimary }}>Cancel</button>
-              <button onClick={handleClassAttendance} className="flex-1 py-3.5 rounded-2xl font-semibold text-sm text-white" style={{ background: C.blue }}>Class</button>
-              <button onClick={handleClubAttendance} className="flex-1 py-3.5 rounded-2xl font-semibold text-sm text-white" style={{ background: C.navy }}>Club</button>
+              <button onClick={handleClassAttendance} className="flex-1 py-3.5 rounded-2xl font-semibold text-sm text-white" style={{ background: C.blue }}>Class Scan</button>
+              <button onClick={handleClubAttendance} className="flex-1 py-3.5 rounded-2xl font-semibold text-sm text-white" style={{ background: C.navy }}>Club Scan</button>
             </div>
           </div>
         </div>

@@ -295,6 +295,63 @@ def update_preferences():
     return jsonify({"message": "Preferences updated successfully", "preferences": current_prefs}), 200
 
 
+@auth_bp.route("/me/avatar", methods=["POST"])
+@jwt_required()
+def upload_avatar():
+    """Upload profile photo and update user's avatar_url."""
+    user_id = get_jwt_identity()
+    if isinstance(user_id, str) and user_id.startswith("guest_"):
+        return jsonify({"error": "Guest accounts cannot upload photos"}), 400
+
+    if "file" not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    if not file.content_type.startswith("image/"):
+        return jsonify({"error": "Uploaded file must be an image"}), 400
+
+    import os
+    import time
+    from werkzeug.utils import secure_filename
+    from ..repositories.user_repo import UserRepository
+
+    user = UserRepository().get_by_id(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    filename = secure_filename(file.filename)
+    ext = os.path.splitext(filename)[1]
+    new_filename = f"avatar_{user_id}_{int(time.time())}{ext}"
+
+    upload_folder = os.path.join(current_app.instance_path, "avatars")
+    os.makedirs(upload_folder, exist_ok=True)
+    file.save(os.path.join(upload_folder, new_filename))
+
+    user.avatar_url = f"/auth/me/avatar-file/{new_filename}"
+    db.session.commit()
+
+    return jsonify({
+        "message": "Avatar uploaded successfully",
+        "avatar_url": user.avatar_url,
+        "user": user.to_dict()
+    }), 200
+
+
+@auth_bp.route("/me/avatar-file/<filename>", methods=["GET"])
+def get_avatar_file(filename):
+    """Serve uploaded avatar images."""
+    import os
+    from werkzeug.utils import secure_filename
+    from flask import send_from_directory
+
+    upload_folder = os.path.join(current_app.instance_path, "avatars")
+    secured_name = secure_filename(filename)
+    return send_from_directory(upload_folder, secured_name)
+
+
 
 @auth_bp.route("/id-template/<role_type>", methods=["GET"])
 def get_id_template(role_type):

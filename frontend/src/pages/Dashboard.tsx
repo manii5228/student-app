@@ -92,8 +92,18 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // ── Theme / Accent variables ───────────────────────────────────
-  const theme = localStorage.getItem('theme_preference') || 'light';
-  const accentColor = localStorage.getItem('accent_color') || '#0080c7';
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme_preference') || 'light');
+  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent_color') || '#0080c7');
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      setTheme(localStorage.getItem('theme_preference') || 'light');
+      setAccentColor(localStorage.getItem('accent_color') || '#0080c7');
+    };
+    window.addEventListener('theme-changed', handleThemeChange);
+    return () => window.removeEventListener('theme-changed', handleThemeChange);
+  }, []);
+
   const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   const C = {
