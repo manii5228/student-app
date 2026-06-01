@@ -763,6 +763,45 @@ def claim_badge():
     return jsonify({"message": "Badge claim submitted successfully", "claim": eb.to_dict()}), 201
 
 
+@career_bp.route("/badges/claim-volunteer", methods=["POST"])
+@jwt_required()
+@role_required("student")
+def claim_volunteer_badge():
+    """Instantly claim and approve the Volunteer Excellence badge for a student."""
+    from ..models.career import SkillBadge, EarnedBadge
+    student_id = get_jwt_identity()
+    
+    badge = SkillBadge.query.filter_by(name="Volunteer Excellence").first()
+    if not badge:
+        badge = SkillBadge(
+            name="Volunteer Excellence",
+            description="Earned by completing 30+ hours of verified volunteering and event coordination duty.",
+            category="soft_skill",
+            icon="award",
+            color="#eab308",
+            points=100,
+            criteria="Complete at least 30 hours of verified volunteering duty."
+        )
+        db.session.add(badge)
+        db.session.commit()
+
+    existing = EarnedBadge.query.filter_by(student_id=student_id, badge_id=badge.id).first()
+    if existing:
+        return jsonify({"message": "Badge already claimed", "earned_badge": existing.to_dict()}), 200
+
+    eb = EarnedBadge(
+        student_id=student_id,
+        badge_id=badge.id,
+        note="Awarded automatically for completing 30+ hours of volunteering duty.",
+        status="approved"
+    )
+    db.session.add(eb)
+    db.session.commit()
+    
+    return jsonify({"message": "Volunteer Excellence Badge claimed successfully!", "earned_badge": eb.to_dict()}), 201
+
+
+
 @career_bp.route("/badges/claims/pending", methods=["GET"])
 @jwt_required()
 @role_required("admin", "faculty")

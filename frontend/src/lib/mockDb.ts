@@ -522,7 +522,8 @@ const seedComprehensiveMockDb = () => {
     { id: "b3", name: "Machine Learning", description: "Trained and optimized deep neural network weights", category: "technical", icon: "brain", color: "#ec4899", points: 50, criteria: "Implement MLP/CNN layers offline" },
     { id: "b4", name: "Data Analytics", description: "Analyzed complex datasets using Pandas & Numpy", category: "technical", icon: "bar-chart", color: "#10b981", points: 30, criteria: "Data Cleaning + Wrangling pipelines" },
     { id: "b5", name: "Cloud Computing", description: "Successfully configured pipelines on AWS or GCP", category: "technical", icon: "cloud", color: "#eab308", points: 50, criteria: "Setup fully functional Docker CI pipelines" },
-    { id: "b6", name: "Problem Solving", description: "Solved 250+ technical logic algorithm tasks", category: "technical", icon: "cpu", color: "#f97316", points: 100, criteria: "Clear advanced aptitude coding tests" }
+    { id: "b6", name: "Problem Solving", description: "Solved 250+ technical logic algorithm tasks", category: "technical", icon: "cpu", color: "#f97316", points: 100, criteria: "Clear advanced aptitude coding tests" },
+    { id: "b7", name: "Volunteer Excellence", description: "Earned by completing 30+ hours of verified volunteering and event coordination duty.", category: "soft_skill", icon: "award", color: "#eab308", points: 100, criteria: "Complete at least 30 hours of verified volunteering duty." }
   ];
 
   // Earned Badges
@@ -581,8 +582,39 @@ const seedComprehensiveMockDb = () => {
     syllabus,
     badges,
     notices: [
-      { id: "n1", title: "End Semester Exams Schedule Published", content: "The end-semester examinations UG classes commence on June 15, 2026. Dates and halls are visible inside the Exam tab.", category: "academic", date: "2026-05-28" },
-      { id: "n2", title: "Split-Batch Laboratory Classes Formed", content: "To manage equipment availability, students are split into Group 1 and Group 2 inside your smart timetable schedules.", category: "general", date: "2026-05-29" }
+      { 
+        id: "n1", 
+        title: "End Semester Exams Schedule - June 2026", 
+        content: "The timetable for final exams starting June 15, 2026 has been published. Please check the Exam Schedule section for detailed timings.", 
+        priority: "high", 
+        target_audience: "all", 
+        is_pinned: true, 
+        files: [{ name: "Exam_Timetable_June2026.pdf", type: "pdf", size: "450 KB" }], 
+        created_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
+        reads: []
+      },
+      { 
+        id: "n2", 
+        title: "Academic Calendar 2026-27 Approved", 
+        content: "The revised academic calendar for the next session is now available for download. All departments please note registration dates.", 
+        priority: "normal", 
+        target_audience: "all", 
+        is_pinned: false, 
+        files: [{ name: "Academic_Calendar_26_27.xlsx", type: "excel", size: "1.2 MB" }], 
+        created_at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
+        reads: []
+      },
+      { 
+        id: "n3", 
+        title: "Placement Drive - Oracle", 
+        content: "Oracle recruiting drive for CSE and ECE 2026 batch. Registered students must attend the pre-placement talk tomorrow at 10 AM in the Seminar Hall.", 
+        priority: "high", 
+        target_audience: "all", 
+        is_pinned: true, 
+        files: [{ name: "Oracle_Eligibility_List.pdf", type: "pdf", size: "850 KB" }], 
+        created_at: new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString(),
+        reads: []
+      }
     ],
     projects: [
       {
@@ -642,7 +674,14 @@ const seedComprehensiveMockDb = () => {
     mockTestQuestions,
     mockTestAttempts: [],
     internships,
-    earnedBadges
+    earnedBadges,
+    clubs: [
+      { id: 'codechef', name: 'CodeChef Chapter', description: 'Weekly CP ladders, contest discussions, and ICPC prep.', club_type: 'technical', member_count: 248, faculty_advisor_id: 'fac_1', president_id: 'std_2', website_url: 'https://chat.whatsapp.com/mock-codechef', instagram_url: 'https://instagram.com/veltech_codechef', is_active: true },
+      { id: 'robotics', name: 'Robotics Society', description: 'Autonomous bots, drone builds, and embedded systems labs.', club_type: 'technical', member_count: 142, faculty_advisor_id: 'fac_1', president_id: null, website_url: 'https://chat.whatsapp.com/mock-robotics', instagram_url: 'https://instagram.com/veltech_robotics', is_active: true },
+      { id: 'gdsc', name: 'Developer Student Club', description: 'Cloud, Android, web workshops, and product build sprints.', club_type: 'technical', member_count: 311, faculty_advisor_id: 'fac_1', president_id: null, website_url: 'https://chat.whatsapp.com/mock-gdsc', instagram_url: 'https://instagram.com/veltech_gdsc', is_active: true },
+      { id: 'finearts', name: 'Fine Arts Forum', description: 'Poster design, stage props, murals, and event branding.', club_type: 'cultural', member_count: 96, faculty_advisor_id: 'fac_1', president_id: null, website_url: 'https://chat.whatsapp.com/mock-finearts', instagram_url: 'https://instagram.com/veltech_finearts', is_active: true },
+      { id: 'radio', name: 'Campus Radio', description: 'Host shows, record interviews, and handle event announcements.', club_type: 'media', member_count: 54, faculty_advisor_id: 'fac_1', president_id: null, website_url: 'https://chat.whatsapp.com/mock-radio', instagram_url: 'https://instagram.com/veltech_radio', is_active: true }
+    ]
   };
 
   localStorage.setItem('mock_db', JSON.stringify(completeDb));
@@ -1806,6 +1845,122 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       return { status: 200, data: studentExams };
     }
     return { status: 200, data: db.exams };
+  }
+
+  // ==========================================
+  // Notices Routes
+  // ==========================================
+  if (cleanUrl === '/campus/notices' && method === 'get') {
+    const noticesList = db.notices || [];
+    const sorted = [...noticesList].sort((a: any, b: any) => {
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      return new Date(b.created_at || b.date || 0).getTime() - new Date(a.created_at || a.date || 0).getTime();
+    });
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    let filtered = sorted;
+    if (activeUser && activeUser.role === 'student') {
+      filtered = sorted.filter((n: any) => {
+        if (!n.target_audience || n.target_audience === 'all') return true;
+        const matchBranch = !n.branch || n.branch === activeUser.department;
+        const matchYear = !n.year || n.year === activeUser.semester;
+        const matchSection = !n.section || n.section === activeUser.section;
+        return matchBranch && matchYear && matchSection;
+      });
+    }
+    return { status: 200, data: { notices: filtered } };
+  }
+
+  if (cleanUrl.startsWith('/campus/notices/') && cleanUrl.endsWith('/read') && method === 'post') {
+    const nid = cleanUrl.split('/')[3];
+    const notice = db.notices.find((n: any) => n.id === nid);
+    if (notice) {
+      if (!notice.reads) notice.reads = [];
+      if (!notice.reads.includes(activeUserId)) {
+        notice.reads.push(activeUserId);
+      }
+      saveMockDb(db);
+    }
+    return { status: 200, data: { success: true } };
+  }
+
+  if (cleanUrl === '/faculty/broadcast' && method === 'post') {
+    const payload = getPayload(config.data);
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    const newNotice = {
+      id: `n_${Date.now()}`,
+      title: payload.title || `Class Broadcast from Prof. ${activeUser?.last_name || 'Faculty'}`,
+      content: payload.message,
+      priority: payload.priority || 'normal',
+      target_audience: 'class',
+      is_pinned: true,
+      files: [],
+      reads: [],
+      created_at: new Date().toISOString()
+    };
+    if (!db.notices) db.notices = [];
+    db.notices.push(newNotice);
+    saveMockDb(db);
+    return { status: 200, data: { success: true, notice: newNotice } };
+  }
+
+  // ==========================================
+  // Badges Routes
+  // ==========================================
+  if (cleanUrl === '/career/badges' && method === 'get') {
+    return { status: 200, data: { badges: db.badges || [] } };
+  }
+
+  if (cleanUrl === '/career/badges/my-badges' && method === 'get') {
+    const earned = (db.earnedBadges || []).filter((eb: any) => eb.student_id === activeUserId);
+    return { status: 200, data: { earned_badges: earned } };
+  }
+
+  if (cleanUrl === '/career/badges/claim-volunteer' && method === 'post') {
+    const badge = (db.badges || []).find((b: any) => b.name === "Volunteer Excellence");
+    if (badge) {
+      if (!db.earnedBadges) db.earnedBadges = [];
+      const existing = db.earnedBadges.find((eb: any) => eb.student_id === activeUserId && eb.badge?.id === badge.id);
+      if (existing) {
+        return { status: 200, data: { message: "Badge already claimed", earned_badge: existing } };
+      }
+      const newEarned = {
+        id: `eb_${Date.now()}`,
+        student_id: activeUserId,
+        badge: badge,
+        note: "Awarded automatically for completing 30+ hours of volunteering duty.",
+        status: "approved",
+        earned_at: new Date().toISOString()
+      };
+      db.earnedBadges.push(newEarned);
+      saveMockDb(db);
+      return { status: 201, data: { message: "Volunteer Excellence Badge claimed successfully!", earned_badge: newEarned } };
+    }
+    return { status: 404, data: { error: "Volunteer Excellence badge template not found" } };
+  }
+
+  // ==========================================
+  // Clubs Routes
+  // ==========================================
+  if (cleanUrl === '/campus/clubs' && method === 'get') {
+    return { status: 200, data: { clubs: db.clubs || [] } };
+  }
+
+  if (cleanUrl === '/campus/clubs/my-clubs' && method === 'get') {
+    return { status: 200, data: { clubs: db.clubs || [] } };
+  }
+
+  if (cleanUrl.startsWith('/campus/clubs/') && method === 'put') {
+    const cid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    const club = (db.clubs || []).find((c: any) => c.id === cid);
+    if (club) {
+      if (payload.website_url !== undefined) club.website_url = payload.website_url;
+      if (payload.instagram_url !== undefined) club.instagram_url = payload.instagram_url;
+      saveMockDb(db);
+      return { status: 200, data: { success: true, club } };
+    }
+    return { status: 404, data: { error: "Club not found" } };
   }
 
   // ==========================================

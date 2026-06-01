@@ -486,15 +486,18 @@ def generate_seeds():
             {"name": "Machine Learning", "desc": "Trained and optimized deep neural network weights", "icon": "brain", "color": "#ec4899"},
             {"name": "Data Analytics", "desc": "Analyzed complex datasets using Pandas & Numpy", "icon": "bar-chart", "color": "#10b981"},
             {"name": "Cloud Computing", "desc": "Successfully configured pipelines on AWS or GCP", "icon": "cloud", "color": "#eab308"},
-            {"name": "Problem Solving", "desc": "Solved 250+ technical logic algorithm tasks", "icon": "cpu", "color": "#f97316"}
+            {"name": "Problem Solving", "desc": "Solved 250+ technical logic algorithm tasks", "icon": "cpu", "color": "#f97316"},
+            {"name": "Volunteer Excellence", "desc": "Earned by completing 30+ hours of verified volunteering and event coordination duty.", "icon": "award", "color": "#eab308", "category": "soft_skill"}
         ]
         
         badges = []
         for bd in badges_data:
             badge = SkillBadge(
-                name=bd["name"], description=bd["desc"], category="technical",
-                icon=bd["icon"], color=bd["color"], points=50,
-                criteria="Complete all course works and project submissions with O grades."
+                name=bd["name"], description=bd["desc"], 
+                category=bd.get("category", "technical"),
+                icon=bd["icon"], color=bd["color"], 
+                points=100 if bd.get("category") == "soft_skill" else 50,
+                criteria="Complete at least 30 hours of verified volunteering duty." if bd.get("category") == "soft_skill" else "Complete all course works and project submissions with O grades."
             )
             db.session.add(badge)
             badges.append(badge)
@@ -569,6 +572,71 @@ def generate_seeds():
             primary_color='#0f172a',
             accent_color='#27bcd1'
         ))
+        db.session.commit()
+
+        # Seed default clubs
+        print("Seeding technical and cultural clubs...")
+        default_clubs = [
+            {"id": "codechef", "name": "CodeChef Chapter", "description": "Weekly CP ladders, contest discussions, and ICPC prep.", "club_type": "technical", "website_url": "https://chat.whatsapp.com/mock-codechef", "instagram_url": "https://instagram.com/veltech_codechef"},
+            {"id": "robotics", "name": "Robotics Society", "description": "Autonomous bots, drone builds, and embedded systems labs.", "club_type": "technical", "website_url": "https://chat.whatsapp.com/mock-robotics", "instagram_url": "https://instagram.com/veltech_robotics"},
+            {"id": "gdsc", "name": "Developer Student Club", "description": "Cloud, Android, web workshops, and product build sprints.", "club_type": "technical", "website_url": "https://chat.whatsapp.com/mock-gdsc", "instagram_url": "https://instagram.com/veltech_gdsc"},
+            {"id": "finearts", "name": "Fine Arts Forum", "description": "Poster design, stage props, murals, and event branding.", "club_type": "cultural", "website_url": "https://chat.whatsapp.com/mock-finearts", "instagram_url": "https://instagram.com/veltech_finearts"},
+            {"id": "radio", "name": "Campus Radio", "description": "Host shows, record interviews, and handle event announcements.", "club_type": "media", "website_url": "https://chat.whatsapp.com/mock-radio", "instagram_url": "https://instagram.com/veltech_radio"}
+        ]
+        for c_data in default_clubs:
+            club = Club(
+                id=c_data["id"],
+                name=c_data["name"],
+                description=c_data["description"],
+                club_type=c_data["club_type"],
+                is_active=True,
+                member_count=random.randint(40, 200),
+                website_url=c_data["website_url"],
+                instagram_url=c_data["instagram_url"]
+            )
+            db.session.add(club)
+        db.session.commit()
+
+        # Seed notices board
+        print("Seeding Notice Board...")
+        import json
+        notices_data = [
+            {
+                "title": "End Semester Exams Schedule - June 2026",
+                "content": "The timetable for final exams starting June 15, 2026 has been published. Please check the Exam Schedule section for detailed timings.",
+                "priority": "high",
+                "target_audience": "all",
+                "is_pinned": True,
+                "files": [{"name": "Exam_Timetable_June2026.pdf", "type": "pdf", "size": "450 KB"}]
+            },
+            {
+                "title": "Academic Calendar 2026-27 Approved",
+                "content": "The revised academic calendar for the next session is now available for download. All departments please note registration dates.",
+                "priority": "normal",
+                "target_audience": "all",
+                "is_pinned": False,
+                "files": [{"name": "Academic_Calendar_26_27.xlsx", "type": "excel", "size": "1.2 MB"}]
+            },
+            {
+                "title": "Placement Drive - Oracle",
+                "content": "Oracle recruiting drive for CSE and ECE 2026 batch. Registered students must attend the pre-placement talk tomorrow at 10 AM in the Seminar Hall.",
+                "priority": "high",
+                "target_audience": "all",
+                "is_pinned": True,
+                "files": [{"name": "Oracle_Eligibility_List.pdf", "type": "pdf", "size": "850 KB"}]
+            }
+        ]
+        for n_data in notices_data:
+            notice = Notice(
+                title=n_data["title"],
+                content=n_data["content"],
+                author_id=admin.id,
+                priority=n_data["priority"],
+                target_audience=n_data["target_audience"],
+                is_pinned=n_data["is_pinned"],
+                files_json=json.dumps(n_data["files"])
+            )
+            db.session.add(notice)
         db.session.commit()
 
         # ── 16. EXPORT CREDENTIALS TO EXCEL-COMPATIBLE CSV ────────────

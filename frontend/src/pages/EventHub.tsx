@@ -30,7 +30,8 @@ import {
   ChevronRight,
   X,
   Plus,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Lock
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
@@ -95,6 +96,8 @@ interface Club {
   member_count: number;
   whatsapp_link?: string;
   instagram_link?: string;
+  website_url?: string;
+  instagram_url?: string;
 }
 
 const FALLBACK_CLUBS: Club[] = [
@@ -146,6 +149,13 @@ const HIGHLIGHTS = [
   { id: 2, type: 'image', url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&q=80', title: 'Live Concert Stage Setup' },
   { id: 3, type: 'image', url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80', title: 'DJ Night Crowds' },
   { id: 4, type: 'image', url: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&q=80', title: 'Tech Expo & Drone Arena' }
+];
+
+const STORY_REELS = [
+  { id: 'sr1', url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=800&q=80', title: 'DJ Night Live', description: 'DJ playing the hits to a packed crowd!' },
+  { id: 'sr2', url: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?w=800&q=80', title: 'Rock Band Jam', description: 'VelTech Rock Band wins first place in inter-college finals.' },
+  { id: 'sr3', url: 'https://images.unsplash.com/photo-1481162854517-d9e353af153d?w=800&q=80', title: 'Tech Showcase', description: 'Students presenting autonomous underwater vehicle prototypes.' },
+  { id: 'sr4', url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&q=80', title: 'Acoustic Solo', description: 'Melodious fusion performance in the amphitheater.' }
 ];
 
 interface DiscussionPost {
@@ -274,6 +284,12 @@ const EventHub = () => {
 
   // Highlights slider state
   const [currentHighlightIdx, setCurrentHighlightIdx] = useState(0);
+  const [hasClaimedVolunteerBadge, setHasClaimedVolunteerBadge] = useState(false);
+  const [claimingBadge, setClaimingBadge] = useState(false);
+  const [showStoryPlayer, setShowStoryPlayer] = useState(false);
+  const [storyIndex, setStoryIndex] = useState(0);
+  const [editingClubSocialsId, setEditingClubSocialsId] = useState<string | null>(null);
+  const [socialForm, setSocialForm] = useState({ whatsapp: '', instagram: '' });
 
   // Scanner modal state
   const [showScanner, setShowScanner] = useState(false);
@@ -325,12 +341,22 @@ const EventHub = () => {
         if (Array.isArray(data.badges)) setBadges(data.badges);
       } catch (error) { console.warn('Offline badges:', error); }
     };
+    const fetchMyBadges = async () => {
+      try {
+        const { data } = await api.get('/career/badges/my-badges');
+        if (Array.isArray(data.earned_badges)) {
+          const hasVol = data.earned_badges.some((eb: any) => eb.badge?.name === "Volunteer Excellence");
+          setHasClaimedVolunteerBadge(hasVol);
+        }
+      } catch (error) { console.warn('Offline my-badges:', error); }
+    };
 
     fetchEvents();
     if (!isGuest) {
       fetchMyRegistrations();
       fetchClubs();
       fetchBadges();
+      fetchMyBadges();
     }
   }, [isGuest]);
 
@@ -449,6 +475,19 @@ const EventHub = () => {
     }
   };
 
+  const handleClaimVolunteerBadge = async () => {
+    setClaimingBadge(true);
+    try {
+      await api.post('/career/badges/claim-volunteer');
+      setHasClaimedVolunteerBadge(true);
+      alert("🎉 Volunteer Excellence Skill Badge Claimed Successfully! It has been added to your profile.");
+    } catch (e: any) {
+      alert(e.response?.data?.error || "Failed to claim volunteer badge.");
+    } finally {
+      setClaimingBadge(false);
+    }
+  };
+
   const handleRegisterEvent = async (eventId: string) => {
     if (isGuest) { setUpsellOpen(true); return; }
     if (registered.includes(eventId)) return;
@@ -459,29 +498,22 @@ const EventHub = () => {
     try { await api.post(`/campus/events/${eventId}/register`, { role: 'participant' }); } catch (error) { }
   };
 
-  // Club Request to Join Flow
-  const handleRequestClubJoin = (clubId: string) => {
+  // Club Direct Join Flow (replaces simulation requests)
+  const handleRequestClubJoin = async (clubId: string) => {
     if (isGuest) { setUpsellOpen(true); return; }
-    if (requestedClubs.includes(clubId) || joinedClubs.includes(clubId)) return;
+    if (joinedClubs.includes(clubId)) return;
 
-    const updatedRequests = [...requestedClubs, clubId];
-    setRequestedClubs(updatedRequests);
-    localStorage.setItem('requested_clubs', JSON.stringify(updatedRequests));
-  };
-
-  // Simulator for President Approval
-  const simulateCoordinatorApproval = (clubId: string) => {
-    const updatedRequests = requestedClubs.filter(id => id !== clubId);
-    setRequestedClubs(updatedRequests);
-    localStorage.setItem('requested_clubs', JSON.stringify(updatedRequests));
+    try {
+      await api.post(`/campus/clubs/${clubId}/join`);
+    } catch (e) {
+      console.warn("Backend club join failed, performing offline join");
+    }
 
     const updatedJoined = [...joinedClubs, clubId];
     setJoinedClubs(updatedJoined);
     localStorage.setItem('joined_clubs', JSON.stringify(updatedJoined));
-
-    // Increment member count in state
-    setClubs(prev => prev.map(c => c.id === clubId ? { ...c, member_count: c.member_count + 1 } : c));
-    alert('Simulated Approval Success! You are now a member and Advisor and can view feeds, chat channels, and scan attendance.');
+    setClubs(prev => prev.map(c => c.id === clubId ? { ...c, member_count: (c.member_count || 0) + 1 } : c));
+    alert('🎉 Successfully joined the club! You can now access official channels and the club space.');
   };
 
   const handleJoinClub = (clubId: string) => {
@@ -811,83 +843,36 @@ const EventHub = () => {
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5">
         {/* Events Tab */}
         {activeView === 'events' && (
-          <div className="flex flex-col gap-4 pb-6">
-            <div className="flex gap-2 overflow-x-auto py-2 hide-scrollbar">
-              {['all', ...Array.from(new Set(events.map(e => e.event_type)))].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setActiveType(type)}
-                  className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold capitalize ${
-                    activeType === type ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-100'
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-col gap-4 pb-6 pt-4 items-center text-center">
+            <div className="bg-slate-900 border border-slate-800 text-white rounded-[32px] p-6 shadow-xl relative overflow-hidden w-full max-w-sm mt-4 backdrop-blur-md">
+              <div className="absolute top-[-20%] left-[-20%] w-48 h-48 rounded-full bg-blue-600/10 blur-3xl pointer-events-none" />
+              
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-lg backdrop-blur-md animate-pulse">
+                  <Lock className="w-8 h-8 text-blue-400" />
+                </div>
+                
+                <h3 className="text-lg font-black bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent mb-2">
+                  Event Feed Locked
+                </h3>
+                
+                <p className="text-xs text-slate-400 leading-relaxed mb-6 max-w-xs">
+                  Discover university fests, seminars, and tech workshops in a premium digital discovery feed. Launching soon in Version 2.0!
+                </p>
 
-            {(activeType === 'all' ? events : events.filter(e => e.event_type === activeType)).map((event) => {
-              const date = new Date(event.start_date);
-              const seatsLeft = event.max_participants ? Math.max(event.max_participants - event.registration_count, 0) : null;
-              const isReg = registered.includes(event.id);
-
-              return (
-                <div key={event.id} className="bg-white rounded-[28px] p-5 shadow-sm border border-slate-100">
-                  <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-[#27bcd1]/15 flex flex-col items-center justify-center text-[#0080c7] shrink-0">
-                      <span className="text-[10px] font-black uppercase">{date.toLocaleString('en-US', { month: 'short' })}</span>
-                      <span className="text-2xl font-black leading-none">{date.getDate()}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-black px-2 py-1 rounded-full bg-slate-100 text-slate-600 uppercase">{event.event_type}</span>
-                      </div>
-                      <h3 className="text-base font-black text-slate-900 leading-tight">{event.title}</h3>
-                      <p className="text-xs text-slate-500 mt-1 leading-relaxed line-clamp-2">{event.description}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex flex-col gap-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                        <Ticket className="w-4 h-4 text-[#c9503d]" />
-                        {seatsLeft === null ? 'Open entry' : `${seatsLeft} seats left`}
-                      </div>
-                      <button
-                        onClick={() => handleRegisterEvent(event.id)}
-                        className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
-                          isReg ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-900 text-white active:scale-95'
-                        }`}
-                      >
-                        {isReg ? 'Registered' : 'Register'}
-                      </button>
-                    </div>
-
-                    {user && (user.role === 'admin' || user.role === 'faculty' || event.organizer_id === user.id) && (
-                      <div className="flex items-center gap-2 pt-2 border-t border-slate-100 mt-1">
-                        <button
-                          onClick={() => handleEditEvent(event)}
-                          className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteEvent(event.id)}
-                          className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-655 rounded-xl text-xs font-bold transition-all"
-                        >
-                          Delete
-                        </button>
-                        <button
-                          onClick={() => handleManageRegistrations(event)}
-                          className="flex-1 py-2 bg-[#0080c7]/10 hover:bg-[#0080c7]/20 text-[#0080c7] rounded-xl text-xs font-bold transition-all"
-                        >
-                          Registrations
-                        </button>
-                      </div>
-                    )}
+                <div className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-left font-bold text-[10px] text-slate-400">
+                  <span className="uppercase text-[9px] tracking-wider text-blue-400 block mb-2 font-black">Releasing in V2.0:</span>
+                  <div className="flex flex-col gap-2">
+                    <p className="flex items-center gap-1.5 text-slate-350"><span className="w-1 h-1 rounded-full bg-blue-400" /> Real-time ticket purchase & entry QR generation</p>
+                    <p className="flex items-center gap-1.5 text-slate-350"><span className="w-1 h-1 rounded-full bg-blue-400" /> Crowd metrics tracking & venue maps</p>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            </div>
+            
+            <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-wider">
+              ✨ Other tabs GDSC, finearts, volunteers, & highlights are fully functional!
+            </p>
           </div>
         )}
 
@@ -945,28 +930,12 @@ const EventHub = () => {
                     </div>
                   </div>
 
-                  {/* Joined Experience Social Links and Approval Simulator */}
-                  {isRequested && (
-                    <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-xl p-3">
-                      <div className="flex-1">
-                        <p className="text-xs font-bold text-amber-700">Request Pending</p>
-                        <p className="text-[10px] text-amber-600">Waiting for advisor approval.</p>
-                      </div>
-                      <button
-                        onClick={() => simulateCoordinatorApproval(club.id)}
-                        className="bg-amber-600 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shrink-0 shadow-sm"
-                      >
-                        Simulate Approval
-                      </button>
-                    </div>
-                  )}
-
-                  {!isJoined && !isRequested && (
+                  {!isJoined && (
                     <button
                       onClick={() => handleRequestClubJoin(club.id)}
-                      className="mt-4 w-full py-3 rounded-2xl text-xs font-black bg-slate-900 text-white active:scale-95 transition-all"
+                      className="mt-4 w-full py-3 rounded-2xl text-xs font-black bg-slate-900 text-white active:scale-95 transition-all shadow-sm"
                     >
-                      Request to Join
+                      Join Club
                     </button>
                   )}
 
@@ -983,30 +952,104 @@ const EventHub = () => {
                         </button>
                       </div>
 
-                      {/* Social WhatsApp & Instagram Links Description */}
+                      {/* Social WhatsApp & Instagram Links Description / Editor */}
                       <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 mt-2">
-                        <p className="text-[11px] font-black uppercase text-slate-400 tracking-wider mb-2">Official Channels</p>
-                        <div className="flex gap-2">
-                          <a
-                            href={club.whatsapp_link || 'https://chat.whatsapp.com'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" /> WhatsApp Group
-                          </a>
-                          <a
-                            href={club.instagram_link || 'https://instagram.com'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 bg-gradient-to-r from-pink-500 to-indigo-500 text-white text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm"
-                          >
-                            <ImageIcon className="w-3.5 h-3.5" /> Instagram Page
-                          </a>
+                        <div className="flex justify-between items-center mb-2.5">
+                          <p className="text-[11px] font-black uppercase text-slate-400 tracking-wider">Official Channels</p>
+                          {user && (user.role === 'faculty' || user.role === 'admin' || user.role === 'coordinator' || user.role === 'president') && (
+                            <button
+                              onClick={() => {
+                                setEditingClubSocialsId(editingClubSocialsId === club.id ? null : club.id);
+                                setSocialForm({
+                                  whatsapp: club.website_url || club.whatsapp_link || '',
+                                  instagram: club.instagram_url || club.instagram_link || ''
+                                });
+                              }}
+                              className="text-[10px] text-[#0080c7] font-black hover:underline"
+                            >
+                              {editingClubSocialsId === club.id ? 'Cancel' : 'Edit Channels'}
+                            </button>
+                          )}
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-2 leading-tight">
-                          Join the WhatsApp group for sync and updates, and follow the Instagram channel to view active photo galleries.
-                        </p>
+
+                        {editingClubSocialsId === club.id ? (
+                          <div className="flex flex-col gap-2.5 animate-fade-in pt-1">
+                            <div>
+                              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">WhatsApp Invite URL</label>
+                              <input
+                                type="text"
+                                value={socialForm.whatsapp}
+                                onChange={(e) => setSocialForm({ ...socialForm, whatsapp: e.target.value })}
+                                placeholder="https://chat.whatsapp.com/..."
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none text-slate-800 font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-bold text-slate-400 uppercase mb-1 block">Instagram Profile URL</label>
+                              <input
+                                type="text"
+                                value={socialForm.instagram}
+                                onChange={(e) => setSocialForm({ ...socialForm, instagram: e.target.value })}
+                                placeholder="https://instagram.com/..."
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none text-slate-800 font-bold"
+                              />
+                            </div>
+                            <div className="flex gap-2 justify-end mt-1.5">
+                              <button
+                                onClick={() => setEditingClubSocialsId(null)}
+                                className="bg-slate-200 text-slate-700 text-[10px] font-black px-3.5 py-2 rounded-xl transition-all active:scale-95"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await api.put(`/campus/clubs/${club.id}`, {
+                                      website_url: socialForm.whatsapp,
+                                      instagram_url: socialForm.instagram
+                                    });
+                                    setClubs(prev => prev.map(c => c.id === club.id ? {
+                                      ...c,
+                                      website_url: socialForm.whatsapp,
+                                      instagram_url: socialForm.instagram
+                                    } : c));
+                                    setEditingClubSocialsId(null);
+                                    alert("🎉 Club social channels updated successfully!");
+                                  } catch (e) {
+                                    alert("Failed to update club social channels.");
+                                  }
+                                }}
+                                className="bg-[#0080c7] hover:bg-[#006ca8] text-white text-[10px] font-black px-3.5 py-2 rounded-xl shadow-md transition-all active:scale-95"
+                              >
+                                Save Changes
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex gap-2">
+                              <a
+                                href={club.website_url || club.whatsapp_link || 'https://chat.whatsapp.com'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" /> WhatsApp Group
+                              </a>
+                              <a
+                                href={club.instagram_url || club.instagram_link || 'https://instagram.com'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 bg-gradient-to-r from-pink-500 to-indigo-500 text-white text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                              >
+                                <ImageIcon className="w-3.5 h-3.5" /> Instagram Page
+                              </a>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-2 leading-tight">
+                              Join the WhatsApp group for sync and updates, and follow the Instagram channel to view active photo galleries.
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1042,42 +1085,43 @@ const EventHub = () => {
 
                        {clubSubTab === 'feed' ? (
                          <div>
-                           {/* Simulation President Post Creation for Demo */}
-                           <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-3">
-                             <p className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">Broadcast Club Update (President Role Simulation)</p>
-                             <div className="flex gap-2">
-                               <input
-                                 id={`pres_post_input_${club.id}`}
-                                 placeholder="Type notice..."
-                                 className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs outline-none"
-                                 onKeyDown={(e) => {
-                                   if (e.key === 'Enter') {
-                                     handleCreatePresPost(club.id, (e.target as HTMLInputElement).value);
-                                     (e.target as HTMLInputElement).value = '';
-                                   }
-                                 }}
-                               />
-                               <button
-                                 onClick={() => {
-                                   const input = document.getElementById(`pres_post_input_${club.id}`) as HTMLInputElement;
-                                   if (input) {
-                                     handleCreatePresPost(club.id, input.value);
-                                     input.value = '';
-                                   }
-                                 }}
-                                 className="bg-slate-900 text-white text-[10px] font-bold px-3 py-1 rounded-lg"
-                               >
-                                 Post
-                               </button>
+                           {user && (user.role === 'faculty' || user.role === 'admin' || user.role === 'coordinator' || user.role === 'president') && (
+                             <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-3 animate-fade-in">
+                               <p className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">Broadcast Club Update</p>
+                               <div className="flex gap-2">
+                                 <input
+                                   id={`pres_post_input_${club.id}`}
+                                   placeholder="Type official update to members..."
+                                   className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-bold"
+                                   onKeyDown={(e) => {
+                                     if (e.key === 'Enter') {
+                                       handleCreatePresPost(club.id, (e.target as HTMLInputElement).value);
+                                       (e.target as HTMLInputElement).value = '';
+                                     }
+                                   }}
+                                 />
+                                 <button
+                                   onClick={() => {
+                                     const input = document.getElementById(`pres_post_input_${club.id}`) as HTMLInputElement;
+                                     if (input && input.value.trim()) {
+                                       handleCreatePresPost(club.id, input.value);
+                                       input.value = '';
+                                     }
+                                   }}
+                                   className="bg-slate-900 text-white text-[10px] font-bold px-4 py-2 rounded-lg hover:bg-slate-850 active:scale-95 transition-all"
+                                 >
+                                   Post
+                                 </button>
+                               </div>
                              </div>
-                           </div>
+                           )}
 
                            {clubFeeds[club.id]?.length ? (
                                <div className="flex flex-col gap-3">
                                    {clubFeeds[club.id].map(post => (
                                        <div key={post.id} className="bg-slate-50 rounded-xl p-3 text-xs text-slate-700 border border-slate-100">
                                            <div className="flex justify-between items-center mb-1">
-                                             <span className="font-black text-slate-900">President Announcement</span>
+                                             <span className="font-black text-slate-900">Official Update</span>
                                              <span className="text-[9px] text-slate-400 font-bold">{new Date(post.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                            </div>
                                            {post.content}
@@ -1219,7 +1263,7 @@ const EventHub = () => {
                         {volunteerHours >= 30 && <CheckCircle className="w-4 h-4 text-emerald-500" />}
                       </h3>
                       <p className="text-xs text-slate-500 leading-normal mt-0.5">
-                        {volunteerHours >= 30 ? 'Target achieved! Certificate unlocked.' : `${30 - volunteerHours} hours remaining to unlock certificate.`}
+                        {volunteerHours >= 30 ? 'Target achieved! Volunteer Excellence Skill Badge unlocked.' : `${30 - volunteerHours} hours remaining to unlock Skill Badge.`}
                       </p>
                       
                       {/* Excel & Record Exports */}
@@ -1232,24 +1276,73 @@ const EventHub = () => {
                     </div>
                   </div>
 
-                  {/* Certificate Download Button */}
-                  <div className="mt-5 border-t border-slate-100 pt-4 flex flex-col gap-2">
-                    <button
-                      onClick={handleDownloadCertificate}
-                      disabled={volunteerHours < 30}
-                      className={`w-full py-3.5 rounded-2xl text-xs font-black shadow-lg flex items-center justify-center gap-2 transition-all ${
-                        volunteerHours >= 30 
-                          ? 'bg-gradient-to-r from-[#0080c7] to-indigo-600 text-white shadow-indigo-500/10 active:scale-95' 
-                          : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
-                      }`}
-                    >
-                      <Download className="w-4 h-4" /> Download Branded Certificate (PDF)
-                    </button>
-                    {volunteerHours < 30 && (
-                      <p className="text-[10px] text-center text-slate-400 italic">
-                        *Complete at least 30 hours of volunteering to download your Certificate.
-                      </p>
-                    )}
+                  {/* Premium Gold-Glowing Volunteer Excellence Badge Card */}
+                  <div className="mt-5 border-t border-slate-100 pt-4">
+                    <div className={`rounded-2xl p-5 border relative overflow-hidden transition-all duration-300 ${
+                      hasClaimedVolunteerBadge
+                        ? 'bg-gradient-to-br from-amber-900/40 via-amber-950/40 to-slate-900/60 border-amber-500/30 shadow-[0_0_25px_rgba(217,119,6,0.2)] backdrop-blur-sm'
+                        : volunteerHours >= 30
+                          ? 'bg-gradient-to-br from-slate-900 to-slate-950 border-amber-500/40 shadow-[0_0_20px_rgba(217,119,6,0.15)] animate-pulse'
+                          : 'bg-slate-50 border-slate-100'
+                    }`}>
+                      {/* Decorative Gold Circles */}
+                      {(hasClaimedVolunteerBadge || volunteerHours >= 30) && (
+                        <div className="absolute top-[-20%] right-[-20%] w-32 h-32 rounded-full bg-amber-500/10 blur-2xl pointer-events-none" />
+                      )}
+
+                      <div className="flex items-center gap-4 relative z-10">
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 border ${
+                          hasClaimedVolunteerBadge
+                            ? 'bg-amber-500/20 border-amber-400/30 text-amber-400'
+                            : volunteerHours >= 30
+                              ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                              : 'bg-slate-200 border-slate-300 text-slate-400'
+                        }`}>
+                          <BadgeCheck className="w-8 h-8" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className={`text-sm font-black leading-tight ${hasClaimedVolunteerBadge || volunteerHours >= 30 ? 'text-amber-500' : 'text-slate-700'}`}>
+                            Volunteer Excellence Badge
+                          </h4>
+                          <p className={`text-[11px] leading-relaxed mt-0.5 ${hasClaimedVolunteerBadge || volunteerHours >= 30 ? 'text-slate-300' : 'text-slate-400'}`}>
+                            Awarded to coordinators completing 30+ hours of selfless campus operations service.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-200/10 relative z-10 flex flex-col gap-2">
+                        {hasClaimedVolunteerBadge ? (
+                          <div className="flex items-center justify-center gap-1.5 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs font-black text-amber-400">
+                            <CheckCircle className="w-4 h-4" /> Earned & Added to Profile
+                          </div>
+                        ) : volunteerHours >= 30 ? (
+                          <button
+                            onClick={handleClaimVolunteerBadge}
+                            disabled={claimingBadge}
+                            className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                          >
+                            {claimingBadge ? (
+                              <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
+                            ) : (
+                              'Claim Volunteer Excellence Badge'
+                            )}
+                          </button>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                              <div
+                                className="bg-[#0080c7] h-full rounded-full transition-all duration-500"
+                                style={{ width: `${(volunteerHours / 30) * 100}%` }}
+                              />
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-400">
+                              <span>Progress to Badge: {Math.round((volunteerHours / 30) * 100)}%</span>
+                              <span>{volunteerHours} / 30 hrs</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1399,9 +1492,34 @@ const EventHub = () => {
         {/* Highlights Tab */}
         {activeView === 'highlights' && (
           <div className="flex flex-col gap-5 pb-6 pt-2">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-black text-slate-900">LAVAZA '26 Highlights</h2>
-              <span className="text-[10px] font-black px-2 py-1 rounded bg-[#0080c7]/10 text-[#0080c7] uppercase">
+            {/* Immersive Instagram-Style Bubble Strip */}
+            <div className="bg-white rounded-[28px] p-4 shadow-sm border border-slate-100 mt-2">
+              <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-3 px-1">LAVAZA Live Reels</h3>
+              <div className="flex gap-4 overflow-x-auto py-2 hide-scrollbar">
+                {STORY_REELS.map((story, idx) => (
+                  <button
+                    key={story.id}
+                    onClick={() => { setStoryIndex(idx); setShowStoryPlayer(true); }}
+                    className="flex flex-col items-center shrink-0 gap-1.5 focus:outline-none group"
+                  >
+                    <div className="w-16 h-16 rounded-full p-[2.5px] bg-gradient-to-tr from-pink-500 via-rose-500 to-yellow-500 shadow-md group-active:scale-90 transition-all">
+                      <img
+                        src={story.url}
+                        alt={story.title}
+                        className="w-full h-full rounded-full object-cover border border-white bg-slate-900"
+                      />
+                    </div>
+                    <span className="text-[10px] font-black text-slate-500 max-w-[72px] truncate text-center leading-tight">
+                      {story.title}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center mt-2">
+              <h2 className="text-base font-black text-slate-900">Highlights Gallery</h2>
+              <span className="text-[10px] font-black px-2.5 py-1 rounded bg-[#0080c7]/10 text-[#0080c7] uppercase">
                 {currentHighlightIdx + 1} / {HIGHLIGHTS.length}
               </span>
             </div>
@@ -1412,7 +1530,7 @@ const EventHub = () => {
                 {HIGHLIGHTS.map((h) => (
                   <div key={h.id} className="min-w-full h-full relative shrink-0">
                     <img src={h.url} alt={h.title} className="w-full h-full object-cover opacity-80" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-transparent to-transparent pointer-events-none" />
                     {h.type === 'video' && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
@@ -1422,7 +1540,7 @@ const EventHub = () => {
                     )}
                     <div className="absolute bottom-6 left-6 right-6">
                       <span className="text-[10px] uppercase font-black text-yellow-400 tracking-wider">Lavaza Highlights</span>
-                      <h3 className="text-white font-black text-xl mt-1 leading-tight">{h.title}</h3>
+                      <h3 className="text-white font-black text-lg mt-1 leading-tight">{h.title}</h3>
                     </div>
                   </div>
                 ))}
@@ -1432,20 +1550,20 @@ const EventHub = () => {
               <button
                 onClick={() => setCurrentHighlightIdx(prev => Math.max(prev - 1, 0))}
                 disabled={currentHighlightIdx === 0}
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white disabled:opacity-30 active:scale-95 transition-opacity"
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white disabled:opacity-30 active:scale-95 transition-opacity z-10"
               >
                 ←
               </button>
               <button
                 onClick={() => setCurrentHighlightIdx(prev => Math.min(prev + 1, HIGHLIGHTS.length - 1))}
                 disabled={currentHighlightIdx === HIGHLIGHTS.length - 1}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center text-white disabled:opacity-30 active:scale-95 transition-opacity"
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white disabled:opacity-30 active:scale-95 transition-opacity z-10"
               >
                 →
               </button>
 
               {/* Slider dots indicators */}
-              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5">
+              <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 z-10">
                 {HIGHLIGHTS.map((_, i) => (
                   <button
                     key={i}
@@ -1459,8 +1577,8 @@ const EventHub = () => {
             </div>
             
             <div className="bg-white rounded-2xl border border-slate-100 p-4">
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Highlights are managed directly by the cultural board admin. Tap left/right arrows to slide through the active image/video feed of fests and celebrations.
+              <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                Official highlights are managed directly by the cultural board. Tap stories above to play live fests reels, or use the horizontal gallery to scroll memories.
               </p>
             </div>
           </div>
@@ -1506,6 +1624,102 @@ const EventHub = () => {
                 Scan Session QR Code
               </button>
             )}
+          </div>
+        </div>
+      )}
+      {/* Immersive Vertical Reels Stories Player Modal */}
+      {showStoryPlayer && (
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-lg flex flex-col justify-between p-4 animate-fade-in select-none">
+          {/* Top Header Indicators */}
+          <div className="flex flex-col gap-3.5 z-20 w-full pt-4 px-2">
+            {/* Progress Bar Indicators */}
+            <div className="flex gap-1.5 w-full">
+              {STORY_REELS.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`h-1 flex-1 rounded-full overflow-hidden transition-all duration-300 ${
+                    idx < storyIndex
+                      ? 'bg-pink-500'
+                      : idx === storyIndex
+                        ? 'bg-slate-350'
+                        : 'bg-white/20'
+                  }`}
+                >
+                  {idx === storyIndex && (
+                    <div className="h-full bg-gradient-to-r from-pink-500 to-rose-500 animate-story-progress" />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Profile & Close Bar */}
+            <div className="flex justify-between items-center text-white">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-full p-[1.5px] bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400">
+                  <img
+                    src={STORY_REELS[storyIndex].url}
+                    alt="Reel Avatar"
+                    className="w-full h-full rounded-full object-cover border border-black"
+                  />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-white">{STORY_REELS[storyIndex].title}</h4>
+                  <p className="text-[9px] font-bold text-white/60">LAVAZA '26 Live</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowStoryPlayer(false)}
+                className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 text-white transition-all active:scale-90"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Core Reel Frame */}
+          <div className="flex-1 flex items-center justify-center relative my-4 overflow-hidden rounded-[24px] border border-white/5 bg-slate-950">
+            <img
+              src={STORY_REELS[storyIndex].url}
+              alt={STORY_REELS[storyIndex].title}
+              className="w-full h-full object-cover max-h-[75vh]"
+            />
+            {/* Dark Vignette Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/45 pointer-events-none" />
+
+            {/* Tap areas to quickly navigate */}
+            <div
+              onClick={() => setStoryIndex(prev => Math.max(0, prev - 1))}
+              className="absolute left-0 top-0 bottom-0 w-1/4 cursor-pointer z-10"
+            />
+            <div
+              onClick={() => setStoryIndex(prev => Math.min(STORY_REELS.length - 1, prev + 1))}
+              className="absolute right-0 top-0 bottom-0 w-1/4 cursor-pointer z-10"
+            />
+
+            {/* Vertical Controls Overlay on Right side */}
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-5 z-20">
+              <button
+                onClick={() => setStoryIndex(prev => prev === 0 ? STORY_REELS.length - 1 : prev - 1)}
+                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white text-sm font-bold shadow-lg hover:bg-black/60 active:scale-90 transition-all"
+                title="Previous Reel"
+              >
+                ▲
+              </button>
+              <button
+                onClick={() => setStoryIndex(prev => prev === STORY_REELS.length - 1 ? 0 : prev + 1)}
+                className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white text-sm font-bold shadow-lg hover:bg-black/60 active:scale-90 transition-all"
+                title="Next Reel"
+              >
+                ▼
+              </button>
+            </div>
+
+            {/* Content Bottom Overlay */}
+            <div className="absolute bottom-6 left-5 right-14 z-20 text-left pointer-events-none">
+              <span className="text-[9px] font-black text-pink-400 uppercase tracking-widest bg-pink-500/20 px-2.5 py-1 rounded-full border border-pink-500/30">🔥 Live Fest Reel</span>
+              <h4 className="text-white font-black text-lg mt-2.5 leading-tight">{STORY_REELS[storyIndex].title}</h4>
+              <p className="text-white/85 text-[11px] mt-1 font-medium leading-relaxed max-w-xs">{STORY_REELS[storyIndex].description}</p>
+            </div>
           </div>
         </div>
       )}

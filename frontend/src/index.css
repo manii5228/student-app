@@ -57,3 +57,13 @@
 .animate-scan-pulse {
   animation: scan-pulse 3s infinite linear;
 }
+
+@keyframes story-progress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.animate-story-progress {
+  animation: story-progress 5s linear forwards;
+}
+

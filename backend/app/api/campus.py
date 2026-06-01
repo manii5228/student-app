@@ -420,7 +420,7 @@ def reject_event(eid):
 def list_notices():
     """Get notice board with pinned items first. Filter by student audience if logged in."""
     from ..models.user import User
-    from sqlalchemy import or_
+    from sqlalchemy import or_, and_
     
     current_user = get_jwt_identity()
     student = db.session.get(User, current_user) if current_user else None
@@ -432,9 +432,11 @@ def list_notices():
         query = query.filter(
             or_(
                 Notice.target_audience == "all",
-                or_(Notice.branch == None, Notice.branch == student.department),
-                or_(Notice.year == None, Notice.year == student.semester),
-                or_(Notice.section == None, Notice.section == student.section)
+                and_(
+                    or_(Notice.branch == None, Notice.branch == student.department),
+                    or_(Notice.year == None, Notice.year == student.semester),
+                    or_(Notice.section == None, Notice.section == student.section)
+                )
             )
         )
         
