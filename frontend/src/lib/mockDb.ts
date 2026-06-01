@@ -115,11 +115,126 @@ const INITIAL_NOTICES = [
   { id: "n2", title: "Smart-Timetable Substitutions Activated", content: "To handle faculty leaves efficiently, real-time push substitution slots are now visible dynamically inside your Smart Timetable timeline.", category: "general", date: "2026-05-29" }
 ];
 
+const INITIAL_ATTENDANCE_SUBJECTS = [
+  { student_id: "std_1", subject_code: "CS301", subject_name: "Data Structures", total_classes: 25, present: 22, absent: 3, late: 0, on_duty: 0, leave: 0, percentage: 88.0 },
+  { student_id: "std_1", subject_code: "CS302", subject_name: "Digital Logic", total_classes: 24, present: 18, absent: 6, late: 0, on_duty: 0, leave: 0, percentage: 75.0 },
+  { student_id: "std_1", subject_code: "MA301", subject_name: "Mathematics III", total_classes: 25, present: 21, absent: 4, late: 0, on_duty: 0, leave: 0, percentage: 84.0 },
+  { student_id: "std_1", subject_code: "CS303", subject_name: "Operating Systems", total_classes: 24, present: 19, absent: 5, late: 0, on_duty: 0, leave: 0, percentage: 79.2 },
+  { student_id: "std_1", subject_code: "HU301", subject_name: "English", total_classes: 22, present: 19, absent: 3, late: 0, on_duty: 0, leave: 0, percentage: 86.4 }
+];
+
+const INITIAL_ATTENDANCE_RECORDS = [
+  {
+    id: "rec_1",
+    session_id: "sess_1",
+    student_id: "std_1",
+    status: "absent",
+    method: "bulk",
+    marked_at: "2026-05-29T10:00:00Z",
+    remarks: null,
+    discrepancy_reported: false,
+    discrepancy: null,
+    session: {
+      subject_code: "CS301",
+      subject_name: "Data Structures",
+      session_date: "2026-05-29",
+      period_number: 1
+    }
+  },
+  {
+    id: "rec_2",
+    session_id: "sess_2",
+    student_id: "std_1",
+    status: "present",
+    method: "qr_scan",
+    marked_at: "2026-05-28T09:00:00Z",
+    remarks: null,
+    discrepancy_reported: false,
+    discrepancy: null,
+    session: {
+      subject_code: "CS302",
+      subject_name: "Digital Logic",
+      session_date: "2026-05-28",
+      period_number: 2
+    }
+  },
+  {
+    id: "rec_3",
+    session_id: "sess_3",
+    student_id: "std_1",
+    status: "present",
+    method: "qr_scan",
+    marked_at: "2026-05-27T11:00:00Z",
+    remarks: null,
+    discrepancy_reported: false,
+    discrepancy: null,
+    session: {
+      subject_code: "MA301",
+      subject_name: "Mathematics III",
+      session_date: "2026-05-27",
+      period_number: 3
+    }
+  },
+  {
+    id: "rec_4",
+    session_id: "sess_4",
+    student_id: "std_1",
+    status: "present",
+    method: "bulk",
+    marked_at: "2026-05-26T14:00:00Z",
+    remarks: null,
+    discrepancy_reported: false,
+    discrepancy: null,
+    session: {
+      subject_code: "CS303",
+      subject_name: "Operating Systems",
+      session_date: "2026-05-26",
+      period_number: 5
+    }
+  },
+  {
+    id: "rec_5",
+    session_id: "sess_5",
+    student_id: "std_1",
+    status: "present",
+    method: "bulk",
+    marked_at: "2026-05-25T14:00:00Z",
+    remarks: null,
+    discrepancy_reported: false,
+    discrepancy: null,
+    session: {
+      subject_code: "HU301",
+      subject_name: "English",
+      session_date: "2026-05-25",
+      period_number: 5
+    }
+  }
+];
+
 // Load database from localStorage or initialize with seed data
 const getMockDb = () => {
   const data = localStorage.getItem('mock_db');
   if (data) {
-    try { return JSON.parse(data); } catch { /* fallback */ }
+    try {
+      const parsedDb = JSON.parse(data);
+      let updated = false;
+      if (!parsedDb.attendanceSubjects) {
+        parsedDb.attendanceSubjects = INITIAL_ATTENDANCE_SUBJECTS;
+        updated = true;
+      }
+      if (!parsedDb.attendanceRecords) {
+        parsedDb.attendanceRecords = INITIAL_ATTENDANCE_RECORDS;
+        updated = true;
+      }
+      if (!parsedDb.attendanceDiscrepancies) {
+        parsedDb.attendanceDiscrepancies = [];
+        updated = true;
+      }
+      if (updated) {
+        saveMockDb(parsedDb);
+      }
+      return parsedDb;
+    } catch { /* fallback */ }
   }
   
   const initialDb = {
@@ -148,7 +263,10 @@ const getMockDb = () => {
     ],
     hostelPasses: [],
     canteenOrders: [],
-    notifications: []
+    notifications: [],
+    attendanceSubjects: INITIAL_ATTENDANCE_SUBJECTS,
+    attendanceRecords: INITIAL_ATTENDANCE_RECORDS,
+    attendanceDiscrepancies: []
   };
   localStorage.setItem('mock_db', JSON.stringify(initialDb));
   return initialDb;
@@ -174,6 +292,14 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   const db = getMockDb();
   const method = config.method?.toLowerCase() || 'get';
   const rawUrl = config.url || '';
+  
+  const activeUserStr = localStorage.getItem('user');
+  let activeUserId = "std_1";
+  if (activeUserStr) {
+    try {
+      activeUserId = JSON.parse(activeUserStr).id || "std_1";
+    } catch {}
+  }
   
   // Strip query parameters
   let cleanUrl = rawUrl.split('?')[0];
@@ -232,31 +358,21 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       };
     }
 
-    let user = db.users.find((u: any) => u.email?.toLowerCase() === payload.email.toLowerCase());
-    
-    // Auto-register user via SSO if they don't exist in local DB
-    if (!user) {
-      const emailParts = payload.email.split('@');
-      const namePart = emailParts[0] || 'Student';
-      const firstName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-      
-      user = {
-        id: `std_${Date.now()}`,
-        email: payload.email,
-        password: "sso-login-placeholder!",
-        role: "student",
-        first_name: firstName,
-        last_name: "SSO",
-        department: "CSE",
-        roll_number: `22CSE${Math.floor(100 + Math.random() * 900)}`,
-        hostel_status: "dayscholar",
-        semester: 4,
-        section: "A",
-        batch_year: 2024,
-        is_verified: true,
+    const allowedDomains = ["veltech.edu.in", "vel-tech.org", "veltech.ac.in"];
+    const domain = payload.email.split('@').pop()?.toLowerCase();
+    if (!domain || !allowedDomains.includes(domain)) {
+      return {
+        status: 400,
+        data: { error: "SSO is only available for college email addresses." }
       };
-      db.users.push(user);
-      saveMockDb(db);
+    }
+
+    const user = db.users.find((u: any) => u.email?.toLowerCase() === payload.email.toLowerCase());
+    if (!user) {
+      return {
+        status: 401,
+        data: { error: "No account found for this email. Please register first." }
+      };
     }
     
     localStorage.setItem('user', JSON.stringify(user));
@@ -313,6 +429,52 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     const activeUserStr = localStorage.getItem('user');
     if (activeUserStr) {
       return { status: 200, data: JSON.parse(activeUserStr) };
+    }
+    return { status: 401, data: { error: "Unauthorized" } };
+  }
+
+  if (cleanUrl === '/auth/me/avatar' && method === 'post') {
+    const payload = getPayload(config.data);
+    const activeUserStr = localStorage.getItem('user');
+    if (activeUserStr) {
+      const activeUser = JSON.parse(activeUserStr);
+      const userIdx = db.users.findIndex((u: any) => u.id === activeUser.id);
+      if (userIdx !== -1) {
+        db.users[userIdx].avatar_url = payload.avatar_url || payload.avatar_base64;
+        localStorage.setItem('user', JSON.stringify(db.users[userIdx]));
+        saveMockDb(db);
+        return {
+          status: 200,
+          data: {
+            message: "Avatar updated successfully",
+            avatar_url: db.users[userIdx].avatar_url,
+            user: db.users[userIdx]
+          }
+        };
+      }
+    }
+    return { status: 401, data: { error: "Unauthorized" } };
+  }
+
+  if (cleanUrl === '/auth/me/preferences' && method === 'put') {
+    const payload = getPayload(config.data);
+    const activeUserStr = localStorage.getItem('user');
+    if (activeUserStr) {
+      const activeUser = JSON.parse(activeUserStr);
+      const userIdx = db.users.findIndex((u: any) => u.id === activeUser.id);
+      if (userIdx !== -1) {
+        const currentPrefs = db.users[userIdx].preferences || {};
+        db.users[userIdx].preferences = { ...currentPrefs, ...payload };
+        localStorage.setItem('user', JSON.stringify(db.users[userIdx]));
+        saveMockDb(db);
+        return {
+          status: 200,
+          data: {
+            message: "Preferences updated successfully",
+            preferences: db.users[userIdx].preferences
+          }
+        };
+      }
     }
     return { status: 401, data: { error: "Unauthorized" } };
   }
@@ -527,26 +689,191 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   }
 
   // Bunk-O-Meter Attendance
+  if (cleanUrl === '/attendance/bunk-o-meter' && method === 'get') {
+    const userSubjects = db.attendanceSubjects.filter((s: any) => s.student_id === activeUserId);
+    if (userSubjects.length === 0) {
+      const userSeed = INITIAL_ATTENDANCE_SUBJECTS.map((s: any) => ({ ...s, student_id: activeUserId }));
+      db.attendanceSubjects.push(...userSeed);
+      saveMockDb(db);
+      return { status: 200, data: { subjects: userSeed } };
+    }
+    return { status: 200, data: { subjects: userSubjects } };
+  }
+
+  if (cleanUrl === '/attendance/my-records' && method === 'get') {
+    const userRecords = db.attendanceRecords.filter((r: any) => r.student_id === activeUserId);
+    if (userRecords.length === 0 && activeUserId === "std_1") {
+      const seededRecords = INITIAL_ATTENDANCE_RECORDS.map((r: any) => ({ ...r, student_id: activeUserId }));
+      db.attendanceRecords.push(...seededRecords);
+      saveMockDb(db);
+      return { status: 200, data: { records: seededRecords } };
+    }
+    return { status: 200, data: { records: userRecords } };
+  }
+
+  if (cleanUrl === '/attendance/discrepancies' && method === 'get') {
+    const userDiscrepancies = db.attendanceDiscrepancies.filter((d: any) => d.student_id === activeUserId);
+    return { status: 200, data: { discrepancies: userDiscrepancies } };
+  }
+
+  if (cleanUrl === '/attendance/discrepancy' && method === 'post') {
+    const payload = getPayload(config.data);
+    const recordId = payload.record_id;
+    const reason = payload.reason;
+    
+    const record = db.attendanceRecords.find((r: any) => r.id === recordId);
+    if (!record) {
+      return { status: 404, data: { error: "Record not found" } };
+    }
+    
+    record.discrepancy_reported = true;
+    const newDiscrepancy = {
+      id: `disc_${Date.now()}`,
+      record_id: recordId,
+      student_id: activeUserId,
+      reason: reason,
+      status: "pending",
+      resolution_remarks: null,
+      created_at: new Date().toISOString(),
+      resolved_at: null,
+      session: record.session,
+      current_status: record.status
+    };
+    record.discrepancy = newDiscrepancy;
+    db.attendanceDiscrepancies.push(newDiscrepancy);
+    saveMockDb(db);
+    
+    return { status: 201, data: { discrepancy: newDiscrepancy } };
+  }
+
+  if (cleanUrl.startsWith('/attendance/discrepancy/') && cleanUrl.endsWith('/resolve') && method === 'post') {
+    const parts = cleanUrl.split('/');
+    const discrepancyId = parts[parts.length - 2];
+    const payload = getPayload(config.data);
+    
+    const discrepancy = db.attendanceDiscrepancies.find((d: any) => d.id === discrepancyId);
+    if (!discrepancy) {
+      return { status: 404, data: { error: "Discrepancy not found" } };
+    }
+    
+    discrepancy.status = payload.status;
+    discrepancy.resolution_remarks = payload.resolution_remarks;
+    discrepancy.resolved_at = new Date().toISOString();
+    
+    const record = db.attendanceRecords.find((r: any) => r.id === discrepancy.record_id);
+    if (record) {
+      record.discrepancy_reported = false;
+      if (payload.status === 'resolved' && payload.updated_status) {
+        const oldStatus = record.status;
+        const newStatus = payload.updated_status;
+        record.status = newStatus;
+        
+        // Update statistics
+        const sub = db.attendanceSubjects.find((s: any) => s.student_id === record.student_id && s.subject_code === record.session?.subject_code);
+        if (sub) {
+          if (oldStatus === 'absent') sub.absent = Math.max(0, sub.absent - 1);
+          else if (oldStatus === 'present') sub.present = Math.max(0, sub.present - 1);
+          else if (oldStatus === 'late') sub.late = Math.max(0, sub.late - 1);
+          
+          if (newStatus === 'present') sub.present += 1;
+          else if (newStatus === 'absent') sub.absent += 1;
+          else if (newStatus === 'late') sub.late += 1;
+          
+          sub.percentage = parseFloat(((sub.present / sub.total_classes) * 100).toFixed(1));
+        }
+      }
+      record.discrepancy = { ...discrepancy };
+    }
+    saveMockDb(db);
+    return { status: 200, data: { success: true, discrepancy } };
+  }
+
   if (cleanUrl === '/attendance/stats' && method === 'get') {
+    const userSubjects = db.attendanceSubjects.filter((s: any) => s.student_id === activeUserId);
+    const overall_attendance = userSubjects.length > 0
+      ? parseFloat((userSubjects.reduce((acc: number, s: any) => acc + s.percentage, 0) / userSubjects.length).toFixed(1))
+      : 82.5;
+    const total_conducted = userSubjects.reduce((acc: number, s: any) => acc + s.total_classes, 0);
+    const total_present = userSubjects.reduce((acc: number, s: any) => acc + s.present, 0);
+    
     return {
       status: 200,
       data: {
-        overall_attendance: 82.5,
-        total_conducted: 120,
-        total_present: 99,
-        subjects: [
-          { subject_code: "CS301", subject_name: "Data Structures", present: 22, conducted: 25, percentage: 88.0 },
-          { subject_code: "CS302", subject_name: "Digital Logic", present: 18, conducted: 24, percentage: 75.0 },
-          { subject_code: "MA301", subject_name: "Mathematics III", present: 21, conducted: 25, percentage: 84.0 },
-          { subject_code: "CS303", subject_name: "Operating Systems", present: 19, conducted: 24, percentage: 79.1 },
-          { subject_code: "HU301", subject_name: "English", present: 19, conducted: 22, percentage: 86.3 }
-        ]
+        overall_attendance,
+        total_conducted,
+        total_present,
+        subjects: userSubjects
       }
     };
   }
 
   if (cleanUrl === '/attendance/scan-qr' && method === 'post') {
-    const payload = getPayload(config.data);
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // Check if record already exists for CS301, period 1, today
+    const existingRecIdx = db.attendanceRecords.findIndex((r: any) => 
+      r.student_id === activeUserId &&
+      r.session?.subject_code === "CS301" &&
+      r.session?.session_date === todayStr &&
+      r.session?.period_number === 1
+    );
+    
+    let isStatusChanged = false;
+    let isNewRecord = false;
+    
+    if (existingRecIdx !== -1) {
+      const rec = db.attendanceRecords[existingRecIdx];
+      if (rec.status !== 'present') {
+        rec.status = 'present';
+        rec.method = 'qr_scan';
+        rec.marked_at = new Date().toISOString();
+        isStatusChanged = true;
+      }
+    } else {
+      const newRec = {
+        id: `rec_${Date.now()}`,
+        session_id: `sess_cs301_today`,
+        student_id: activeUserId,
+        status: "present",
+        method: "qr_scan",
+        marked_at: new Date().toISOString(),
+        remarks: null,
+        discrepancy_reported: false,
+        discrepancy: null,
+        session: {
+          subject_code: "CS301",
+          subject_name: "Data Structures",
+          session_date: todayStr,
+          period_number: 1
+        }
+      };
+      db.attendanceRecords.unshift(newRec);
+      isNewRecord = true;
+    }
+    
+    // Update db.attendanceSubjects
+    const sub = db.attendanceSubjects.find((s: any) => s.student_id === activeUserId && s.subject_code === "CS301");
+    if (sub) {
+      if (isNewRecord) {
+        sub.total_classes += 1;
+        sub.present += 1;
+      } else if (isStatusChanged) {
+        if (sub.absent > 0) sub.absent -= 1;
+        sub.present += 1;
+      }
+      sub.percentage = parseFloat(((sub.present / sub.total_classes) * 100).toFixed(1));
+    } else {
+      const seededSubjects = INITIAL_ATTENDANCE_SUBJECTS.map((s: any) => ({ ...s, student_id: activeUserId }));
+      const currentSub = seededSubjects.find((s: any) => s.subject_code === "CS301");
+      if (currentSub) {
+        currentSub.total_classes += 1;
+        currentSub.present += 1;
+        currentSub.percentage = parseFloat(((currentSub.present / currentSub.total_classes) * 100).toFixed(1));
+      }
+      db.attendanceSubjects.push(...seededSubjects);
+    }
+    
+    saveMockDb(db);
     return {
       status: 200,
       data: {

@@ -92,21 +92,29 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // ── Theme / Accent variables ───────────────────────────────────
-  const theme = localStorage.getItem('theme_preference') || 'light';
-  const accentColor = localStorage.getItem('accent_color') || '#0080c7';
-  const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent_color') || '#0080c7');
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      setAccentColor(localStorage.getItem('accent_color') || '#0080c7');
+    };
+    window.addEventListener('theme-changed', handleThemeChange);
+    return () => window.removeEventListener('theme-changed', handleThemeChange);
+  }, []);
+
+  const isDark = false;
 
   const C = {
-    navy: isDark ? '#0f172a' : '#22346c',
+    navy: '#22346c',
     blue: accentColor,
     red: '#a91f23',
     terra: '#c9503d',
     cyan: '#27bcd1',
-    bg: isDark ? '#0b0f19' : '#f4f5f7',
-    card: isDark ? '#1e293b' : '#ffffff',
-    textPrimary: isDark ? '#f8fafc' : '#22346c',
-    textSecondary: isDark ? '#94a3b8' : '#868e96',
-    border: isDark ? '#334155' : '#e9ecef',
+    bg: '#f4f5f7',
+    card: '#ffffff',
+    textPrimary: '#22346c',
+    textSecondary: '#868e96',
+    border: '#e9ecef',
   };
 
   const [achievements, setAchievements] = useState<any[]>([]);

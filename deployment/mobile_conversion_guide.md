@@ -84,3 +84,43 @@ Since the generated APK is signed with a debug key, it can be distributed easily
    - Tap **Settings** in the popup.
    - Toggle **Allow from this source** to enable installations.
 4. **Install and Run:** Go back and tap **Install** to load the VelTech Student App onto their mobile device!
+
+---
+
+## 6. Porting the Project to a New Machine with Android Studio & JDK 17+
+
+If you are currently developing on a machine without Android Studio or a compatible Java version (JDK 17+), you can safely commit your changes and migrate to a fully equipped system later.
+
+### Step-by-Step Porting Flow:
+
+1. **Restore Node Dependencies:**
+   On the new machine, navigate to the `frontend/` directory and restore package dependencies:
+   ```bash
+   cd frontend
+   npm install
+   ```
+
+2. **Sync the Web Assets:**
+   Compile the latest React web application and synchronize the assets into the native Android folder:
+   ```bash
+   npm run mobile:build
+   ```
+   *(This runs `vite build` followed by `npx cap sync` internally).*
+
+3. **Open or Compile:**
+   - **Using Android Studio (Recommended):**
+     Open the `android/` directory in Android Studio, or run:
+     ```bash
+     npx cap open android
+     ```
+     This allows you to run, debug, and test the app on a simulated emulator or connected physical device.
+   - **Using the Command Line (Direct APK Build):**
+     Compile the debug package directly via Gradle:
+     ```bash
+     cd android
+     .\gradlew assembleDebug
+     ```
+
+4. **Locate the APK:**
+   The compiled installation file will be generated and ready to share at:
+   `frontend/android/app/build/outputs/apk/debug/app-debug.apk`

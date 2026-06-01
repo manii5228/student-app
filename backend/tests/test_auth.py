@@ -91,6 +91,28 @@ class TestProfile:
         resp = client.get("/api/v1/auth/me")
         assert resp.status_code == 401
 
+    def test_upload_avatar(self, client, auth_headers):
+        import io
+        data = {
+            'file': (io.BytesIO(b"dummy image data"), 'test.jpg', 'image/jpeg')
+        }
+        resp = client.post(
+            "/api/v1/auth/me/avatar",
+            data=data,
+            content_type='multipart/form-data',
+            headers=auth_headers
+        )
+        assert resp.status_code == 200
+        res_json = resp.get_json()
+        assert "avatar_url" in res_json
+        assert "/auth/me/avatar-file/" in res_json["avatar_url"]
+
+        # Test retrieving the avatar file
+        filename = res_json["avatar_url"].split("/")[-1]
+        file_resp = client.get(f"/api/v1/auth/me/avatar-file/{filename}")
+        assert file_resp.status_code == 200
+        assert file_resp.data == b"dummy image data"
+
 
 class TestSessions:
     def test_list_sessions(self, client, auth_headers):

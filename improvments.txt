@@ -1,18 +1,14 @@
-bus tracking to bus timings
 live tracking of the indoor map
-pyqs need to uploaded by the cc not by admin
-faculty ui maraledhu 
 konni sarulu kindhi bar buttons ki clashes vasthundhi ,not able toclick buttons 
 #a91f23  #22346c    #0080c7    #c9503d   #27bcd1
 no yellow,black,dark blue
-faculty ,admin vala ids tho login iythe direct ga dashboard lo velali
-inka anni features deatila ga cheyali so search for eve2ry feature in detail
-remove market place,polls
 
- in student acdamic section syllabus, map,faculty dir,internal marks,exam schedule are redirecting to login page if clicked
 
- logo need to be added 
- make a branch for the ui and chang ethe ui like daddy change it is lifeless just white screen add more colours to it ,make it vibrant ,add more effects ,shadows ,Animations
+ logos need to be added 
+ the main veletch logo of app need to resized make it little smaller
+ make a branch for the ui and change the ui like daddy change it is lifeless just white screen add more colours to it ,make it vibrant ,add more effects ,shadows ,Animations
  app titile cart neeed to have college logo and college name
-
- we need to something because with only 20 users, the app is itself 6.3 mb, if we connect our college data which would consist of 25k- 30k students at a time,the apps mb will be increased we need to manage that. 
+ logout need to be visible make it id card section
+ signup error and why sign up remove
+ coming completeback in mobile version many times not going back it is completly draging out side of an app indtead of pervious thing
+ we need to something because with only 20 users, the app is itself 6.3 mb, if we connect our college data which would consist of 25k- 30k students at a time,the apps mb will be increased we need to manage that.
