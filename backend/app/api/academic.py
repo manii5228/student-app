@@ -499,10 +499,10 @@ def create_exam():
 
 @academic_bp.route("/credits", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def credit_dashboard():
     """Get credit progress for current student."""
-    student_id = get_jwt_identity()
+    student_id = resolve_student_identity(get_jwt_identity())
     credit_service = CreditService()
     try:
         credits_data = credit_service.calculate_credit_progress(student_id)
@@ -513,10 +513,10 @@ def credit_dashboard():
 
 @academic_bp.route("/credits/roadmap", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def credit_roadmap():
     """Get prerequisite roadmap for current student."""
-    student_id = get_jwt_identity()
+    student_id = resolve_student_identity(get_jwt_identity())
     credit_service = CreditService()
     try:
         roadmap_data = credit_service.get_degree_roadmap(student_id)
@@ -527,10 +527,10 @@ def credit_roadmap():
 
 @academic_bp.route("/credits/audit/pdf", methods=["GET"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "guest")
 def download_degree_audit():
     """Generate and download official degree audit PDF."""
-    student_id = get_jwt_identity()
+    student_id = resolve_student_identity(get_jwt_identity())
     credit_service = CreditService()
     try:
         pdf_buffer = credit_service.generate_degree_audit_pdf(student_id)
@@ -841,24 +841,8 @@ def search_question_papers():
 @jwt_required()
 @role_required("faculty", "admin")
 def upload_question_paper():
-    """Upload a previous year question paper with simulated OCR text indexing."""
+    """Upload a previous year question paper with simple indexing."""
     data = request.get_json()
-    
-    # Simulate OCR parsing
-    subject_name = data["subject_name"]
-    mock_keywords = [
-        "recursion", "sorting", "binary tree", "complexity", "pointers", "stack", "queue"
-    ] if "structures" in subject_name.lower() else [
-        "logic gate", "k-map", "flip flop", "multiplexer", "register", "counter"
-    ] if "logic" in subject_name.lower() else [
-        "matrix", "calculus", "differential", "fourier", "probability", "statistics"
-    ] if "math" in subject_name.lower() else [
-        "process", "scheduling", "deadlock", "thread", "virtual memory", "semaphore"
-    ] if "operating" in subject_name.lower() else [
-        "sentence", "preposition", "grammar", "comprehension", "communication", "vocabulary"
-    ]
-    
-    ocr_content = f"VTU Examination Question Paper. Extracted keywords: {', '.join(mock_keywords)}. Question details: Explain the concepts of {mock_keywords[0]} and {mock_keywords[1]} with code examples. Derive the formula for {mock_keywords[2]}."
     
     qp = QuestionPaper(
         subject_code=data["subject_code"],
@@ -870,11 +854,11 @@ def upload_question_paper():
         file_url=data["file_url"],
         file_size_kb=data.get("file_size_kb", 1500),
         uploaded_by=get_jwt_identity(),
-        ocr_content=ocr_content
+        ocr_content=None
     )
     db.session.add(qp)
     db.session.commit()
-    return jsonify({"message": "Question paper uploaded with OCR indexing", "paper": qp.to_dict()}), 201
+    return jsonify({"message": "Question paper uploaded", "paper": qp.to_dict()}), 201
 
 
 @academic_bp.route("/question-papers/<qp_id>/download", methods=["POST"])

@@ -79,6 +79,16 @@ const BunkOMeter = () => {
   const [submittingDispute, setSubmittingDispute] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Easter Egg States
+  const [secretTapCount, setSecretTapCount] = useState(0);
+  const [showSecretBunk, setShowSecretBunk] = useState(false);
+  const [crashSimulated, setCrashSimulated] = useState(false);
+  const [bunkSliderVal, setBunkSliderVal] = useState(0);
+
+  // Today Filters
+  const [filterTodayOnly, setFilterTodayOnly] = useState(false);
+  const [todaySubjects, setTodaySubjects] = useState<string[]>([]);
+
   // Fetch Data
   const fetchData = async () => {
     try {
@@ -102,8 +112,25 @@ const BunkOMeter = () => {
     }
   };
 
+  const fetchTodayTimetable = async () => {
+    try {
+      const todayDayName = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const res = await api.get('/timetable/my-timetable');
+      if (res.data && res.data.grid) {
+        const slotsForToday = res.data.grid[todayDayName] || [];
+        const codes = slotsForToday
+          .map((s: any) => s.subject_code)
+          .filter((code: any) => !!code);
+        setTodaySubjects(codes);
+      }
+    } catch (e) {
+      console.warn("Failed to fetch today's timetable grid:", e);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchTodayTimetable();
   }, []);
 
   const triggerToast = (msg: string) => {
@@ -143,6 +170,42 @@ const BunkOMeter = () => {
   const actualOverallPct = actualTotalClasses > 0 ? (actualPresentClasses / actualTotalClasses) * 100 : 0;
   const roundedOverallPct = Math.round(actualOverallPct * 10) / 10;
   const isSafe = roundedOverallPct >= 75;
+
+  if (crashSimulated) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black text-green-500 font-mono p-6 flex flex-col justify-center items-center select-none animate-pulse">
+        <div className="max-w-md w-full text-left space-y-4">
+          <h1 className="text-2xl font-black text-red-500 uppercase tracking-wider mb-6 animate-bounce">⚠️ SYSTEM OVERHEAT ⚠️</h1>
+          <p className="text-xs text-slate-400">VTU-SECURE-SHELL v9.12.3-RELEASE</p>
+          <p className="text-xs">CRITICAL EXCEPTION: <span className="text-red-400">SlackerLevelOverloadException</span></p>
+          <p className="text-xs text-yellow-400">Bunks requested: 10/10 (100% MAXIMUM LEVEL)</p>
+          
+          <div className="bg-red-950/30 border border-red-500/50 rounded-xl p-4 text-[10px] text-red-400 leading-relaxed font-mono">
+            [ALARM] Student has violated academic continuity guidelines. 
+            Auto-generating SMS to Head of Department... Done.
+            Auto-scheduling mandatory parent conference... Done.
+            Simulating system destruction to prevent further slacking...
+          </div>
+          
+          <div className="h-20 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden flex items-center justify-center p-4 text-[10px] text-emerald-400 font-mono text-center leading-relaxed animate-pulse">
+            ⚡ DEFICIT WARNING: EXTREME SLACKING LEVEL DETECTED. AUTO-REBOOT REQUIRED. PRESS BUTTON BELOW TO PREVENT DETENTION. ⚡
+          </div>
+          
+          <button
+            onClick={() => {
+              setCrashSimulated(false);
+              setBunkSliderVal(0);
+              setShowSecretBunk(false);
+              setSecretTapCount(0);
+            }}
+            className="w-full py-3 bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold rounded-xl text-xs uppercase tracking-widest transition-all shadow-lg shadow-red-900/50 mt-6"
+          >
+            Reboot VTU App Core
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -234,7 +297,18 @@ const BunkOMeter = () => {
             Course Attendance
           </button>
           <button
-            onClick={() => setActiveTab('history')}
+            onClick={() => {
+              setActiveTab('history');
+              setSecretTapCount(prev => {
+                const next = prev + 1;
+                if (next === 5) {
+                  setShowSecretBunk(true);
+                  triggerToast("🔑 Easter Egg unlocked! Secret Bunk-O-Meter initialized.");
+                  return 0;
+                }
+                return next;
+              });
+            }}
             className={`flex-1 py-2.5 rounded-xl text-xs font-black capitalize transition-all ${
               activeTab === 'history' 
                 ? 'bg-[#22346c] text-white shadow-md' 
@@ -255,10 +329,78 @@ const BunkOMeter = () => {
           </div>
         )}
 
+        {/* Secret Bunk-O-Meter Easter Egg Card */}
+        {showSecretBunk && activeTab === 'courses' && (
+          <div className="bg-gradient-to-r from-purple-900 via-indigo-950 to-purple-950 border border-purple-500 rounded-3xl p-5 shadow-2xl text-white mb-6 relative overflow-hidden animate-slide-up">
+            <div className="absolute -top-12 -right-12 w-24 h-24 bg-purple-500/20 rounded-full blur-xl"></div>
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-[10px] font-black tracking-widest text-purple-300 uppercase">⚠️ TOP SECRET: BUNK-O-METER v4.2</span>
+              <button onClick={() => setShowSecretBunk(false)} className="text-purple-300 hover:text-white text-xs font-bold bg-white/10 px-2 py-0.5 rounded">Close</button>
+            </div>
+            <p className="text-[10px] text-purple-200 mb-4 leading-relaxed font-semibold">
+              Simulate your slacking threshold. Slide bunks up to 10 days to check cumulative impact. Warning: Slack level 10 triggers secure firewall overrides.
+            </p>
+            <div className="mb-4">
+              <div className="flex justify-between text-xs font-black mb-1.5">
+                <span>Target Bunk Limit:</span>
+                <span className="text-purple-300 font-mono">{bunkSliderVal} / 10 days</span>
+              </div>
+              <input 
+                type="range" 
+                min="0" 
+                max="10" 
+                value={bunkSliderVal} 
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  setBunkSliderVal(val);
+                  if (val === 10) {
+                    setTimeout(() => {
+                      setCrashSimulated(true);
+                    }, 500);
+                  }
+                }}
+                className="w-full accent-purple-500 cursor-pointer h-2 bg-purple-950 rounded-lg appearance-none"
+              />
+            </div>
+            <div className="bg-purple-950/60 rounded-xl p-3 border border-purple-800 text-[10px] flex justify-between font-mono">
+              <span>Projected Attendance:</span>
+              <span className={bunkSliderVal > 5 ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}>
+                {Math.max(roundedOverallPct - (bunkSliderVal * 8.5), 0).toFixed(1)}%
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Tab 1: Courses */}
         {activeTab === 'courses' && (
           <div className="flex flex-col gap-3">
-            {subjects.map((sub) => {
+            {/* Filter Toggle */}
+            <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs font-black text-slate-800">Today's Schedule Only</p>
+                <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Filter subjects to show only current day's classes</p>
+              </div>
+              <button 
+                onClick={() => setFilterTodayOnly(!filterTodayOnly)}
+                className={`w-12 h-6 rounded-full transition-colors relative flex items-center shrink-0 ${filterTodayOnly ? 'bg-[#0080c7]' : 'bg-slate-200'}`}
+              >
+                <span className={`w-5 h-5 rounded-full bg-white shadow-md transition-transform absolute ${filterTodayOnly ? 'translate-x-6' : 'translate-x-1'}`}></span>
+              </button>
+            </div>
+
+            {(filterTodayOnly 
+              ? subjects.filter(s => todaySubjects.includes(s.subject_code)) 
+              : subjects
+            ).length === 0 ? (
+              <div className="bg-white rounded-3xl p-8 text-center border border-slate-100 text-slate-400">
+                <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-bold text-slate-500">No classes found</p>
+                {filterTodayOnly && <p className="text-[10px] text-slate-400 mt-1">You are free from active lectures today according to the schedule.</p>}
+              </div>
+            ) : (filterTodayOnly 
+              ? subjects.filter(s => todaySubjects.includes(s.subject_code)) 
+              : subjects
+            ).map((sub) => {
               const isExpanded = expandedSubject === sub.subject_code;
               const subPct = Math.round(sub.percentage * 10) / 10;
               const isSubSafe = subPct >= 75;
@@ -437,8 +579,8 @@ const BunkOMeter = () => {
 
       {/* Discrepancy Reporting Modal */}
       {discrepancyModalOpen && selectedRecord && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-end justify-center sm:items-center">
-          <div className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-3xl p-6 shadow-2xl border border-slate-100 animate-slide-up text-slate-800">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-end justify-center sm:items-center p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-100 animate-slide-up text-slate-800 max-h-[85vh] overflow-y-auto pb-10">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-black text-slate-900">Report Attendance Discrepancy</h3>
               <button 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Users, Search, Mail, Phone, BookOpen, Filter, CalendarDays, CheckCircle, Clock, X } from 'lucide-react';
+import { ChevronLeft, Users, Search, Mail, Phone, BookOpen, Filter, CalendarDays, CheckCircle, Clock, X, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -191,45 +191,69 @@ const FacultyDirectory = () => {
           </div>
         ) : (
           <div className="flex flex-col gap-3 animate-slide-up">
-            {filtered.map((f, idx) => (
-              <div key={f.id} className="bg-white rounded-[24px] p-4 shadow-sm border border-slate-100 flex items-center gap-4">
-                <div className={`w-14 h-14 rounded-2xl ${colors[idx % colors.length]} flex items-center justify-center text-white text-lg font-bold shadow-sm shrink-0`}>
-                  {f.avatar_url ? (
-                    <img src={f.avatar_url} className="w-full h-full rounded-2xl object-cover" alt="" />
-                  ) : (
-                    getInitials(f.full_name)
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-slate-900 truncate">{f.full_name}</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
-                    {f.designation || 'Professor'} · {f.department || '—'}
-                  </p>
-                  {f.specialization && (
-                    <p className="text-xs text-slate-500 mt-1 flex items-center gap-1 truncate">
-                      <BookOpen className="w-3.5 h-3.5 shrink-0" /> {f.specialization}
+            {filtered.map((f, idx) => {
+              const status = (f as any).availability_status || 'Available';
+              const location = (f as any).office_location || 'LH-302, 3rd Floor, Main Block';
+              const hours = (f as any).office_hours || 'Mon-Fri 2pm - 4pm';
+
+              return (
+                <div key={f.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 flex flex-col gap-3 relative overflow-hidden hover:scale-[1.01] active:scale-95 transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-2xl ${colors[idx % colors.length]} flex items-center justify-center text-white text-lg font-bold shadow-sm shrink-0`}>
+                      {f.avatar_url ? (
+                        <img src={f.avatar_url} className="w-full h-full rounded-2xl object-cover" alt="" />
+                      ) : (
+                        getInitials(f.full_name)
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-slate-900 truncate">{f.full_name}</h3>
+                        <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider border shrink-0 ${
+                          status === 'Available' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                        }`}>
+                          {status}
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                        {f.designation || 'Professor'} · {f.department || '—'}
+                      </p>
+                    </div>
+                    
+                    <div className="flex flex-row gap-1.5 shrink-0">
+                      <button 
+                        onClick={() => openMeetingModal(f)} 
+                        className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 hover:bg-orange-100 transition-colors"
+                        title="Book Meeting Slot"
+                      >
+                        <CalendarDays className="w-4 h-4" />
+                      </button>
+                      <a href={`mailto:${f.email}`} className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition-colors">
+                        <Mail className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+                  
+                  {/* Expanded rich details block */}
+                  <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 flex flex-col gap-1.5 text-xs text-slate-600">
+                    <p className="font-semibold flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>Office: <strong className="text-slate-800">{location}</strong></span>
                     </p>
-                  )}
+                    <p className="font-semibold flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>Hours: <strong className="text-slate-800">{hours}</strong></span>
+                    </p>
+                    {f.specialization && (
+                      <p className="font-semibold flex items-center gap-1.5 truncate">
+                        <BookOpen className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Specialization: <strong className="text-slate-800">{f.specialization}</strong></span>
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex flex-row gap-1.5 shrink-0">
-                  <button 
-                    onClick={() => openMeetingModal(f)} 
-                    className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 hover:bg-orange-100 transition-colors"
-                    title="Book Meeting Slot"
-                  >
-                    <CalendarDays className="w-4 h-4" />
-                  </button>
-                  <a href={`mailto:${f.email}`} className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 hover:bg-blue-100 transition-colors">
-                    <Mail className="w-4 h-4" />
-                  </a>
-                  {f.phone && (
-                    <a href={`tel:${f.phone}`} className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 hover:bg-emerald-100 transition-colors">
-                      <Phone className="w-4 h-4" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -245,16 +269,35 @@ const FacultyDirectory = () => {
               </button>
             </div>
 
-            <p className="text-xs text-slate-500 mb-4">Schedule a slot to meet with <span className="font-bold text-slate-900">{selectedFacultyForMeeting.full_name}</span>.</p>
+            <p className="text-xs text-slate-500 mb-4 font-medium">Schedule a slot to meet with <span className="font-bold text-slate-900">{selectedFacultyForMeeting.full_name}</span>.</p>
 
             {bookingSuccess ? (
-              <div className="bg-emerald-50 text-emerald-700 rounded-2xl p-4 flex items-center gap-2 mb-2">
-                <CheckCircle className="w-5 h-5 text-emerald-600"/> Slot booked successfully!
+              <div className="flex flex-col gap-3">
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 flex flex-col gap-1 shadow-sm">
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <CheckCircle className="w-4 h-4 text-emerald-600"/> 
+                    <span>Slot Booked Successfully!</span>
+                  </div>
+                  <p className="text-[10px] text-slate-600 font-medium mt-1 leading-relaxed">
+                    🔔 **Meeting Reminder**: You have successfully scheduled an office hour appointment with **{selectedFacultyForMeeting.full_name}** in room **{(selectedFacultyForMeeting as any).office_location || 'LH-302, 3rd Floor, Main Block'}** regarding "**{meetingPurpose || 'Academic Discussion'}**".
+                  </p>
+                </div>
               </div>
             ) : loadingSlots ? (
               <div className="flex justify-center py-6"><span className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></span></div>
             ) : slots.length === 0 ? (
-              <p className="text-xs text-slate-400 italic text-center py-6">No available meeting slots created by this professor.</p>
+              <div className="flex flex-col gap-3 py-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex gap-2.5 text-amber-800 text-xs font-semibold">
+                  <Clock className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                  <div>
+                    <p className="font-black">Professor is currently busy</p>
+                    <p className="mt-1 text-[10px] text-slate-500 font-medium leading-relaxed">
+                      All slots are currently booked. However, according to the timetable, {selectedFacultyForMeeting.full_name} is free tomorrow at **11:00 AM (Period 3)** and **2:00 PM (Period 5)**.
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400 italic text-center">No bookable slots found in active cache.</p>
+              </div>
             ) : (
               <div className="flex flex-col gap-3">
                 <div>

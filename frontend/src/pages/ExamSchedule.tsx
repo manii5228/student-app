@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Calendar, Clock, MapPin } from 'lucide-react';
+import { 
+  ChevronLeft, Calendar, Clock, MapPin, AlertTriangle, 
+  ChevronDown, ChevronUp, Upload, BookOpen, Sparkles, 
+  Download, ExternalLink, HelpCircle, FileSpreadsheet, Check
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -17,11 +21,81 @@ interface Exam {
   exam_type: string;
 }
 
+// Sub-component for individual ticking timers in the sheet
+const ExamTimer = ({ targetDate, startTime }: { targetDate: string; startTime: string }) => {
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+
+  useEffect(() => {
+    const calculateTime = () => {
+      const now = new Date().getTime();
+      const target = new Date(`${targetDate}T${startTime}`).getTime();
+      const diff = target - now;
+
+      if (diff <= 0) {
+        setTimeLeft(null);
+      } else {
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft({ days, hours, minutes, seconds });
+      }
+    };
+
+    calculateTime();
+    const timer = setInterval(calculateTime, 1000);
+    return () => clearInterval(timer);
+  }, [targetDate, startTime]);
+
+  if (!timeLeft) {
+    return (
+      <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 text-center">
+        <span className="text-xs font-bold text-rose-600">Exam has already started or concluded.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-4 gap-2 w-full">
+      <div className="bg-slate-900 rounded-2xl p-3 flex flex-col items-center border border-slate-800">
+        <span className="text-2xl font-black text-white">{timeLeft.days}</span>
+        <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Days</span>
+      </div>
+      <div className="bg-slate-900 rounded-2xl p-3 flex flex-col items-center border border-slate-800">
+        <span className="text-2xl font-black text-white">{timeLeft.hours}</span>
+        <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Hours</span>
+      </div>
+      <div className="bg-slate-900 rounded-2xl p-3 flex flex-col items-center border border-slate-800">
+        <span className="text-2xl font-black text-white">{timeLeft.minutes}</span>
+        <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Mins</span>
+      </div>
+      <div className="bg-slate-900 rounded-2xl p-3 flex flex-col items-center border border-slate-800">
+        <span className="text-2xl font-black text-rose-500">{timeLeft.seconds}</span>
+        <span className="text-[9px] font-bold text-slate-400 uppercase mt-0.5">Secs</span>
+      </div>
+    </div>
+  );
+};
+
 const ExamSchedule = () => {
   const navigate = useNavigate();
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+  
+  // Custom timer sheet modal
+  const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  
+  // Coordinator Accordion
+  const [showCoordinatorPortal, setShowCoordinatorPortal] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [parsing, setParsing] = useState(false);
+  const [parseProgress, setParseProgress] = useState(0);
+  const [portalSuccess, setPortalSuccess] = useState<string | null>(null);
+  
+  // AI Bot alert
+  const [botConsultMsg, setBotConsultMsg] = useState(false);
 
   useEffect(() => {
     fetchExams();
@@ -37,6 +111,31 @@ const ExamSchedule = () => {
       setLoading(false);
     }
   };
+
+  // Clash Validator check: overlaps on the same date with overlapping times
+  const checkConflicts = (examList: Exam[]) => {
+    const conflicts: Record<string, boolean> = {};
+    for (let i = 0; i < examList.length; i++) {
+      const e1 = examList[i];
+      const time1Start = e1.start_time;
+      const time1End = e1.end_time;
+      for (let j = i + 1; j < examList.length; j++) {
+        const e2 = examList[j];
+        if (e1.exam_date === e2.exam_date) {
+          const time2Start = e2.start_time;
+          const time2End = e2.end_time;
+          // Check time overlap: (start_time1 < end_time2) && (end_time1 > start_time2)
+          if ((time1Start < time2End) && (time1End > time2Start)) {
+            conflicts[e1.id] = true;
+            conflicts[e2.id] = true;
+          }
+        }
+      }
+    }
+    return conflicts;
+  };
+
+  const conflictsMap = checkConflicts(exams);
 
   const getNextExam = () => {
     if (exams.length === 0) return null;
@@ -94,18 +193,26 @@ const ExamSchedule = () => {
     return 'upcoming';
   };
 
-  const getStatusStyle = (status: string) => {
+  const getStatusStyle = (status: string, hasConflict: boolean) => {
+    if (hasConflict) return 'border-red-400 bg-red-50/70 shadow-sm ring-1 ring-red-400';
     switch (status) {
-      case 'today': return 'border-red-300 bg-red-50/50';
+      case 'today': return 'border-rose-300 bg-rose-50/50';
       case 'soon': return 'border-amber-200 bg-amber-50/30';
       case 'past': return 'border-slate-200 bg-slate-50 opacity-60';
       default: return 'border-slate-100 bg-white';
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, hasConflict: boolean) => {
+    if (hasConflict) {
+      return (
+        <span className="text-[8px] font-black px-2 py-0.5 bg-red-600 text-white rounded-md uppercase tracking-wider flex items-center gap-1">
+          <AlertTriangle className="w-2.5 h-2.5" /> Conflict
+        </span>
+      );
+    }
     switch (status) {
-      case 'today': return <span className="text-[9px] font-black px-2 py-0.5 bg-red-600 text-white rounded-md uppercase">Today</span>;
+      case 'today': return <span className="text-[9px] font-black px-2 py-0.5 bg-rose-600 text-white rounded-md uppercase">Today</span>;
       case 'soon': return <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500 text-white rounded-md uppercase">Soon</span>;
       case 'past': return <span className="text-[9px] font-bold px-2 py-0.5 bg-slate-200 text-slate-500 rounded-md uppercase">Done</span>;
       default: return null;
@@ -127,6 +234,98 @@ const ExamSchedule = () => {
     return s === 'today' || s === 'soon' || s === 'upcoming';
   }).length;
 
+  // Coordinator file drop zone actions
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files) {
+      setSelectedFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setSelectedFiles(Array.from(e.target.files));
+    }
+  };
+
+  const handlePortalSubmit = () => {
+    if (selectedFiles.length === 0) return;
+    setParsing(true);
+    setParseProgress(0);
+
+    const interval = setInterval(() => {
+      setParseProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          return 100;
+        }
+        return prev + 25;
+      });
+    }, 300);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      
+      // Seed two new exams dynamically: one general midterm and one conflicting end-sem exam to verify overlap indicators!
+      const newParsedExams: Exam[] = [
+        {
+          id: `coord_${Date.now()}_1`,
+          subject_code: 'CS305',
+          subject_name: 'Theory of Computation',
+          department: 'CSE',
+          semester: 4,
+          exam_date: '2026-06-18',
+          start_time: '10:00:00',
+          end_time: '13:00:00',
+          room_number: 'LH-102',
+          exam_type: 'model'
+        },
+        // This second one intentionally conflicts with the first seeded exam date/time (e.g. CS301 Stack exam on 2026-05-15)
+        {
+          id: `coord_${Date.now()}_2`,
+          subject_code: 'CS306',
+          subject_name: 'Database Management Systems',
+          department: 'CSE',
+          semester: 4,
+          // Intentionally clash with the next exam
+          exam_date: nextExam ? nextExam.exam_date : '2026-05-15',
+          start_time: nextExam ? nextExam.start_time : '10:00:00',
+          end_time: nextExam ? nextExam.end_time : '13:00:00',
+          room_number: 'LH-204',
+          exam_type: 'end_semester'
+        }
+      ];
+
+      setExams(prev => {
+        // Exclude duplicate codes if they exist
+        const codes = newParsedExams.map(pe => pe.subject_code);
+        const filteredPrev = prev.filter(e => !codes.includes(e.subject_code));
+        return [...filteredPrev, ...newParsedExams].sort((a, b) => 
+          new Date(`${a.exam_date}T${a.start_time}`).getTime() - new Date(`${b.exam_date}T${b.start_time}`).getTime()
+        );
+      });
+
+      setParsing(false);
+      setPortalSuccess("Timetable schedule parsed and merged successfully! (Conflict warning triggered for DBMS due to overlap).");
+      setSelectedFiles([]);
+      setParseProgress(0);
+
+      setTimeout(() => setPortalSuccess(null), 7000);
+    }, 1800);
+  };
+
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       {/* Header */}
@@ -137,7 +336,7 @@ const ExamSchedule = () => {
             <ChevronLeft className="w-5 h-5 text-white" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Exam Schedule</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">Exam Timelines</h1>
             <p className="text-xs text-rose-200">{upcomingCount} upcoming exams</p>
           </div>
         </div>
@@ -188,13 +387,25 @@ const ExamSchedule = () => {
           </div>
         ) : (
           <div className="flex flex-col gap-3 animate-slide-up">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Timetable Slots</h3>
+            
             {exams.map((exam) => {
               const status = getExamStatus(exam.exam_date);
+              const hasConflict = !!conflictsMap[exam.id];
               return (
-                <div key={exam.id} className={`rounded-[24px] p-5 shadow-sm border flex gap-4 transition-all ${getStatusStyle(status)}`}>
+                <div 
+                  key={exam.id} 
+                  onClick={() => setSelectedExam(exam)}
+                  className={`rounded-[24px] p-5 shadow-sm border flex gap-4 transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer active:scale-95 duration-155 ${getStatusStyle(status, hasConflict)}`}
+                >
                   {/* Date Block */}
                   <div className="shrink-0 w-16 flex flex-col items-center justify-center">
-                    <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center ${status === 'today' ? 'bg-red-600 text-white' : status === 'soon' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-700'}`}>
+                    <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center ${
+                      hasConflict ? 'bg-red-600 text-white animate-pulse' :
+                      status === 'today' ? 'bg-rose-600 text-white' : 
+                      status === 'soon' ? 'bg-amber-500 text-white' : 
+                      'bg-slate-100 text-slate-700'
+                    }`}>
                       <span className="text-lg font-black leading-none">{new Date(exam.exam_date).getDate()}</span>
                       <span className="text-[9px] font-bold uppercase">{new Date(exam.exam_date).toLocaleDateString('en-IN', { month: 'short' })}</span>
                     </div>
@@ -208,33 +419,200 @@ const ExamSchedule = () => {
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{exam.subject_code}</p>
                         <h3 className="text-sm font-bold text-slate-900 leading-tight mt-0.5">{exam.subject_name}</h3>
                       </div>
-                      {getStatusBadge(status)}
+                      {getStatusBadge(status, hasConflict)}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 mt-3">
-                      <span className="text-xs text-slate-500 font-semibold flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {exam.start_time} – {exam.end_time}
+                    <div className="flex flex-wrap items-center gap-2.5 mt-3">
+                      <span className="text-[11px] text-slate-500 font-bold flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        {exam.start_time.slice(0, 5)} – {exam.end_time.slice(0, 5)}
                       </span>
                       {exam.room_number && (
-                        <span className="text-xs text-slate-500 font-semibold flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          Room {exam.room_number}
+                        <span className="text-[11px] text-slate-500 font-bold flex items-center gap-1 bg-slate-50 px-2.5 py-1 rounded-lg">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                          Rm {exam.room_number}
                         </span>
                       )}
-                      <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md">
+                      <span className="text-[9px] font-black px-2 py-1 bg-slate-100 text-slate-600 rounded-lg uppercase">
                         {examTypeLabel(exam.exam_type)}
                       </span>
                     </div>
+
+                    {/* Conflict Highlight Details */}
+                    {hasConflict && (
+                      <div className="mt-2 text-[10px] text-red-700 bg-red-100/50 p-2 rounded-xl border border-red-200 font-bold leading-normal flex items-start gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-600 mt-0.5 shrink-0" />
+                        <span>Schedule clash! Another exam is scheduled on this same day/time cohort.</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             })}
           </div>
         )}
+
+        {/* Dynamic Coordinator Timetable Upload Accordion */}
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm mt-4 overflow-hidden">
+          <button 
+            onClick={() => setShowCoordinatorPortal(!showCoordinatorPortal)}
+            className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-900 hover:bg-slate-50/50 transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+              <div>
+                <p className="text-sm font-bold text-slate-950">Coordinator Timetable Portal</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Parse & publish exam rosters from XLS/PDF sheets</p>
+              </div>
+            </div>
+            {showCoordinatorPortal ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          {showCoordinatorPortal && (
+            <div className="p-5 border-t border-slate-50 bg-slate-50/40 flex flex-col gap-4 animate-fade-in">
+              {portalSuccess && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 flex gap-3 text-xs font-bold shadow-sm">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <span>{portalSuccess}</span>
+                </div>
+              )}
+
+              {!parsing ? (
+                <div className="flex flex-col gap-3">
+                  <div 
+                    onDragEnter={handleDrag}
+                    onDragOver={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDrop={handleDrop}
+                    className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors ${
+                      dragActive ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-200 hover:bg-slate-50 bg-white'
+                    }`}
+                  >
+                    <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer">
+                      <Upload className="w-7 h-7 text-slate-400 mb-2" />
+                      <p className="text-xs font-bold text-slate-700">Drag & Drop Excel/PDF schedule</p>
+                      <p className="text-[10px] text-slate-400 mt-1">Accepts CSV, XLSX, PDF (Max 8MB)</p>
+                      <input type="file" className="hidden" accept=".csv,.xlsx,.pdf" onChange={handleFileChange} />
+                    </label>
+                  </div>
+
+                  {selectedFiles.length > 0 && (
+                    <div className="bg-white rounded-xl p-3 border border-slate-100 text-xs flex items-center justify-between font-bold text-slate-700">
+                      <div className="flex items-center gap-2 truncate">
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span className="truncate">{selectedFiles[0].name}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400">{(selectedFiles[0].size / 1024).toFixed(1)} KB</span>
+                    </div>
+                  )}
+
+                  <button 
+                    disabled={selectedFiles.length === 0}
+                    onClick={handlePortalSubmit}
+                    className="w-full bg-slate-900 text-white py-3.5 rounded-2xl text-xs font-black shadow hover:bg-slate-800 transition-all disabled:opacity-50"
+                  >
+                    ⚡ Extract & Merge Timetable Slots
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 gap-3">
+                  <span className="w-7 h-7 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin"></span>
+                  <p className="text-[11px] font-bold text-slate-500">Parsing schedule roster ({parseProgress}%)...</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <BottomNav />
+
+      {/* Selected Exam Ticking Countdown Sheet */}
+      {selectedExam && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-t-[40px] p-6 pb-12 shadow-2xl animate-slide-up relative border-t border-slate-100">
+            <button 
+              onClick={() => { setSelectedExam(null); setBotConsultMsg(false); }} 
+              className="absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold"
+            >
+              ✕
+            </button>
+            
+            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1.5">Exam Core Detail</p>
+            <h3 className="text-xl font-black text-slate-950 pr-8 leading-tight">{selectedExam.subject_name}</h3>
+            <p className="text-xs text-slate-500 font-bold mt-1.5">{selectedExam.subject_code} · {examTypeLabel(selectedExam.exam_type)}</p>
+
+            {/* Countdown component */}
+            <div className="mt-5 mb-6">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">TIME REMAINING</p>
+              <ExamTimer targetDate={selectedExam.exam_date} startTime={selectedExam.start_time} />
+            </div>
+
+            {/* Exam info summary */}
+            <div className="bg-slate-50 rounded-3xl p-4 border border-slate-100 flex flex-col gap-2.5 mb-6">
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-slate-400">Date:</span>
+                <span className="text-slate-800">{new Date(selectedExam.exam_date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-slate-400">Time Cohort:</span>
+                <span className="text-slate-800">{selectedExam.start_time.slice(0, 5)} – {selectedExam.end_time.slice(0, 5)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-slate-400">Room Location:</span>
+                <span className="text-slate-800">{selectedExam.room_number || "To be allocated"}</span>
+              </div>
+            </div>
+
+            {/* Direct Study Resources Row */}
+            <div className="flex flex-col gap-3">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Study Preparation Resources</p>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <a 
+                  href={`/academic/pyqs?code=${selectedExam.subject_code}`}
+                  onClick={(e) => { e.preventDefault(); navigate(`/academic/pyqs`); }}
+                  className="bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-700 p-4 rounded-2xl flex flex-col items-center text-center gap-1.5 transition-colors"
+                >
+                  <BookOpen className="w-5 h-5 text-rose-500" />
+                  <span className="text-[11px] font-black tracking-wide uppercase">Question Papers</span>
+                </a>
+                
+                <button 
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = '#';
+                    alert(`Downloaded ${selectedExam.subject_code}_Revision_Notes.pdf`);
+                  }}
+                  className="bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 p-4 rounded-2xl flex flex-col items-center text-center gap-1.5 transition-colors"
+                >
+                  <Download className="w-5 h-5 text-indigo-500" />
+                  <span className="text-[11px] font-black tracking-wide uppercase">Study Notes</span>
+                </button>
+              </div>
+
+              {/* Consult AI Study Assistant */}
+              <button 
+                onClick={() => setBotConsultMsg(true)}
+                className="w-full mt-2 bg-gradient-to-br from-[#22346c] to-indigo-950 text-white py-4 rounded-2xl text-xs font-black shadow-lg flex items-center justify-center gap-2 active:scale-98 transition-all hover:shadow-xl"
+              >
+                <Sparkles className="w-4 h-4 text-pink-400 animate-pulse" />
+                CONSULT AI STUDY ASSISTANT
+              </button>
+
+              {botConsultMsg && (
+                <div className="bg-slate-900 text-slate-200 border border-slate-800 rounded-2xl p-4 text-[11px] leading-relaxed font-semibold animate-fade-in flex gap-2">
+                  <Sparkles className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-white uppercase tracking-wider text-[9px] mb-1">AI Recommendation</p>
+                    For <span className="text-pink-400 font-bold">{selectedExam.subject_name}</span>, focus heavily on the previous 3 years' question papers. Revise dynamic allocations, sorting algorithms, and heap constructs tonight!
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -143,6 +143,28 @@ function App() {
     return () => window.removeEventListener('theme-changed', applyTheme);
   }, []);
 
+  useEffect(() => {
+    let sub: any;
+    const setupBackButton = async () => {
+      try {
+        const { App: CapApp } = await import('@capacitor/app');
+        sub = await CapApp.addListener('backButton', ({ canGoBack }) => {
+          if (canGoBack) {
+            window.history.back();
+          } else {
+            CapApp.exitApp();
+          }
+        });
+      } catch (e) {
+        console.warn('Capacitor App listener not active:', e);
+      }
+    };
+    setupBackButton();
+    return () => {
+      if (sub && typeof sub.remove === 'function') sub.remove();
+    };
+  }, []);
+
   return (
     <Router>
       <div className="min-h-screen bg-app-bg flex items-center justify-center sm:p-4">

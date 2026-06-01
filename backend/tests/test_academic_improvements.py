@@ -234,5 +234,5 @@ def test_question_paper_ocr(client, faculty_headers):
     })
     assert res.status_code == 201
     data = res.get_json()
-    assert "Question paper uploaded with OCR indexing" in data["message"]
-    assert "recursion" in data["paper"]["ocr_content"].lower()
+    assert "Question paper uploaded" in data["message"]
+    assert data["paper"]["ocr_content"] is None

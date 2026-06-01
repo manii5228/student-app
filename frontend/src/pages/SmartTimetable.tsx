@@ -34,7 +34,6 @@ const SmartTimetable = () => {
   const [timetableGrid, setTimetableGrid] = useState<Record<string, TimetableSlot[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [exporting, setExporting] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [liveBanner, setLiveBanner] = useState<string | null>(null);
 
@@ -117,27 +116,6 @@ const SmartTimetable = () => {
     }
   };
 
-  const exportICS = async () => {
-    try {
-      setExporting(true);
-      const res = await api.get('/timetable/my-timetable/export.ics', {
-        responseType: 'blob'
-      });
-      const blob = new Blob([res.data], { type: 'text/calendar' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'VelTech_Timetable.ics';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to export calendar. Ensure database timetable is set.");
-    } finally {
-      setExporting(false);
-    }
-  };
 
   // Helper check: is current slot live?
   const getSlotStatus = (start: string, end: string) => {
@@ -197,17 +175,6 @@ const SmartTimetable = () => {
             </button>
             <h1 className="text-xl font-black text-white tracking-tight">Smart Timetable</h1>
           </div>
-          <button 
-            onClick={exportICS}
-            disabled={exporting}
-            className="flex items-center gap-1.5 bg-[#a91f23] text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#921a1d] active:scale-95 transition-all shadow">
-            {exporting ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Calendar className="w-3.5 h-3.5" />
-            )}
-            Sync Calendar
-          </button>
         </div>
 
         {/* Horizontal Calendar Selector */}

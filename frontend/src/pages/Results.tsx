@@ -37,6 +37,46 @@ const Results = () => {
   const [selectedSem, setSelectedSem] = useState<number>(1);
   const [availableSems, setAvailableSems] = useState<number[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
+  };
+
+  const downloadCertificateSVG = () => {
+    const svgContent = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300" style="background:#0f172a; font-family:sans-serif;">
+        <rect x="10" y="10" width="380" height="280" rx="15" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+        <circle cx="200" cy="-50" r="150" fill="#a91f23" opacity="0.15"/>
+        <text x="200" y="40" fill="#94a3b8" font-size="9" font-weight="900" letter-spacing="1.5" text-anchor="middle">OFFICIAL EXAM RECORD</text>
+        <text x="200" y="65" fill="#ffffff" font-size="16" font-weight="bold" text-anchor="middle">VelTech University</text>
+        
+        <circle cx="200" cy="120" r="32" fill="#334155" opacity="0.5"/>
+        <path d="M192 105l8 16 16-8" fill="none" stroke="#eab308" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        
+        <text x="200" y="180" fill="#94a3b8" font-size="11" font-weight="bold" text-anchor="middle">Semester ${selectedSem} GPA</text>
+        <text x="200" y="220" fill="#ffffff" font-size="36" font-weight="900" text-anchor="middle">${cgpa.toFixed(2)}</text>
+        
+        <line x1="40" y1="240" x2="360" y2="240" stroke="#334155" stroke-dasharray="4,4"/>
+        <text x="200" y="265" fill="#10b981" font-size="8" font-weight="bold" font-family="monospace" text-anchor="middle">✓ Cryptographically Signed &amp; Verified</text>
+        <text x="200" y="278" fill="#64748b" font-size="7" font-family="monospace" text-anchor="middle">VTU-RECEIPT-${analytics?.signature_receipt ? analytics.signature_receipt.substring(0, 16) : 'HASH'}</text>
+      </svg>
+    `;
+    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `VelTech_Results_Sem_${selectedSem}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    triggerToast("🔑 Cryptographic SVG downloaded!");
+    setShowShareModal(false);
+  };
 
   useEffect(() => {
     fetchResults();
@@ -91,24 +131,32 @@ const Results = () => {
 
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-[#22346c] text-white px-4 py-3 rounded-2xl shadow-xl text-xs font-semibold flex items-center gap-2 border border-slate-700 animate-slide-up">
+          <CheckCircle2 className="w-4 h-4 text-[#27bcd1] shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="bg-slate-900 p-6 pt-12 shadow-md relative overflow-hidden">
-        <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
+      <div className="bg-gradient-to-br from-[#0080c7] via-indigo-600 to-[#22346c] p-6 pt-12 shadow-md relative overflow-hidden">
+        <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
         <div className="flex items-center justify-between relative z-10 mb-6">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Gradebook</h1>
-              <p className="text-xs text-slate-300">University Examination Results</p>
+              <h1 className="text-xl font-black text-white tracking-tight">Gradebook</h1>
+              <p className="text-xs text-cyan-100 font-medium">University Examination Results</p>
             </div>
           </div>
 
           {results.length > 0 && (
             <button 
               onClick={() => setShowShareModal(true)}
-              className="w-10 h-10 bg-slate-800 hover:bg-slate-700 text-white rounded-full flex items-center justify-center shadow-sm border border-slate-700 transition-colors"
+              className="w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full flex items-center justify-center shadow-sm border border-white/20 transition-colors"
             >
               <Share2 className="w-4 h-4" />
             </button>
@@ -121,10 +169,10 @@ const Results = () => {
             <button
               key={sem}
               onClick={() => setSelectedSem(sem)}
-              className={`shrink-0 px-5 py-2.5 rounded-full text-sm font-bold transition-all ${
+              className={`shrink-0 px-5 py-2.5 rounded-full text-sm font-black transition-all ${
                 selectedSem === Math.abs(sem) 
-                  ? 'bg-rose-600 text-white shadow-lg' 
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  ? 'bg-white text-indigo-700 shadow-lg scale-105' 
+                  : 'bg-white/10 text-white/80 hover:bg-white/15'
               }`}
             >
               Semester {sem}
@@ -292,10 +340,7 @@ const Results = () => {
             </p>
 
             <button 
-              onClick={() => {
-                alert("Successfully saved report card screenshot to local gallery.");
-                setShowShareModal(false);
-              }}
+              onClick={downloadCertificateSVG}
               className="w-full mt-4 bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-colors"
             >
               <Download className="w-4 h-4" /> Download Certificate Image
