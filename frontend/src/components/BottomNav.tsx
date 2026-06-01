@@ -13,12 +13,10 @@ const BottomNav = () => {
     }
   });
 
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme_preference') || 'light');
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent_color') || '#0080c7');
 
   useEffect(() => {
     const handleThemeChange = () => {
-      setTheme(localStorage.getItem('theme_preference') || 'light');
       setAccentColor(localStorage.getItem('accent_color') || '#0080c7');
       try {
         const stored = localStorage.getItem('user');
@@ -34,13 +32,13 @@ const BottomNav = () => {
   const isAdmin = user?.role === 'admin';
   const path = location.pathname;
 
-  const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const isDark = false;
 
   const containerClass = `fixed bottom-0 w-full max-w-md border-t px-6 py-4 rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)] z-50 transition-all duration-300 ${
     isDark ? 'bg-slate-900 border-slate-800/80 text-slate-100' : 'bg-white border-slate-100 text-slate-800'
   }`;
 
-  const defaultColor = isDark ? '#94a3b8' : '#adb5bd'; // slate-400 or slate-500
+  const defaultColor = '#adb5bd'; // slate-500
 
   const getLinkProps = (isActive: boolean, activeColor: string) => {
     return {

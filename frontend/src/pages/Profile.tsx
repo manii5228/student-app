@@ -79,7 +79,7 @@ const Profile = () => {
   }, []);
 
   // Tab state (restructured)
-  const [activeTab, setActiveTab] = useState<'id-card' | 'profile-details' | 'security' | 'preferences'>('id-card');
+  const [activeTab, setActiveTab] = useState<'id-card' | 'profile-details' | 'security'>('id-card');
 
   // ID Card State
   const [idTemplate, setIdTemplate] = useState({
@@ -96,8 +96,7 @@ const Profile = () => {
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [attendanceMsg, setAttendanceMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
 
-  // Preferences State
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme_preference') || 'light');
+  // Preferences State (Accent Color only, Theme removed)
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent_color') || '#0080c7');
   const [prefsSaved, setPrefsSaved] = useState(false);
 
@@ -152,7 +151,6 @@ const Profile = () => {
         google_scholar: prefs.google_scholar || '',
       });
       setEducationLinks(prefs.education_links || []);
-      if (prefs.theme_preference) setTheme(prefs.theme_preference);
       if (prefs.accent_color) setAccentColor(prefs.accent_color);
     } catch {
       const stored = localStorage.getItem('user');
@@ -459,29 +457,19 @@ const Profile = () => {
     }
   };
 
-  // ── Save Preferences (Theme/Accent — now actually applied) ──
-  const savePreferences = async () => {
-    localStorage.setItem('theme_preference', theme);
-    localStorage.setItem('accent_color', accentColor);
-
-    // Apply theme to document
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.documentElement.style.colorScheme = 'dark';
-    } else if (theme === 'auto') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      document.documentElement.classList.toggle('dark', prefersDark);
-      document.documentElement.style.colorScheme = prefersDark ? 'dark' : 'light';
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.style.colorScheme = 'light';
-    }
+  // ── Save Accent Color preference (applied instantly on change) ──
+  const handleAccentColorChange = async (color: string) => {
+    setAccentColor(color);
+    localStorage.setItem('accent_color', color);
 
     // Apply accent color as CSS variable
-    document.documentElement.style.setProperty('--accent-color', accentColor);
+    document.documentElement.style.setProperty('--accent-color', color);
     window.dispatchEvent(new Event('theme-changed'));
 
-    try { await api.put('/auth/me/preferences', { theme_preference: theme, accent_color: accentColor }); } catch {}
+    try {
+      await api.put('/auth/me/preferences', { accent_color: color });
+    } catch {}
+
     setPrefsSaved(true);
     setTimeout(() => setPrefsSaved(false), 2000);
   };
@@ -544,22 +532,21 @@ const Profile = () => {
     { key: 'id-card', label: 'ID Card', icon: <CreditCard className="w-3.5 h-3.5" /> },
     { key: 'profile-details', label: 'Profile Details', icon: <User className="w-3.5 h-3.5" /> },
     { key: 'security', label: 'Security', icon: <Fingerprint className="w-3.5 h-3.5" /> },
-    { key: 'preferences', label: 'Prefs', icon: <Palette className="w-3.5 h-3.5" /> },
   ];
 
-  // Dynamic colors based on active theme
-  const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  // Dynamic colors based on active theme (Theme removed, always false/light)
+  const isDark = false;
   const C = {
-    navy: isDark ? '#0f172a' : '#22346c',
+    navy: '#22346c',
     blue: accentColor,
     red: '#a91f23',
     terra: '#c9503d',
     cyan: '#27bcd1',
-    bg: isDark ? '#0b0f19' : '#f4f5f7',
-    card: isDark ? '#1e293b' : '#ffffff',
-    textPrimary: isDark ? '#f8fafc' : '#22346c',
-    textSecondary: isDark ? '#94a3b8' : '#868e96',
-    border: isDark ? '#334155' : '#e9ecef',
+    bg: '#f4f5f7',
+    card: '#ffffff',
+    textPrimary: '#22346c',
+    textSecondary: '#868e96',
+    border: '#e9ecef',
   };
 
   const currentPreset = PRESETS.find(p => p.id === idTemplate.background_style) || PRESETS[0];
@@ -1066,7 +1053,7 @@ const Profile = () => {
                 {sessions.map(session => (
                   <div key={session.id} className="flex items-center justify-between p-2 rounded-xl border" style={{ borderColor: C.border, background: session.is_current ? C.blue + '0a' : C.bg }}>
                     <div className="min-w-0 flex-1 pr-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-xs font-bold truncate" style={{ color: C.textPrimary }}>{session.device_info?.split(' ').slice(0, 3).join(' ') || 'Unknown Device'}</p>
                         {session.is_current && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-blue-500 text-white">This</span>}
                       </div>
@@ -1080,54 +1067,20 @@ const Profile = () => {
               </div>
             </div>
 
-            {/* Danger Zone */}
-            <div className="mt-2">
-              <button onClick={handleLogout} className="rounded-2xl p-4 flex items-center gap-4 text-left w-full transition-colors border" style={{ background: C.red + '08', borderColor: C.red + '20' }}>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm" style={{ background: C.card, color: C.red }}>
-                  <LogOut className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold" style={{ color: C.red }}>Sign Out</p>
-                  <p className="text-xs mt-0.5" style={{ color: C.red + 'aa' }}>Sign out of your account on this device.</p>
-                </div>
-              </button>
-            </div>
-
-          </div>
-        )}
-
-        {/* ═══════════ Preferences Tab (Theme + Accent — now functional) ═══════════ */}
-        {activeTab === 'preferences' && !isGuest && (
-          <div className="animate-fade-in flex flex-col gap-5">
-            {/* Theme */}
-            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
-              <h4 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: C.textPrimary }}>
-                <Palette className="w-4 h-4" /> System Theme
-              </h4>
-              <div className="flex gap-2">
-                {[
-                  { key: 'light', label: 'Light' },
-                  { key: 'dark', label: 'Dark' },
-                  { key: 'auto', label: 'Auto' },
-                ].map(t => (
-                  <button key={t.key} onClick={() => setTheme(t.key)}
-                    className="flex-1 py-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border-2"
-                    style={{
-                      borderColor: theme === t.key ? C.blue : C.border,
-                      background: theme === t.key ? C.blue + '0a' : 'transparent',
-                      color: theme === t.key ? C.blue : C.textSecondary,
-                    }}>
-                    {t.label}
-                  </button>
-                ))}
+            {/* Accent Color Selection (moved from Prefs, replaces Sign Out in Security) */}
+            <div className="rounded-2xl p-5 border mt-2" style={{ background: C.card, borderColor: C.border }}>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: C.textPrimary }}>
+                  <Palette className="w-4 h-4" style={{ color: C.blue }} /> App Accent Color
+                </h4>
+                {prefsSaved && (
+                  <span className="text-[10px] font-bold text-emerald-500 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" /> Applied
+                  </span>
+                )}
               </div>
-            </div>
-
-            {/* Accent Color */}
-            <div className="rounded-2xl p-5 border" style={{ background: C.card, borderColor: C.border }}>
-              <h4 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: C.textPrimary }}>
-                <Palette className="w-4 h-4" /> Accent Color
-              </h4>
+              <p className="text-xs mb-4" style={{ color: C.textSecondary }}>Customize the app highlight color. Tap any shade to apply instantly.</p>
+              
               <div className="flex gap-3 flex-wrap">
                 {[
                   { key: '#0080c7', label: 'Blue' },
@@ -1136,31 +1089,21 @@ const Profile = () => {
                   { key: '#a91f23', label: 'Red' },
                   { key: '#c9503d', label: 'Terra' },
                 ].map(c => (
-                  <button key={c.key} onClick={() => setAccentColor(c.key)}
-                    className="w-10 h-10 rounded-xl transition-all"
+                  <button
+                    key={c.key}
+                    onClick={() => handleAccentColorChange(c.key)}
+                    className="w-10 h-10 rounded-xl transition-all hover:scale-[1.08] active:scale-95"
                     style={{
                       background: c.key,
                       boxShadow: accentColor === c.key ? `0 0 0 3px ${C.card}, 0 0 0 5px ${c.key}` : 'none',
                       transform: accentColor === c.key ? 'scale(1.1)' : 'scale(1)',
                     }}
+                    title={c.label}
                   />
                 ))}
               </div>
             </div>
 
-            {/* Save button */}
-            <button
-              onClick={savePreferences}
-              className="w-full text-white py-4 rounded-2xl font-semibold text-sm active:scale-[0.98] transition-all"
-              style={{ background: C.navy }}
-            >
-              Save Preferences
-            </button>
-            {prefsSaved && (
-              <div className="flex items-center gap-2 p-3 rounded-xl text-sm font-medium" style={{ background: C.cyan + '14', color: C.cyan }}>
-                <CheckCircle className="w-4 h-4" /> Preferences applied!
-              </div>
-            )}
           </div>
         )}
 

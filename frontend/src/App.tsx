@@ -132,21 +132,9 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 function App() {
   useEffect(() => {
     const applyTheme = () => {
-      const theme = localStorage.getItem('theme_preference') || 'light';
       const accentColor = localStorage.getItem('accent_color') || '#0080c7';
-
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-        document.documentElement.style.colorScheme = 'dark';
-      } else if (theme === 'auto') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.classList.toggle('dark', prefersDark);
-        document.documentElement.style.colorScheme = prefersDark ? 'dark' : 'light';
-      } else {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.style.colorScheme = 'light';
-      }
-
+      document.documentElement.classList.remove('dark');
+      document.documentElement.style.colorScheme = 'light';
       document.documentElement.style.setProperty('--accent-color', accentColor);
     };
 
