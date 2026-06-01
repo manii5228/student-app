@@ -15,7 +15,7 @@ const LibraryPortal = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(false);
-  const [issueBooks, setIssueBooks] = useState<Record<string,Book>>({});
+  const [allBooks, setAllBooks] = useState<Book[]>([]);
   const [renewing, setRenewing] = useState<string|null>(null);
 
   const categories = ['Engineering','Science','Mathematics','Computer Science','Literature','Reference'];
@@ -25,6 +25,18 @@ const LibraryPortal = () => {
     else fetchIssues();
   }, [tab]);
 
+  // Also load all books once for lookup
+  useEffect(() => {
+    loadAllBooks();
+  }, []);
+
+  const loadAllBooks = async () => {
+    try {
+      const { data } = await api.get('/campus/library/books', { params: {} });
+      setAllBooks(data.books || data || []);
+    } catch {}
+  };
+
   const searchBooks = async () => {
     setLoading(true);
     try {
@@ -32,7 +44,7 @@ const LibraryPortal = () => {
       if (query) params.q = query;
       if (category) params.category = category;
       const { data } = await api.get('/campus/library/books', { params });
-      setBooks(data.books || []);
+      setBooks(data.books || data || []);
     } catch {}
     setLoading(false);
   };
@@ -41,20 +53,8 @@ const LibraryPortal = () => {
     setLoading(true);
     try {
       const { data } = await api.get('/campus/library/my-issues');
-      const issueList = data.issues || [];
+      const issueList: Issue[] = data.issues || data || [];
       setIssues(issueList);
-      // Fetch book details for each issue
-      const booksMap: Record<string,Book> = {};
-      for (const iss of issueList) {
-        if (!booksMap[iss.book_id]) {
-          try {
-            const res = await api.get('/campus/library/books', { params: { q: '' } });
-            const found = (res.data.books || []).find((b:Book) => b.id === iss.book_id);
-            if (found) booksMap[iss.book_id] = found;
-          } catch {}
-        }
-      }
-      setIssueBooks(booksMap);
     } catch {}
     setLoading(false);
   };
@@ -63,18 +63,29 @@ const LibraryPortal = () => {
     setRenewing(issueId);
     try {
       const { data } = await api.post(`/campus/library/renew/${issueId}`);
-      setIssues(prev => prev.map(i => i.id === issueId ? { ...i, due_date: data.issue.due_date, renewed_count: data.issue.renewed_count } : i));
+      if (data.issue) {
+        setIssues(prev => prev.map(i => i.id === issueId ? { 
+          ...i, 
+          due_date: data.issue.due_date, 
+          renewed_count: data.issue.renewed_count 
+        } : i));
+      }
     } catch {}
     setRenewing(null);
   };
 
   const daysUntilDue = (d: string) => Math.ceil((new Date(d).getTime() - Date.now()) / 864e5);
 
+  const getBookForIssue = (bookId: string): Book | undefined => {
+    return allBooks.find(b => b.id === bookId);
+  };
+
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       {/* Header */}
       <div className="bg-gradient-to-br from-amber-600 to-orange-700 p-6 pt-12 shadow-md relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+        <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-amber-400/20 rounded-full blur-2xl"></div>
         <div className="flex items-center gap-3 relative z-10 mb-4">
           <button onClick={() => {
             const role = JSON.parse(localStorage.getItem('user') || '{}').role;
@@ -99,6 +110,22 @@ const LibraryPortal = () => {
               placeholder="Search by title or author..."
               className="bg-transparent text-white text-sm font-medium placeholder:text-white/50 flex-1 outline-none"
             />
+          </div>
+        </div>
+
+        {/* Quick stats */}
+        <div className="flex gap-3 mt-4 relative z-10">
+          <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/10">
+            <p className="text-[9px] font-bold text-amber-100 uppercase tracking-wider">Total Books</p>
+            <p className="text-lg font-black text-white">{allBooks.length}</p>
+          </div>
+          <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/10">
+            <p className="text-[9px] font-bold text-amber-100 uppercase tracking-wider">My Issues</p>
+            <p className="text-lg font-black text-white">{issues.length}</p>
+          </div>
+          <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2 border border-white/10">
+            <p className="text-[9px] font-bold text-red-200 uppercase tracking-wider">Overdue</p>
+            <p className="text-lg font-black text-white">{issues.filter(i => daysUntilDue(i.due_date) < 0).length}</p>
           </div>
         </div>
       </div>
@@ -190,14 +217,14 @@ const LibraryPortal = () => {
             <div className="flex flex-col gap-3 animate-slide-up">
               {issues.map(iss => {
                 const days = daysUntilDue(iss.due_date);
-                const book = issueBooks[iss.book_id];
+                const book = getBookForIssue(iss.book_id);
                 const isOverdue = days < 0;
                 const isDueSoon = days >= 0 && days <= 3;
                 return (
                   <div key={iss.id} className={`bg-white rounded-[24px] p-5 shadow-sm border ${isOverdue ? 'border-red-200 bg-red-50/30' : isDueSoon ? 'border-amber-200 bg-amber-50/30' : 'border-slate-100'}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-bold text-slate-900">{book?.title || 'Book'}</h3>
+                        <h3 className="text-sm font-bold text-slate-900">{book?.title || `Book (${iss.book_id})`}</h3>
                         {book && <p className="text-xs text-slate-500">{book.author}</p>}
                       </div>
                       {isOverdue ? (
@@ -225,8 +252,8 @@ const LibraryPortal = () => {
                     </div>
 
                     {iss.fine_amount > 0 && (
-                      <div className="mt-2 bg-red-50 rounded-xl px-3 py-2">
-                        <span className="text-xs font-bold text-red-600">Fine: ₹{iss.fine_amount}</span>
+                      <div className="mt-2 bg-red-50 rounded-xl px-3 py-2 border border-red-100">
+                        <span className="text-xs font-bold text-red-600">⚠️ Fine: ₹{iss.fine_amount}</span>
                       </div>
                     )}
 

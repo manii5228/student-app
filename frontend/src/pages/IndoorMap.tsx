@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Search, MapPin, Coffee, BookOpen, Monitor, Home, Shield, Navigation, ArrowRight } from 'lucide-react';
+import { ChevronLeft, Search, MapPin, Navigation } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
@@ -28,66 +28,47 @@ const STARTING_POINTS = [
   { id: 'block24lobby', name: 'Block 24 Ground Floor Lobby', coords: [13.1825, 80.0385] as [number, number] }
 ];
 
-const getPoiDetails = (type: string) => {
-  switch (type) {
-    case 'academic': 
-      return { 
-        color: 'bg-indigo-50 border-indigo-400 text-indigo-600', 
-        icon: 'M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5' 
-      };
-    case 'lab': 
-      return { 
-        color: 'bg-purple-50 border-purple-400 text-purple-600', 
-        icon: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2z' 
-      };
-    case 'library': 
-      return { 
-        color: 'bg-blue-50 border-blue-400 text-blue-600', 
-        icon: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20 M4 6.5A2.5 2.5 0 0 1 6.5 4H20' 
-      };
-    case 'food': 
-      return { 
-        color: 'bg-orange-50 border-orange-400 text-orange-600', 
-        icon: 'M18 8h1a4 4 0 0 1 0 8h-1 M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z' 
-      };
-    case 'restroom': 
-      return { 
-        color: 'bg-pink-50 border-pink-400 text-pink-600', 
-        icon: 'M12 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10zm0 12c-4.42 0-8 3.58-8 8h16c0-4.42-3.58-8-8-8z' 
-      };
-    default: 
-      return { 
-        color: 'bg-slate-50 border-slate-400 text-slate-600', 
-        icon: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z' 
-      };
-  }
+const POI_STYLES: Record<string, { bg: string; border: string; text: string; emoji: string }> = {
+  academic: { bg: '#eef2ff', border: '#818cf8', text: '#4f46e5', emoji: '🏫' },
+  lab: { bg: '#faf5ff', border: '#a78bfa', text: '#7c3aed', emoji: '🔬' },
+  library: { bg: '#eff6ff', border: '#60a5fa', text: '#2563eb', emoji: '📚' },
+  food: { bg: '#fff7ed', border: '#fb923c', text: '#ea580c', emoji: '🍽️' },
+  restroom: { bg: '#fdf2f8', border: '#f472b6', text: '#db2777', emoji: '🚻' },
 };
 
+// Create POI icons with inline styles (not Tailwind) so they render correctly in Leaflet
 const createCustomIcon = (poi: typeof POIS[0]) => {
-  const details = getPoiDetails(poi.type);
+  const style = POI_STYLES[poi.type] || POI_STYLES.academic;
   const iconHtml = `
-    <div class="w-10 h-10 ${details.color} border-2 rounded-full flex items-center justify-center shadow-lg transform transition-transform hover:scale-110">
-      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="${details.icon}" />
-      </svg>
+    <div style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;">
+      <div style="width:38px;height:38px;background:${style.bg};border:2.5px solid ${style.border};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,0.15);font-size:18px;line-height:1;">
+        ${style.emoji}
+      </div>
+      <div style="background:${style.text};color:white;font-size:8px;font-weight:800;padding:2px 5px;border-radius:4px;margin-top:3px;max-width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.15);">
+        ${poi.name.split('(')[0].trim().substring(0, 16)}
+      </div>
     </div>
   `;
   return new L.DivIcon({
     html: iconHtml,
     className: '',
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-    popupAnchor: [0, -20]
+    iconSize: [80, 56],
+    iconAnchor: [40, 28],
+    popupAnchor: [0, -28]
   });
 };
 
 const startIcon = new L.DivIcon({
-  html: `<div class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
-           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>
+  html: `<div style="display:flex;flex-direction:column;align-items:center;">
+           <div style="width:32px;height:32px;background:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(0,0,0,0.2);border:3px solid white;font-size:16px;">
+             📍
+           </div>
+           <div style="background:#10b981;color:white;font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;margin-top:2px;">START</div>
          </div>`,
   className: '',
-  iconSize: [32, 32],
-  iconAnchor: [16, 32]
+  iconSize: [40, 50],
+  iconAnchor: [20, 25],
+  popupAnchor: [0, -25]
 });
 
 const RecenterMap = ({ center, zoom = 17 }: { center: [number, number]; zoom?: number }) => {
@@ -194,12 +175,17 @@ const CampusMap = () => {
   const [mapCenter, setMapCenter] = useState<[number, number]>([13.1818, 80.0401]);
   const [zoom, setZoom] = useState(16);
   const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState<string>('');
   
   // Navigation & Routing States
   const [isRouting, setIsRouting] = useState(false);
   const [startPointId, setStartPointId] = useState('maingate');
 
-  const filteredPois = POIS.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.desc.toLowerCase().includes(search.toLowerCase()));
+  const filteredPois = POIS.filter(p => {
+    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.desc.toLowerCase().includes(search.toLowerCase());
+    const matchType = !filterType || p.type === filterType.toLowerCase();
+    return matchSearch && matchType;
+  });
   const selectedPoi = POIS.find(p => p.id === activePoiId);
   const startPoint = STARTING_POINTS.find(s => s.id === startPointId) || STARTING_POINTS[0];
 
@@ -229,7 +215,7 @@ const CampusMap = () => {
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       {/* Header */}
-      <div className="bg-slate-900 p-6 pt-12 shadow-md relative z-20">
+      <div className="bg-slate-900 p-5 pt-12 shadow-md relative z-20">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <button onClick={() => {
@@ -245,12 +231,20 @@ const CampusMap = () => {
               <p className="text-xs text-slate-300">Vel Tech University Navigation</p>
             </div>
           </div>
+          {isRouting && (
+            <button 
+              onClick={() => { setIsRouting(false); setActivePoiId(null); }}
+              className="bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs px-3 py-2 rounded-xl transition-all border border-red-400/30"
+            >
+              ✕ Cancel
+            </button>
+          )}
         </div>
 
         {/* Search Input with dropdown suggestions */}
         {!isRouting && (
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 z-10" />
             <input
               type="text"
               placeholder="Search CSE labs, block numbers, canteens..."
@@ -259,18 +253,24 @@ const CampusMap = () => {
               className="w-full bg-white/10 text-white placeholder:text-slate-400 rounded-2xl py-3 pl-12 pr-4 text-sm font-medium outline-none focus:bg-white/20 transition-colors"
             />
             {search && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl z-30 max-h-60 overflow-y-auto overflow-x-hidden">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl z-30 max-h-60 overflow-y-auto">
                 {filteredPois.length > 0 ? (
-                  filteredPois.map(poi => (
-                    <button 
-                      key={poi.id} 
-                      onClick={() => handleSearchSelect(poi)}
-                      className="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 text-white flex flex-col"
-                    >
-                      <span className="text-xs font-black">{poi.name}</span>
-                      <span className="text-[10px] text-slate-400 font-medium mt-0.5">{poi.desc}</span>
-                    </button>
-                  ))
+                  filteredPois.map(poi => {
+                    const style = POI_STYLES[poi.type] || POI_STYLES.academic;
+                    return (
+                      <button 
+                        key={poi.id} 
+                        onClick={() => handleSearchSelect(poi)}
+                        className="w-full text-left px-4 py-3 hover:bg-white/5 border-b border-white/5 text-white flex items-center gap-3"
+                      >
+                        <span className="text-lg">{style.emoji}</span>
+                        <div>
+                          <span className="text-xs font-black block">{poi.name}</span>
+                          <span className="text-[10px] text-slate-400 font-medium mt-0.5 block">{poi.desc}</span>
+                        </div>
+                      </button>
+                    );
+                  })
                 ) : (
                   <div className="px-4 py-3 text-xs text-slate-400 italic">No POIs match your search</div>
                 )}
@@ -281,7 +281,7 @@ const CampusMap = () => {
       </div>
 
       {/* Map Area */}
-      <div className="flex-1 relative z-0 min-h-[480px] h-[calc(100vh-280px)]">
+      <div className="flex-1 relative z-0" style={{ minHeight: '400px' }}>
         <MapContainer center={mapCenter} zoom={zoom} style={{ height: '100%', width: '100%' }} zoomControl={false}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
@@ -293,7 +293,7 @@ const CampusMap = () => {
           {isRouting && (
             <Marker position={startPoint.coords} icon={startIcon}>
               <Popup>
-                <div className="font-bold text-slate-800">Start: {startPoint.name}</div>
+                <div style={{fontWeight:'bold',color:'#1e293b'}}>Start: {startPoint.name}</div>
               </Popup>
             </Marker>
           )}
@@ -312,9 +312,9 @@ const CampusMap = () => {
                 }
               }}
             >
-              <Popup className="rounded-xl overflow-hidden shadow-xl">
-                <div className="font-black text-slate-900 text-xs">{poi.name}</div>
-                <div className="text-[10px] text-slate-500 font-medium mt-0.5">{poi.desc}</div>
+              <Popup>
+                <div style={{fontWeight:900,color:'#0f172a',fontSize:'12px'}}>{poi.name}</div>
+                <div style={{fontSize:'10px',color:'#64748b',fontWeight:500,marginTop:'3px'}}>{poi.desc}</div>
               </Popup>
             </Marker>
           ))}
@@ -323,7 +323,7 @@ const CampusMap = () => {
           {isRouting && selectedPoi && (
             <Polyline 
               positions={activeRoute.coordinates} 
-              pathOptions={{ color: '#6366f1', weight: 5, opacity: 0.9 }} 
+              pathOptions={{ color: '#6366f1', weight: 5, opacity: 0.9, dashArray: '10,6' }} 
             />
           )}
         </MapContainer>
@@ -331,17 +331,18 @@ const CampusMap = () => {
 
       {/* Standard POI Details Panel */}
       {!isRouting && selectedPoi && (
-        <div className="absolute bottom-20 left-4 right-4 z-20 animate-slide-up">
-          <div className="bg-white/95 backdrop-blur-xl rounded-[28px] p-5 shadow-2xl border border-white flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl ${getPoiDetails(selectedPoi.type).color} flex items-center justify-center shrink-0 border`}>
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path d={getPoiDetails(selectedPoi.type).icon} />
-                </svg>
+        <div className="absolute bottom-20 left-3 right-3 z-20 animate-slide-up">
+          <div className="bg-white/95 backdrop-blur-xl rounded-[24px] p-4 shadow-2xl border border-white flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-2xl" style={{ 
+                background: POI_STYLES[selectedPoi.type]?.bg,
+                border: `2px solid ${POI_STYLES[selectedPoi.type]?.border}`
+              }}>
+                {POI_STYLES[selectedPoi.type]?.emoji}
               </div>
-              <div>
-                <h3 className="text-sm font-black text-slate-900 leading-tight">{selectedPoi.name}</h3>
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{selectedPoi.desc}</p>
+              <div className="min-w-0">
+                <h3 className="text-sm font-black text-slate-900 leading-tight truncate">{selectedPoi.name}</h3>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5 truncate">{selectedPoi.desc}</p>
               </div>
             </div>
             <button 
@@ -356,66 +357,79 @@ const CampusMap = () => {
 
       {/* Indoor Turn-by-Turn Routing Panel */}
       {isRouting && selectedPoi && (
-        <div className="absolute bottom-20 left-4 right-4 z-20 animate-slide-up max-h-[45vh] flex flex-col bg-white rounded-[28px] shadow-2xl border border-slate-100 overflow-hidden">
-          
-          {/* Header */}
-          <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
-            <div>
-              <p className="text-[9px] uppercase tracking-wider text-slate-400 font-black">Indoor Routing Directions</p>
-              <h3 className="text-xs font-black truncate max-w-[200px]">To: {selectedPoi.name}</h3>
-            </div>
-            <button 
-              onClick={() => setIsRouting(false)}
-              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-all"
-            >
-              Cancel
-            </button>
-          </div>
-
-          {/* Select Start & Steps */}
-          <div className="p-5 overflow-y-auto flex-1 flex flex-col gap-4">
+        <div className="absolute bottom-20 left-3 right-3 z-20 animate-slide-up" style={{ maxHeight: '45vh' }}>
+          <div className="bg-white rounded-[24px] shadow-2xl border border-slate-100 overflow-hidden flex flex-col" style={{ maxHeight: '45vh' }}>
             
-            {/* Start point Selector */}
-            <div>
-              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Select Starting Location</label>
-              <select 
-                value={startPointId}
-                onChange={e => setStartPointId(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
+            {/* Header */}
+            <div className="bg-slate-900 p-4 text-white flex justify-between items-center shrink-0">
+              <div className="min-w-0 mr-3">
+                <p className="text-[9px] uppercase tracking-wider text-slate-400 font-black">Indoor Routing Directions</p>
+                <h3 className="text-xs font-black truncate">To: {selectedPoi.name}</h3>
+              </div>
+              <button 
+                onClick={() => { setIsRouting(false); setActivePoiId(null); }}
+                className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition-all shrink-0"
               >
-                {STARTING_POINTS.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+                Cancel
+              </button>
             </div>
 
-            {/* Directions list */}
-            <div className="flex flex-col gap-2.5">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Step-by-step Indoor Route</p>
-              {activeRoute.directions.map((step, idx) => (
-                <div key={idx} className="flex gap-3 text-xs">
-                  <div className="w-5 h-5 bg-indigo-50 text-indigo-600 font-black rounded-full flex items-center justify-center shrink-0 text-[10px]">
-                    {idx + 1}
+            {/* Select Start & Steps */}
+            <div className="p-4 overflow-y-auto flex-1 flex flex-col gap-4">
+              
+              {/* Start point Selector */}
+              <div>
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1.5">Select Starting Location</label>
+                <select 
+                  value={startPointId}
+                  onChange={e => setStartPointId(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-indigo-500 transition-all"
+                >
+                  {STARTING_POINTS.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Directions list */}
+              <div className="flex flex-col gap-3">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Step-by-step Indoor Route</p>
+                {activeRoute.directions.map((step, idx) => (
+                  <div key={idx} className="flex gap-3 items-start">
+                    <div className="w-6 h-6 bg-indigo-100 text-indigo-600 font-black rounded-full flex items-center justify-center shrink-0 text-[10px]" style={{ minWidth: '24px' }}>
+                      {idx + 1}
+                    </div>
+                    <p className="text-xs text-slate-600 font-medium leading-relaxed">{step}</p>
                   </div>
-                  <p className="text-slate-600 font-medium leading-relaxed">{step}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
 
+            </div>
           </div>
         </div>
       )}
 
       {/* Floating Filter Categories */}
       {!selectedPoi && !isRouting && (
-        <div className="absolute bottom-20 left-0 right-0 z-10 flex overflow-x-auto px-4 gap-2 pb-2 hide-scrollbar">
-          {['Academic', 'Lab', 'Library', 'Food', 'Restroom'].map(f => (
+        <div className="absolute bottom-20 left-0 right-0 z-10 flex overflow-x-auto px-3 gap-2 pb-2 hide-scrollbar">
+          {[
+            { label: 'All', type: '' },
+            { label: '🏫 Academic', type: 'academic' },
+            { label: '🔬 Lab', type: 'lab' },
+            { label: '📚 Library', type: 'library' },
+            { label: '🍽️ Food', type: 'food' },
+            { label: '🚻 Restroom', type: 'restroom' }
+          ].map(f => (
             <button 
-              key={f} 
-              onClick={() => setSearch(f)} 
-              className="px-4 py-2 bg-slate-900/90 backdrop-blur text-white text-xs font-bold rounded-full shadow-lg whitespace-nowrap active:scale-95 transition-transform"
+              key={f.label} 
+              onClick={() => { setFilterType(f.type); if (f.type) setSearch(f.label.replace(/[^\w\s]/g, '').trim()); else setSearch(''); }}
+              className={`px-4 py-2.5 text-xs font-bold rounded-full shadow-lg whitespace-nowrap active:scale-95 transition-all ${
+                filterType === f.type 
+                  ? 'bg-indigo-600 text-white' 
+                  : 'bg-white/90 backdrop-blur text-slate-700 border border-white'
+              }`}
             >
-              {f}
+              {f.label}
             </button>
           ))}
         </div>

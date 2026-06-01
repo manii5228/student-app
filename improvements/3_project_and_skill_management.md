@@ -108,6 +108,8 @@ Once issued, each badge generates a unique cryptographic SHA-256 verification si
 
 ## User feedback:
 * **Aggregated Notification API:** Added an endpoint `/api/v1/career/projects/reminders/aggregated` to fetch grouped reminders to prevent notification spam. i do nat have any idea about this need to check
+
+---
 * there lot of space in the team finder card lets aslo add team size feature or number of team and looking for and skills need to be centered and lower down the cards and swapping button and it also need to work with swipping 
 the dropdown need to be styled,complementary toogle button is dismatched
 the project status done need to apporved by the supervisior of the project so there could be no error done by the students
@@ -116,3 +118,15 @@ the description need to be little lower casue it mixing up with the badge title
 portfolio bulider ui is fine but change the side by side aligment that is very odd to see
 automatically add skills ,projects from the database of the student
 what about the flash cards in company prep and mock test,these need to added by the repsetive faculty
+In the project section while adding a task to an existing project to do the screen is going blank and then while dragging it to the project section the screen also goes blank. 
+Keep all the details compulsory while adding any project.
+Adding milestones is not reflecting after adding new project.
+In an existing the to do list is working as a drag and drop  way instead of drag and drop make it work like a tick mark. When ticked it should move to the next section.
+While chatting with the matched team members in the team finder the chat is not visisble as the navbar is not hidding it self in the mobile version.
+Download button is not working in the portfolio builder 
+In the skilled badges the earned badges is not visible make it visible.
+Refferal Hub the data is not seeded to test it 
+In the interview board the book slot is not visible due to the navbar hiding it.
+In the internship the data is not seeded to test it.
+in the company prep the qna form has like option which has option to liked multiple times make to be liked once.
+In the mock test section the data is not seeded.

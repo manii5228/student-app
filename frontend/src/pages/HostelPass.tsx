@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Clock, CheckCircle, XCircle, MapPin, QrCode } from 'lucide-react';
+import { ChevronLeft, Plus, Clock, CheckCircle, XCircle, MapPin, QrCode, Home, Shield, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -11,6 +11,7 @@ interface Pass {
   to_date: string;
   status: 'pending' | 'approved' | 'rejected';
   parent_status: 'pending' | 'approved' | 'rejected';
+  mentor_status: 'pending' | 'approved' | 'rejected';
   qr_code_url: string | null;
   created_at: string;
 }
@@ -26,6 +27,7 @@ const HostelPass = () => {
   const [reason, setReason] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [destination, setDestination] = useState('');
 
   // QR Dynamic State
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null);
@@ -36,7 +38,7 @@ const HostelPass = () => {
   const fetchPasses = async () => {
     try {
       const { data } = await api.get('/campus/hostel-pass');
-      setPasses(data.passes);
+      setPasses(data.passes || []);
     } catch (err) {
       console.error('Failed to fetch passes:', err);
     } finally {
@@ -87,6 +89,7 @@ const HostelPass = () => {
     try {
       await api.post('/campus/hostel-pass', {
         reason,
+        destination: destination || 'Home',
         from_date: new Date(fromDate).toISOString(),
         to_date: new Date(toDate).toISOString()
       });
@@ -94,6 +97,7 @@ const HostelPass = () => {
       setReason('');
       setFromDate('');
       setToDate('');
+      setDestination('');
       fetchPasses(); // Refresh list
     } catch (err) {
       console.error('Failed to request pass:', err);
@@ -110,16 +114,22 @@ const HostelPass = () => {
   };
 
   const getStatusIcon = (status: string) => {
-    if (status === 'approved') return <CheckCircle className="w-4 h-4" />;
-    if (status === 'rejected') return <XCircle className="w-4 h-4" />;
-    return <Clock className="w-4 h-4" />;
+    if (status === 'approved') return <CheckCircle className="w-3.5 h-3.5" />;
+    if (status === 'rejected') return <XCircle className="w-3.5 h-3.5" />;
+    return <Clock className="w-3.5 h-3.5" />;
+  };
+
+  // Check if all approvals are done for QR to show
+  const canShowQR = (p: Pass) => {
+    return p.status === 'approved' && p.mentor_status === 'approved';
   };
 
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       {/* Header */}
-      <div className="bg-app-dark p-6 pt-12 shadow-md relative overflow-hidden">
+      <div className="bg-gradient-to-br from-indigo-700 to-violet-800 p-6 pt-12 shadow-md relative overflow-hidden">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+        <div className="absolute -left-16 -bottom-16 w-48 h-48 bg-violet-500/20 rounded-full blur-3xl"></div>
         <div className="flex items-center justify-between relative z-10">
           <div className="flex items-center gap-3">
             <button onClick={() => {
@@ -132,27 +142,43 @@ const HostelPass = () => {
             </button>
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight">Hostel Out-Pass</h1>
-              <p className="text-xs text-slate-300">Gate Security System</p>
+              <p className="text-xs text-indigo-200">Gate Security System</p>
             </div>
           </div>
           <button 
             onClick={() => setShowModal(true)}
-            className="w-10 h-10 rounded-full bg-app-accent flex items-center justify-center text-white shadow-lg hover:scale-105 active:scale-95 transition-all"
+            className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-indigo-700 shadow-lg hover:scale-105 active:scale-95 transition-all"
           >
             <Plus className="w-5 h-5" />
           </button>
         </div>
+        
+        {/* Quick Stats */}
+        <div className="flex gap-3 mt-5 relative z-10">
+          <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/10">
+            <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-wider">Pending</p>
+            <p className="text-xl font-black text-white">{passes.filter(p => p.status === 'pending').length}</p>
+          </div>
+          <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/10">
+            <p className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Approved</p>
+            <p className="text-xl font-black text-white">{passes.filter(p => p.status === 'approved').length}</p>
+          </div>
+          <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-3 border border-white/10">
+            <p className="text-[10px] font-bold text-red-200 uppercase tracking-wider">Total</p>
+            <p className="text-xl font-black text-white">{passes.length}</p>
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-5">
         {loading ? (
           <div className="flex justify-center items-center h-40">
-            <span className="w-8 h-8 border-4 border-app-accent border-t-transparent rounded-full animate-spin"></span>
+            <span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
           </div>
         ) : passes.length === 0 ? (
           <div className="text-center py-20 animate-fade-in">
-            <div className="w-20 h-20 bg-slate-200 rounded-full mx-auto flex items-center justify-center mb-4">
-              <MapPin className="w-8 h-8 text-slate-400" />
+            <div className="w-20 h-20 bg-indigo-50 rounded-full mx-auto flex items-center justify-center mb-4 border border-indigo-100">
+              <Home className="w-8 h-8 text-indigo-400" />
             </div>
             <h2 className="text-lg font-bold text-slate-900">No Pass History</h2>
             <p className="text-sm text-slate-500 mt-1">Tap the + button to request a new out-pass.</p>
@@ -161,11 +187,13 @@ const HostelPass = () => {
           <div className="flex flex-col gap-4">
             {passes.map(p => (
               <div key={p.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 flex flex-col relative overflow-hidden animate-slide-up">
-                <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-[16px] border-b border-l flex items-center gap-1.5 text-xs font-bold capitalize ${getStatusColor(p.status)}`}>
-                  {getStatusIcon(p.status)} Warden: {p.status}
+                
+                {/* Top Right Status */}
+                <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-[16px] border-b border-l flex items-center gap-1.5 text-[10px] font-bold capitalize ${getStatusColor(p.status)}`}>
+                  {getStatusIcon(p.status)} {p.status}
                 </div>
                 
-                <h3 className="text-base font-bold text-slate-900 pr-32 leading-tight mb-3">{p.reason}</h3>
+                <h3 className="text-base font-bold text-slate-900 pr-28 leading-tight mb-3">{p.reason}</h3>
                 
                 <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 mb-4 bg-slate-50 p-3 rounded-xl">
                   <div>
@@ -179,40 +207,90 @@ const HostelPass = () => {
                   </div>
                 </div>
 
-                {/* Parental Approval Flow */}
-                <div className="flex flex-wrap gap-2 items-center mb-4 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Parent Status:</span>
-                    <span className={`px-2 py-0.5 rounded-full border text-[9px] font-black uppercase flex items-center gap-1 ${getStatusColor(p.parent_status || 'pending')}`}>
-                      {getStatusIcon(p.parent_status || 'pending')} {p.parent_status || 'pending'}
-                    </span>
+                {/* Approval Pipeline  */}
+                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 mb-4">
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Approval Pipeline</p>
+                  <div className="flex items-center gap-2">
+                    
+                    {/* Mentor Status */}
+                    <div className="flex-1 flex flex-col items-center gap-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        p.mentor_status === 'approved' ? 'bg-emerald-100 text-emerald-600' :
+                        p.mentor_status === 'rejected' ? 'bg-red-100 text-red-600' :
+                        'bg-amber-100 text-amber-600'
+                      }`}>
+                        <Shield className="w-4 h-4" />
+                      </div>
+                      <span className="text-[9px] font-bold text-slate-500">Mentor</span>
+                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${getStatusColor(p.mentor_status || 'pending')}`}>
+                        {p.mentor_status || 'pending'}
+                      </span>
+                    </div>
+
+                    {/* Arrow */}
+                    <div className="text-slate-300 text-xs">→</div>
+
+                    {/* Parent Status */}
+                    <div className="flex-1 flex flex-col items-center gap-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        p.parent_status === 'approved' ? 'bg-emerald-100 text-emerald-600' :
+                        p.parent_status === 'rejected' ? 'bg-red-100 text-red-600' :
+                        'bg-amber-100 text-amber-600'
+                      }`}>
+                        <User className="w-4 h-4" />
+                      </div>
+                      <span className="text-[9px] font-bold text-slate-500">Parent</span>
+                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${getStatusColor(p.parent_status || 'pending')}`}>
+                        {p.parent_status || 'pending'}
+                      </span>
+                    </div>
+
+                    {/* Arrow */}
+                    <div className="text-slate-300 text-xs">→</div>
+
+                    {/* Warden Status (same as main status) */}
+                    <div className="flex-1 flex flex-col items-center gap-1">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        p.status === 'approved' ? 'bg-emerald-100 text-emerald-600' :
+                        p.status === 'rejected' ? 'bg-red-100 text-red-600' :
+                        'bg-amber-100 text-amber-600'
+                      }`}>
+                        <Home className="w-4 h-4" />
+                      </div>
+                      <span className="text-[9px] font-bold text-slate-500">Warden</span>
+                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${getStatusColor(p.status)}`}>
+                        {p.status}
+                      </span>
+                    </div>
                   </div>
-                  {(!p.parent_status || p.parent_status === 'pending') && (
-                    <button
-                      onClick={async () => {
-                        setResendingId(p.id);
-                        try {
-                          await api.post(`/campus/hostel-pass/${p.id}/resend-parent`);
-                          alert('Out-pass approval request SMS link resent to parent successfully!');
-                        } catch (e) {
-                          console.error(e);
-                          alert('Failed to resend parent notification');
-                        } finally {
-                          setResendingId(null);
-                        }
-                      }}
-                      disabled={resendingId === p.id}
-                      className="ml-auto text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded-lg font-bold transition-colors disabled:opacity-50"
-                    >
-                      {resendingId === p.id ? 'Resending...' : 'Resend SMS'}
-                    </button>
-                  )}
                 </div>
 
-                {p.status === 'approved' && (
+                {/* Resend SMS for pending parent */}
+                {(!p.parent_status || p.parent_status === 'pending') && (
+                  <button
+                    onClick={async () => {
+                      setResendingId(p.id);
+                      try {
+                        await api.post(`/campus/hostel-pass/${p.id}/resend-parent`);
+                        alert('Out-pass approval request SMS link resent to parent successfully!');
+                      } catch (e) {
+                        console.error(e);
+                        alert('Failed to resend parent notification');
+                      } finally {
+                        setResendingId(null);
+                      }
+                    }}
+                    disabled={resendingId === p.id}
+                    className="mb-3 w-full text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2 rounded-xl font-bold transition-colors disabled:opacity-50 border border-indigo-200"
+                  >
+                    {resendingId === p.id ? 'Resending...' : '📱 Resend Parent Approval SMS'}
+                  </button>
+                )}
+
+                {canShowQR(p) && (
                   <button 
                     onClick={() => setSelectedPassId(p.id)}
-                    className="w-full bg-slate-900 text-white py-3 rounded-[14px] text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors"
+                    className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-3 rounded-[14px] text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-indigo-600/20"
                   >
                     <QrCode className="w-4 h-4" /> Show Gate QR Code
                   </button>
@@ -235,7 +313,7 @@ const HostelPass = () => {
              
              <div className="mb-6">
                 <h3 className="text-2xl font-bold text-slate-900">Request Pass</h3>
-                <p className="text-sm text-slate-500 mt-1">Submit your out-pass request to the warden.</p>
+                <p className="text-sm text-slate-500 mt-1">Submit your out-pass request. Requires mentor → parent → warden approval.</p>
              </div>
              
              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -245,8 +323,19 @@ const HostelPass = () => {
                    required
                    value={reason}
                    onChange={e => setReason(e.target.value)}
-                   className="w-full bg-slate-50 border border-slate-200 rounded-[20px] p-4 text-sm text-slate-800 focus:outline-none focus:border-app-accent focus:bg-white transition-all resize-none h-24 font-medium"
+                   className="w-full bg-slate-50 border border-slate-200 rounded-[20px] p-4 text-sm text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all resize-none h-24 font-medium"
                    placeholder="e.g. Going home for family function..."
+                 />
+               </div>
+
+               <div>
+                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Destination</label>
+                 <input 
+                   type="text"
+                   value={destination}
+                   onChange={e => setDestination(e.target.value)}
+                   className="w-full bg-slate-50 border border-slate-200 rounded-[16px] p-3 text-sm text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium"
+                   placeholder="e.g. Chennai Central, Home"
                  />
                </div>
                
@@ -258,7 +347,7 @@ const HostelPass = () => {
                      required
                      value={fromDate}
                      onChange={e => setFromDate(e.target.value)}
-                     className="w-full bg-slate-50 border border-slate-200 rounded-[16px] p-3 text-sm text-slate-800 focus:outline-none focus:border-app-accent focus:bg-white transition-all font-medium"
+                     className="w-full bg-slate-50 border border-slate-200 rounded-[16px] p-3 text-sm text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium"
                    />
                  </div>
                  <div className="flex-1">
@@ -268,7 +357,7 @@ const HostelPass = () => {
                      required
                      value={toDate}
                      onChange={e => setToDate(e.target.value)}
-                     className="w-full bg-slate-50 border border-slate-200 rounded-[16px] p-3 text-sm text-slate-800 focus:outline-none focus:border-app-accent focus:bg-white transition-all font-medium"
+                     className="w-full bg-slate-50 border border-slate-200 rounded-[16px] p-3 text-sm text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all font-medium"
                    />
                  </div>
                </div>
@@ -276,7 +365,7 @@ const HostelPass = () => {
                <button 
                   type="submit"
                   disabled={isSubmitting}
-                  className="mt-4 w-full bg-app-accent text-white py-4 rounded-[20px] text-base font-bold shadow-xl hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex justify-center items-center gap-2"
+                  className="mt-4 w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-4 rounded-[20px] text-base font-bold shadow-xl hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex justify-center items-center gap-2"
                 >
                   {isSubmitting ? <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : 'Submit Request'}
                 </button>

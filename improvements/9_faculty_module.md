@@ -35,3 +35,6 @@ better unloack all thing sin the career for all faculties
 
 
 Faculty can able to cancel the class, if the faculty will cancel the class,the students should get notified in the app.
+
+the attendance entry should let the faculty add the sessions details and then get the data and then the data is not saved anywhere to view the attandence later.
+The scanner is not working  for the dynamic scanning of attandance.

@@ -367,10 +367,61 @@ const seedComprehensiveMockDb = () => {
         student_id: `std_${(i % 39) + 1}`,
         issued_date: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString().split("T")[0],
         due_date: new Date(Date.now() + 10 * 24 * 3600 * 1000).toISOString().split("T")[0],
-        status: "active"
+        status: "active",
+        renewed_count: 0,
+        fine_amount: 0,
+        returned_date: null
       });
     }
   });
+
+  // Additional library issues for std_1 (logged-in student) for testing
+  libraryIssues.push(
+    {
+      id: 'issue_std1_a',
+      book_id: 'lib_1',
+      student_id: 'std_1',
+      issued_date: new Date(Date.now() - 20 * 24 * 3600 * 1000).toISOString().split("T")[0],
+      due_date: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString().split("T")[0],
+      status: 'active',
+      renewed_count: 1,
+      fine_amount: 10,
+      returned_date: null
+    },
+    {
+      id: 'issue_std1_b',
+      book_id: 'lib_5',
+      student_id: 'std_1',
+      issued_date: new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString().split("T")[0],
+      due_date: new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString().split("T")[0],
+      status: 'active',
+      renewed_count: 0,
+      fine_amount: 0,
+      returned_date: null
+    },
+    {
+      id: 'issue_std1_c',
+      book_id: 'lib_10',
+      student_id: 'std_1',
+      issued_date: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString().split("T")[0],
+      due_date: new Date(Date.now() + 12 * 24 * 3600 * 1000).toISOString().split("T")[0],
+      status: 'active',
+      renewed_count: 0,
+      fine_amount: 0,
+      returned_date: null
+    },
+    {
+      id: 'issue_std1_d',
+      book_id: 'lib_20',
+      student_id: 'std_1',
+      issued_date: new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString().split("T")[0],
+      due_date: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().split("T")[0],
+      status: 'active',
+      renewed_count: 0,
+      fine_amount: 0,
+      returned_date: null
+    }
+  );
 
   // 7. Placements & Job Openings
   const jobs = [
@@ -550,7 +601,15 @@ const seedComprehensiveMockDb = () => {
         ]
       }
     ],
-    hostelPasses: [],
+    hostelPasses: [
+      { id: 'hp_1', reason: 'Going home for weekend', destination: 'Chennai Central', from_date: new Date(Date.now() + 86400000).toISOString(), to_date: new Date(Date.now() + 3*86400000).toISOString(), status: 'approved', mentor_status: 'approved', parent_status: 'approved', student_id: 'std_1', student_name: 'Mani Manjunath', student_reg: '22CSE101', created_at: new Date(Date.now() - 86400000).toISOString() },
+      { id: 'hp_2', reason: 'Medical appointment at hospital', destination: 'Apollo Hospital, Chennai', from_date: new Date(Date.now() + 2*86400000).toISOString(), to_date: new Date(Date.now() + 2*86400000 + 18000000).toISOString(), status: 'pending', mentor_status: 'approved', parent_status: 'pending', student_id: 'std_1', student_name: 'Mani Manjunath', student_reg: '22CSE101', created_at: new Date().toISOString() },
+      { id: 'hp_3', reason: 'Family function - Brother wedding', destination: 'Coimbatore', from_date: new Date(Date.now() + 5*86400000).toISOString(), to_date: new Date(Date.now() + 8*86400000).toISOString(), status: 'pending', mentor_status: 'pending', parent_status: 'pending', student_id: 'std_1', student_name: 'Mani Manjunath', student_reg: '22CSE101', created_at: new Date().toISOString() },
+      { id: 'hp_4', reason: 'Visiting home for Diwali break', destination: 'Madurai', from_date: new Date(Date.now() + 86400000).toISOString(), to_date: new Date(Date.now() + 4*86400000).toISOString(), status: 'pending', mentor_status: 'pending', parent_status: 'pending', student_id: 'std_2', student_name: 'Arjun Reddy', student_reg: '22CSE102', created_at: new Date().toISOString() },
+      { id: 'hp_5', reason: 'Medical emergency - dental surgery', destination: 'MIOT Hospital', from_date: new Date(Date.now()).toISOString(), to_date: new Date(Date.now() + 2*86400000).toISOString(), status: 'pending', mentor_status: 'pending', parent_status: 'pending', student_id: 'std_3', student_name: 'Neha Sharma', student_reg: '22CSE103', created_at: new Date().toISOString() },
+      { id: 'hp_6', reason: 'Sister engagement ceremony', destination: 'Bangalore', from_date: new Date(Date.now() + 3*86400000).toISOString(), to_date: new Date(Date.now() + 6*86400000).toISOString(), status: 'pending', mentor_status: 'pending', parent_status: 'pending', student_id: 'std_4', student_name: 'Aditya Verma', student_reg: '22CSE104', created_at: new Date().toISOString() },
+      { id: 'hp_7', reason: 'Passport collection from regional office', destination: 'Passport Office Chennai', from_date: new Date(Date.now() + 86400000).toISOString(), to_date: new Date(Date.now() + 86400000 + 28800000).toISOString(), status: 'rejected', mentor_status: 'approved', parent_status: 'approved', student_id: 'std_5', student_name: 'Riya Sen', student_reg: '22CSE105', created_at: new Date(Date.now() - 2*86400000).toISOString() }
+    ],
     canteenOrders: [],
     notifications: [],
     attendanceSubjects: [
@@ -1005,19 +1064,63 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   // Hostel Passes
   if (cleanUrl === '/campus/hostel-pass' && method === 'post') {
     const payload = getPayload(config.data);
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
     const newPass = {
-      id: `h_${Date.now()}`,
-      ...payload,
-      status: "pending",
+      id: `hp_${Date.now()}`,
+      reason: payload.reason,
+      destination: payload.destination || 'Home',
+      from_date: payload.from_date,
+      to_date: payload.to_date,
+      status: 'pending',
+      mentor_status: 'pending',
+      parent_status: 'pending',
+      student_id: activeUserId,
+      student_name: activeUser ? `${activeUser.first_name} ${activeUser.last_name}` : 'Student',
+      student_reg: activeUser?.roll_number || 'N/A',
       created_at: new Date().toISOString()
     };
+    if (!db.hostelPasses) db.hostelPasses = [];
     db.hostelPasses.push(newPass);
     saveMockDb(db);
     return { status: 201, data: newPass };
   }
 
   if (cleanUrl === '/campus/hostel-pass' && method === 'get') {
-    return { status: 200, data: db.hostelPasses };
+    const passes = (db.hostelPasses || []).filter((p: any) => p.student_id === activeUserId);
+    return { status: 200, data: { passes } };
+  }
+
+  // Mentor hostel passes (faculty view of mentee passes)
+  if (cleanUrl === '/campus/hostel-pass/mentees' && method === 'get') {
+    const allPasses = db.hostelPasses || [];
+    return { status: 200, data: { passes: allPasses } };
+  }
+
+  // Bulk hostel pass status update (mentor approval)
+  if (cleanUrl === '/campus/hostel-pass/bulk-status' && method === 'put') {
+    const payload = getPayload(config.data);
+    const ids: string[] = payload.ids || [];
+    const status = payload.status;
+    ids.forEach((id: string) => {
+      const pass = (db.hostelPasses || []).find((p: any) => p.id === id);
+      if (pass) {
+        pass.mentor_status = status;
+        // If mentor approved and parent approved, set main status
+        if (status === 'approved' && pass.parent_status === 'approved') {
+          pass.status = 'approved';
+        }
+        if (status === 'rejected') {
+          pass.status = 'rejected';
+        }
+      }
+    });
+    saveMockDb(db);
+    return { status: 200, data: { success: true } };
+  }
+
+  // Resend parent SMS
+  if (cleanUrl.match(/\/campus\/hostel-pass\/[^/]+\/resend-parent/) && method === 'post') {
+    return { status: 200, data: { success: true, message: 'SMS sent to parent successfully' } };
   }
 
   // Digital Canteen
@@ -1358,19 +1461,24 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   // ==========================================
   if (cleanUrl === '/campus/library/books' && method === 'get') {
     const q = urlParams.get('q')?.toLowerCase() || '';
+    const cat = urlParams.get('category')?.toLowerCase() || '';
     const books = db.libraryBooks || [];
-    const filtered = books.filter((b: any) => 
-      !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q) || b.category.toLowerCase().includes(q)
-    );
-    return { status: 200, data: filtered };
+    const filtered = books.filter((b: any) => {
+      const matchQ = !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q);
+      const matchCat = !cat || (b.category || '').toLowerCase().includes(cat);
+      return matchQ && matchCat;
+    });
+    return { status: 200, data: { books: filtered } };
   }
   if (cleanUrl === '/campus/library/my-issues' && method === 'get') {
     const issues = db.libraryIssues || [];
-    const myIssues = issues.filter((i: any) => i.student_id === activeUserId);
-    myIssues.forEach((issue: any) => {
-      issue.book = db.libraryBooks.find((b: any) => b.id === issue.book_id);
-    });
-    return { status: 200, data: myIssues };
+    const myIssues = issues.filter((i: any) => i.student_id === activeUserId).map((iss: any) => ({
+      ...iss,
+      renewed_count: iss.renewed_count || 0,
+      fine_amount: iss.fine_amount || 0,
+      returned_date: iss.returned_date || null
+    }));
+    return { status: 200, data: { issues: myIssues } };
   }
   if (cleanUrl.startsWith('/campus/library/renew/') && method === 'post') {
     const issueId = cleanUrl.split('/').pop();
@@ -1379,8 +1487,9 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       const oldDue = new Date(issue.due_date);
       oldDue.setDate(oldDue.getDate() + 14);
       issue.due_date = oldDue.toISOString().split("T")[0];
+      issue.renewed_count = (issue.renewed_count || 0) + 1;
       saveMockDb(db);
-      return { status: 200, data: { success: true, message: "Book renewed successfully!", due_date: issue.due_date } };
+      return { status: 200, data: { success: true, message: "Book renewed successfully!", issue: { due_date: issue.due_date, renewed_count: issue.renewed_count } } };
     }
     return { status: 404, data: { error: "Transaction not found" } };
   }

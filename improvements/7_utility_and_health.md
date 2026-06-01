@@ -2,13 +2,7 @@
 
 
 
-## 4. Dark Mode
-### Frontend Improvements
-- **System Sync:** Listen to OS-level theme changes (`prefers-color-scheme`) and auto-switch.
-- **Theme Customization:** Allow users to choose accent colors (e.g., Blue, Purple, Green) alongside Dark/Light.
-teh themes,colour are just there they are nit changing the if tehy are selected
-### Backend Improvements
-- **Preferences Sync:** Save the theme preference in the user's database profile so it persists across devices.
+
 
 ## 5. Offline Mode & Sync Status
 ### Frontend Improvements
