@@ -32,3 +32,6 @@ assigment garder need to unloacked for all faculties casue each subkjects has th
 office hours thing i asked to create  adummy time table and match all the free hours as office hours 
 SKILL BAdges need automaticlly update to the skill badge section
 better unloack all thing sin the career for all faculties
+
+
+Faculty can able to cancel the class, if the faculty will cancel the class,the students should get notified in the app.

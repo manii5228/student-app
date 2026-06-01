@@ -9,7 +9,6 @@ This document tracks the improvements, current implementation status, and feedba
 ### 1. Smart Timetable
 - **[Completed] Calendar Integration:** "Add to Google Calendar" or Apple Calendar export button (.ics file generation).
 - **[Completed] Conflict Highlighting:** Visually highlight overlapping classes or back-to-back classes in distant buildings.
-- **[Completed] Live Status:** Show a progress bar indicating how much time is left in the current class.
 - **[Completed] Push Notifications:** Simulated web push notification alerts.
 - **[Completed] Dynamic Updates:** EventSource (SSE) handles cancellation and updates live.
 
@@ -98,3 +97,16 @@ countdown timer to exam when ut is clicked that should show,no study material li
  no filter /sort,remove ocr/indexing
 ya waht about the gpa oredictor and ai study bot
 change the colour of results there soemthing different instead of black
+
+
+---------
+1.Sync Calender is not working.
+2.app navigation is not proper, moving back would close the entire app and would not move to previous page.
+3. In the attandance when i try to keep flag for anything the submit button is not visible .
+4.In the attendance tracker it is showing random days subjects. make it show features for the current days timetable alone.
+5.In the assignments section i am not able to preview  the document after selecting the document for .doc it is telling no preview available and for pdf it is showing a box with blank screen.
+6.the results has no seed data . I need the seed data for testing it.
+7.The syllabus map there is no seed data to test.
+8.Credits is getting an error :Failed to fetch academic credit progress.
+9.Faculy also dont have seeded data for testing.
+10.pyq does not have seed data to download

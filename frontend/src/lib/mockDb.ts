@@ -1,255 +1,490 @@
 // Centralized Offline Database layer for standalone mobile operation
 // Seeded with the exact same records as the Flask server
 
-const INITIAL_USERS = [
-  {
-    id: "std_1",
-    email: "student1@veltech.edu.in",
-    password: "student123!",
-    role: "student",
-    first_name: "Mani",
-    last_name: "Manjunath",
-    department: "CSE",
-    roll_number: "22CSE101",
-    hostel_status: "dayscholar",
-    semester: 4,
-    section: "A",
-    batch_year: 2024,
-    is_verified: true,
-  },
-  {
-    id: "fac_1",
-    email: "faculty@veltech.edu.in",
-    password: "faculty123!",
-    role: "faculty",
-    first_name: "Dr. Ramesh",
-    last_name: "Kumar",
-    department: "CSE",
-    employee_id: "FAC001",
-    designation: "Associate Professor",
-    specialization: "Data Structures & Algorithms",
-    research_interests: "Distributed Systems, Algorithmic Graph Theory",
-    office_location: "A-Block Cabin 204",
-    is_verified: true,
-  },
-  {
-    id: "adm_1",
-    email: "admin@veltech.edu.in",
-    password: "admin123!",
-    role: "admin",
-    first_name: "Super",
-    last_name: "Admin",
-    department: "Administration",
-    is_verified: true,
-  }
-];
-
-const INITIAL_TIMETABLE_SLOTS = [
-  // Monday
-  { id: "s1", day: "monday", period_number: 1, start_time: "09:00", end_time: "09:50", slot_type: "lecture", subject_code: "CS301", subject_name: "Data Structures", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s2", day: "monday", period_number: 2, start_time: "10:00", end_time: "10:50", slot_type: "lecture", subject_code: "CS302", subject_name: "Digital Logic", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s3", day: "monday", period_number: 3, start_time: "11:00", end_time: "11:50", slot_type: "lecture", subject_code: "MA301", subject_name: "Mathematics III", room_number: "LH-102", building: "Main Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s4", day: "monday", period_number: 4, start_time: "12:00", end_time: "12:50", slot_type: "break", subject_code: "", subject_name: "Lunch Break", room_number: "Canteen", building: "Student Hub", faculty_name: "" },
-  { id: "s5", day: "monday", period_number: 5, start_time: "14:00", end_time: "14:50", slot_type: "lecture", subject_code: "CS303", subject_name: "Operating Systems", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  
-  // Tuesday
-  { id: "s6", day: "tuesday", period_number: 1, start_time: "09:00", end_time: "09:50", slot_type: "lecture", subject_code: "CS303", subject_name: "Operating Systems", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s7", day: "tuesday", period_number: 2, start_time: "10:00", end_time: "10:50", slot_type: "lecture", subject_code: "CS301", subject_name: "Data Structures", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s8", day: "tuesday", period_number: 3, start_time: "11:00", end_time: "11:50", slot_type: "lecture", subject_code: "HU301", subject_name: "English", room_number: "LH-103", building: "Main Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s9", day: "tuesday", period_number: 4, start_time: "12:00", end_time: "12:50", slot_type: "break", subject_code: "", subject_name: "Lunch Break", room_number: "Canteen", building: "Student Hub", faculty_name: "" },
-  { id: "s10", day: "tuesday", period_number: 5, start_time: "14:00", end_time: "15:40", slot_type: "lab", subject_code: "CS301", subject_name: "Data Structures Lab", room_number: "Lab-201", building: "Lab Block", faculty_name: "Dr. Ramesh Kumar" },
-  
-  // Wednesday
-  { id: "s11", day: "wednesday", period_number: 1, start_time: "09:00", end_time: "09:50", slot_type: "lecture", subject_code: "CS302", subject_name: "Digital Logic", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s12", day: "wednesday", period_number: 2, start_time: "10:00", end_time: "10:50", slot_type: "lecture", subject_code: "MA301", subject_name: "Mathematics III", room_number: "LH-102", building: "Main Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s13", day: "wednesday", period_number: 3, start_time: "11:00", end_time: "11:50", slot_type: "lecture", subject_code: "CS303", subject_name: "Operating Systems", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s14", day: "wednesday", period_number: 4, start_time: "12:00", end_time: "12:50", slot_type: "break", subject_code: "", subject_name: "Lunch Break", room_number: "Canteen", building: "Student Hub", faculty_name: "" },
-  { id: "s15", day: "wednesday", period_number: 5, start_time: "14:00", end_time: "14:50", slot_type: "lecture", subject_code: "HU301", subject_name: "English", room_number: "LH-103", building: "Main Block", faculty_name: "Dr. Ramesh Kumar" },
-  
-  // Thursday
-  { id: "s16", day: "thursday", period_number: 1, start_time: "09:00", end_time: "09:50", slot_type: "lecture", subject_code: "MA301", subject_name: "Mathematics III", room_number: "LH-102", building: "Main Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s17", day: "thursday", period_number: 2, start_time: "10:00", end_time: "10:50", slot_type: "lecture", subject_code: "CS303", subject_name: "Operating Systems", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s18", day: "thursday", period_number: 3, start_time: "11:00", end_time: "11:50", slot_type: "lecture", subject_code: "CS301", subject_name: "Data Structures", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s19", day: "thursday", period_number: 4, start_time: "12:00", end_time: "12:50", slot_type: "break", subject_code: "", subject_name: "Lunch Break", room_number: "Canteen", building: "Student Hub", faculty_name: "" },
-  { id: "s20", day: "thursday", period_number: 5, start_time: "14:00", end_time: "15:40", slot_type: "lab", subject_code: "CS302", subject_name: "Digital Logic Lab", room_number: "Lab-202", building: "Lab Block", faculty_name: "Dr. Ramesh Kumar" },
-  
-  // Friday
-  { id: "s21", day: "friday", period_number: 1, start_time: "09:00", end_time: "09:50", slot_type: "lecture", subject_code: "HU301", subject_name: "English", room_number: "LH-103", building: "Main Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s22", day: "friday", period_number: 2, start_time: "10:00", end_time: "10:50", slot_type: "lecture", subject_code: "CS302", subject_name: "Digital Logic", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s23", day: "friday", period_number: 3, start_time: "11:00", end_time: "11:50", slot_type: "lecture", subject_code: "CS301", subject_name: "Data Structures", room_number: "LH-101", building: "CSE Block", faculty_name: "Dr. Ramesh Kumar" },
-  { id: "s24", day: "friday", period_number: 4, start_time: "12:00", end_time: "12:50", slot_type: "break", subject_code: "", subject_name: "Lunch Break", room_number: "Canteen", building: "Student Hub", faculty_name: "" },
-  { id: "s25", day: "friday", period_number: 5, start_time: "14:00", end_time: "14:50", slot_type: "free", subject_code: "", subject_name: "Library/Self Study", room_number: "Library", building: "Student Hub", faculty_name: "" }
-];
-
-const INITIAL_RESULTS = [
-  { semester: 1, subject_code: "MA101", subject_name: "Mathematics I", credits: 4, grade: "A", grade_points: 8.0 },
-  { semester: 1, subject_code: "PH101", subject_name: "Engineering Physics", credits: 4, grade: "B", grade_points: 7.0 },
-  { semester: 1, subject_code: "CS101", subject_name: "Intro to Programming", credits: 3, grade: "A+", grade_points: 9.0 },
-  { semester: 1, subject_code: "CS101L", subject_name: "Programming Lab", credits: 2, grade: "O", grade_points: 10.0 },
-  
-  { semester: 2, subject_code: "MA102", subject_name: "Mathematics II", credits: 4, grade: "B+", grade_points: 7.5 },
-  { semester: 2, subject_code: "CY101", subject_name: "Engineering Chemistry", credits: 4, grade: "B", grade_points: 7.0 },
-  { semester: 2, subject_code: "CS201", subject_name: "Object Oriented Programming", credits: 3, grade: "A", grade_points: 8.0 },
-  
-  { semester: 3, subject_code: "MA201", subject_name: "Discrete Mathematics", credits: 4, grade: "A", grade_points: 8.0 },
-  { semester: 3, subject_code: "CS302", subject_name: "Computer Organization", credits: 4, grade: "A+", grade_points: 9.0 },
-  { semester: 3, subject_code: "CS303", subject_name: "Database Management Systems", credits: 3, grade: "A", grade_points: 8.0 }
-];
-
-const INITIAL_SYLLABUS = [
-  { subject_code: "CS301", subject_name: "Data Structures", unit_number: 1, unit_title: "Unit 1: Linear Data Structures", topics: "Arrays, stacks, queues, linked lists, and recursion. Applications of stacks and queues.", hours: 12, is_completed: true },
-  { subject_code: "CS301", subject_name: "Data Structures", unit_number: 2, unit_title: "Unit 2: Trees", topics: "Binary trees, binary search trees, AVL trees, B-trees, tree traversal algorithms, heaps.", hours: 10, is_completed: true },
-  { subject_code: "CS301", subject_name: "Data Structures", unit_number: 3, unit_title: "Unit 3: Graphs", topics: "Graph representations, BFS, DFS, MST algorithms (Kruskal, Prim), shortest path algorithms.", hours: 12, is_completed: true },
-  { subject_code: "CS301", subject_name: "Data Structures", unit_number: 4, unit_title: "Unit 4: Sorting and Searching", topics: "Bubble, insertion, selection, quick, merge, heap sort, hash tables, hash functions, collision resolution.", hours: 8, is_completed: false },
-  { subject_code: "CS301", subject_name: "Data Structures", unit_number: 5, unit_title: "Unit 5: Advanced Structures", topics: "Tries, suffix trees, segment trees, union-find, complexity analysis of algorithmic operations.", hours: 8, is_completed: false }
-];
-
-const INITIAL_BADGES = [
-  { id: "b1", name: "React Ninja", description: "Mastered React.js fundamentals", category: "technical", icon: "code", points: 50, criteria: "Complete React Workshop + Build 1 Project" },
-  { id: "b2", name: "Hackathon Hero", description: "Participated in a 24-hour hackathon", category: "hackathon", icon: "trophy", points: 100, criteria: "Complete any hackathon event" },
-  { id: "b3", name: "Team Leader", description: "Led a project team of 3+ members", category: "soft_skill", icon: "users", points: 30, criteria: "Successfully lead a team project to completion" }
-];
-
-const INITIAL_NOTICES = [
-  { id: "n1", title: "End Semester Exams Schedule Published", content: "The end-semester examinations for all UG/PG classes will commence on June 15, 2026. Please check the Exam Schedule section for dates, times, and hall locations.", category: "academic", date: "2026-05-28" },
-  { id: "n2", title: "Smart-Timetable Substitutions Activated", content: "To handle faculty leaves efficiently, real-time push substitution slots are now visible dynamically inside your Smart Timetable timeline.", category: "general", date: "2026-05-29" }
-];
-
 const INITIAL_ATTENDANCE_SUBJECTS = [
-  { student_id: "std_1", subject_code: "CS301", subject_name: "Data Structures", total_classes: 25, present: 22, absent: 3, late: 0, on_duty: 0, leave: 0, percentage: 88.0 },
-  { student_id: "std_1", subject_code: "CS302", subject_name: "Digital Logic", total_classes: 24, present: 18, absent: 6, late: 0, on_duty: 0, leave: 0, percentage: 75.0 },
-  { student_id: "std_1", subject_code: "MA301", subject_name: "Mathematics III", total_classes: 25, present: 21, absent: 4, late: 0, on_duty: 0, leave: 0, percentage: 84.0 },
-  { student_id: "std_1", subject_code: "CS303", subject_name: "Operating Systems", total_classes: 24, present: 19, absent: 5, late: 0, on_duty: 0, leave: 0, percentage: 79.2 },
-  { student_id: "std_1", subject_code: "HU301", subject_name: "English", total_classes: 22, present: 19, absent: 3, late: 0, on_duty: 0, leave: 0, percentage: 86.4 }
+  { student_id: "std_1", subject_code: "CS301", subject_name: "Database Management Systems", total_classes: 25, present: 22, absent: 3, late: 0, on_duty: 0, leave: 0, percentage: 88.0 },
+  { student_id: "std_1", subject_code: "CS302", subject_name: "Operating Systems", total_classes: 24, present: 18, absent: 6, late: 0, on_duty: 0, leave: 0, percentage: 75.0 },
+  { student_id: "std_1", subject_code: "HU301", subject_name: "Professional Ethics", total_classes: 22, present: 19, absent: 3, late: 0, on_duty: 0, leave: 0, percentage: 86.4 }
 ];
 
 const INITIAL_ATTENDANCE_RECORDS = [
-  {
-    id: "rec_1",
-    session_id: "sess_1",
-    student_id: "std_1",
-    status: "absent",
-    method: "bulk",
-    marked_at: "2026-05-29T10:00:00Z",
-    remarks: null,
-    discrepancy_reported: false,
-    discrepancy: null,
-    session: {
-      subject_code: "CS301",
-      subject_name: "Data Structures",
-      session_date: "2026-05-29",
-      period_number: 1
-    }
-  },
-  {
-    id: "rec_2",
-    session_id: "sess_2",
-    student_id: "std_1",
-    status: "present",
-    method: "qr_scan",
-    marked_at: "2026-05-28T09:00:00Z",
-    remarks: null,
-    discrepancy_reported: false,
-    discrepancy: null,
-    session: {
-      subject_code: "CS302",
-      subject_name: "Digital Logic",
-      session_date: "2026-05-28",
-      period_number: 2
-    }
-  },
-  {
-    id: "rec_3",
-    session_id: "sess_3",
-    student_id: "std_1",
-    status: "present",
-    method: "qr_scan",
-    marked_at: "2026-05-27T11:00:00Z",
-    remarks: null,
-    discrepancy_reported: false,
-    discrepancy: null,
-    session: {
-      subject_code: "MA301",
-      subject_name: "Mathematics III",
-      session_date: "2026-05-27",
-      period_number: 3
-    }
-  },
-  {
-    id: "rec_4",
-    session_id: "sess_4",
-    student_id: "std_1",
-    status: "present",
-    method: "bulk",
-    marked_at: "2026-05-26T14:00:00Z",
-    remarks: null,
-    discrepancy_reported: false,
-    discrepancy: null,
-    session: {
-      subject_code: "CS303",
-      subject_name: "Operating Systems",
-      session_date: "2026-05-26",
-      period_number: 5
-    }
-  },
-  {
-    id: "rec_5",
-    session_id: "sess_5",
-    student_id: "std_1",
-    status: "present",
-    method: "bulk",
-    marked_at: "2026-05-25T14:00:00Z",
-    remarks: null,
-    discrepancy_reported: false,
-    discrepancy: null,
-    session: {
-      subject_code: "HU301",
-      subject_name: "English",
-      session_date: "2026-05-25",
-      period_number: 5
-    }
-  }
+  { id: "rec_1", session_id: "sess_1", student_id: "std_1", status: "absent", method: "bulk", marked_at: "2026-05-29T10:00:00Z", remarks: null, discrepancy_reported: false, discrepancy: null, session: { subject_code: "CS301", subject_name: "Database Management Systems", session_date: "2026-05-29", period_number: 1 } },
+  { id: "rec_2", session_id: "sess_2", student_id: "std_1", status: "present", method: "qr_scan", marked_at: "2026-05-28T09:00:00Z", remarks: null, discrepancy_reported: false, discrepancy: null, session: { subject_code: "CS302", subject_name: "Operating Systems", session_date: "2026-05-28", period_number: 2 } }
 ];
 
-// Load database from localStorage or initialize with seed data
-const getMockDb = () => {
-  const data = localStorage.getItem('mock_db');
-  if (data) {
-    try {
-      const parsedDb = JSON.parse(data);
-      let updated = false;
-      if (!parsedDb.attendanceSubjects) {
-        parsedDb.attendanceSubjects = INITIAL_ATTENDANCE_SUBJECTS;
-        updated = true;
-      }
-      if (!parsedDb.attendanceRecords) {
-        parsedDb.attendanceRecords = INITIAL_ATTENDANCE_RECORDS;
-        updated = true;
-      }
-      if (!parsedDb.attendanceDiscrepancies) {
-        parsedDb.attendanceDiscrepancies = [];
-        updated = true;
-      }
-      if (updated) {
-        saveMockDb(parsedDb);
-      }
-      return parsedDb;
-    } catch { /* fallback */ }
-  }
+const seedComprehensiveMockDb = () => {
+  // 1. Users Generation
+  const users = [
+    {
+      id: "std_1",
+      email: "student1@veltech.edu.in",
+      password: "student123!",
+      role: "student",
+      first_name: "Mani",
+      last_name: "Manjunath",
+      department: "CSE",
+      roll_number: "22CSE101",
+      hostel_status: "dayscholar",
+      semester: 4,
+      section: "A",
+      batch_year: 2024,
+      is_verified: true,
+      cgpa: 8.42
+    },
+    {
+      id: "fac_1",
+      email: "faculty@veltech.edu.in",
+      password: "faculty123!",
+      role: "faculty",
+      first_name: "Dr. Ramesh",
+      last_name: "Kumar",
+      department: "CSE",
+      employee_id: "FAC001",
+      designation: "Associate Professor",
+      specialization: "Data Structures & Algorithms",
+      research_interests: "Distributed Systems, Algorithmic Graph Theory",
+      office_location: "A-Block Cabin 204",
+      is_verified: true,
+    },
+    {
+      id: "adm_1",
+      email: "admin@veltech.edu.in",
+      password: "admin123!",
+      role: "admin",
+      first_name: "Super",
+      last_name: "Admin",
+      department: "Administration",
+      is_verified: true,
+    }
+  ];
+
+  // Generate students student2 to student40
+  const stud_firsts = ["Mani", "Arjun", "Neha", "Aditya", "Riya", "Vikram", "Karan", "Rohan", "Ananya", "Pooja", 
+                       "Rahul", "Kabir", "Kriti", "Sneha", "Simran", "Varun", "Priya", "Kartik", "Deepak", "Shreya",
+                       "Siddharth", "Gautam", "Alia", "Ranbir", "Katrina", "Vicky", "Kiara", "Sidharth", "Shraddha", "Raj",
+                       "Rhea", "Ishaan", "Janhvi", "Sara", "Karthik", "Vijay", "Surya", "Ajith", "Dhanush", "Vikram"];
+  const stud_lasts = ["Manjunath", "Reddy", "Sharma", "Verma", "Sen", "Singh", "Johar", "Mehra", "Patel", "Hegde",
+                      "Mehta", "Thapar", "Sanon", "Nair", "Gill", "Dhawan", "Kapoor", "Roy", "Joshi", "Bhatt",
+                      "Malhotra", "Gambhir", "Bhatt", "Kapoor", "Kaif", "Kaushal", "Advani", "Malhotra", "Kapoor", "Kumar",
+                      "Chakraborty", "Khatter", "Kapoor", "Ali Khan", "Aaryan", "Deverakonda", "Sivakumar", "Kumar", "Raja", "Prabhu"];
   
-  const initialDb = {
-    users: INITIAL_USERS,
-    timetable: INITIAL_TIMETABLE_SLOTS,
-    results: INITIAL_RESULTS,
-    syllabus: INITIAL_SYLLABUS,
-    badges: INITIAL_BADGES,
-    notices: INITIAL_NOTICES,
+  const depts = ["CSE", "ECE", "Mech", "Biomed"];
+  const year_mapping: Record<number, { sem: number; batch: number }> = {
+    1: { sem: 2, batch: 2025 },
+    2: { sem: 4, batch: 2024 },
+    3: { sem: 6, batch: 2023 },
+    4: { sem: 8, batch: 2022 }
+  };
+
+  for (let s_idx = 1; s_idx < 40; s_idx++) {
+    const acad_year = Math.floor(s_idx / 10) + 1;
+    const sem = year_mapping[acad_year].sem;
+    const batch = year_mapping[acad_year].batch;
+    const d = depts[s_idx % 4];
+    
+    users.push({
+      id: `std_${s_idx + 1}`,
+      email: `student${s_idx + 1}@veltech.edu.in`,
+      password: "student123!",
+      role: "student",
+      first_name: stud_firsts[s_idx],
+      last_name: stud_lasts[s_idx],
+      department: d,
+      roll_number: `22${d}${100 + s_idx}`,
+      hostel_status: s_idx % 2 === 0 ? "hosteler" : "dayscholar",
+      semester: sem,
+      section: s_idx % 2 === 0 ? "A" : "B",
+      batch_year: batch,
+      is_verified: true,
+      cgpa: parseFloat((7.0 + (s_idx % 3) * 0.9 + (s_idx % 5) * 0.1).toFixed(2))
+    });
+  }
+
+  // Generate Faculty members (10 per department, 40 total)
+  const fac_firsts = ["Amit", "Ramesh", "Suresh", "Sunita", "Anjali", "Vikram", "Preeti", "Sanjay", "Rajesh", "Pooja"];
+  const fac_lasts = ["Kumar", "Sharma", "Rao", "Patil", "Naidu", "Gill", "Mehta", "Sanon", "Verma", "Sen"];
+  for (const d of depts) {
+    for (let i = 1; i <= 10; i++) {
+      const email = `faculty_${d.toLowerCase()}${i}@veltech.edu.in`;
+      const emp_id = `VT${d}FAC${100 + i}`;
+      if (d === "CSE" && i === 1) continue; // Skip since fac_1 is faculty@veltech.edu.in
+      users.push({
+        id: `fac_${d.toLowerCase()}${i}`,
+        email: email,
+        password: "faculty123!",
+        role: "faculty",
+        first_name: fac_firsts[i - 1],
+        last_name: fac_lasts[i - 1],
+        department: d,
+        employee_id: emp_id,
+        designation: i % 3 === 0 ? "Associate Professor" : i % 4 === 0 ? "Professor" : "Assistant Professor",
+        specialization: `Advanced ${d} Research`,
+        research_interests: `Distributed Systems, ${d} Analytics`,
+        office_location: `${d}-Block Cabin ${200 + i}`,
+        is_verified: true
+      });
+    }
+  }
+
+  // Subject Matrices
+  const sem_subjects: Record<number, Array<{ code: string; name: string; credits: number }>> = {
+    1: [
+      { code: "MA101", name: "Mathematics I", credits: 4 },
+      { code: "PH101", name: "Engineering Physics", credits: 4 },
+      { code: "EE101", name: "Basic Electrical Engineering", credits: 3 },
+      { code: "CS101", name: "Problem Solving & Programming", credits: 4 },
+      { code: "CS101L", name: "Programming Lab", credits: 2 }
+    ],
+    2: [
+      { code: "MA102", name: "Mathematics II", credits: 4 },
+      { code: "CY101", name: "Engineering Chemistry", credits: 4 },
+      { code: "ME101", name: "Engineering Graphics", credits: 3 },
+      { code: "CS102", name: "Data Structures", credits: 4 },
+      { code: "CS102L", name: "Data Structures Lab", credits: 2 }
+    ],
+    3: [
+      { code: "MA201", name: "Discrete Mathematics", credits: 4 },
+      { code: "CS201", name: "Object Oriented Programming", credits: 3 },
+      { code: "CS201L", name: "OOP Lab", credits: 2 },
+      { code: "CS202", name: "Digital Logic & Design", credits: 4 },
+      { code: "CS203", name: "Computer Architecture", credits: 3 }
+    ],
+    4: [
+      { code: "CS301", name: "Database Management Systems", credits: 4 },
+      { code: "CS301L", name: "DBMS Lab", credits: 2 },
+      { code: "CS302", name: "Operating Systems", credits: 4 },
+      { code: "CS303", name: "Design & Analysis of Algorithms", credits: 4 },
+      { code: "HU301", name: "Professional Ethics", credits: 2 }
+    ],
+    5: [
+      { code: "CS401", name: "Computer Networks", credits: 4 },
+      { code: "CS401L", name: "Networks Lab", credits: 2 },
+      { code: "CS402", name: "Software Engineering", credits: 3 },
+      { code: "CS403", name: "Formal Languages & Automata", credits: 4 },
+      { code: "CS499", name: "Mini Project I", credits: 3 }
+    ],
+    6: [
+      { code: "CS501", name: "Compiler Design", credits: 4 },
+      { code: "CS502", name: "Artificial Intelligence", credits: 4 },
+      { code: "CS503", name: "Web Technologies", credits: 3 },
+      { code: "CS503L", name: "Web Tech Lab", credits: 2 },
+      { code: "HU501", name: "English & Communication", credits: 2 }
+    ],
+    7: [
+      { code: "CS601", name: "Cloud Computing & Services", credits: 4 },
+      { code: "CS602", name: "Cryptography & Network Security", credits: 4 },
+      { code: "CS603", name: "Machine Learning", credits: 4 },
+      { code: "CS699", name: "Capstone Project Phase I", credits: 4 }
+    ],
+    8: [
+      { code: "CS701", name: "Cyber Security & Forensic Audits", credits: 3 },
+      { code: "CS702", name: "Professional Elective IV", credits: 3 },
+      { code: "CS799", name: "Capstone Project Phase II", credits: 10 }
+    ]
+  };
+
+  // 2. Timetable Generation (Split Batch Schedules)
+  const timetable: any[] = [];
+  const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+
+  depts.forEach((d) => {
+    for (let yr = 1; yr <= 4; yr++) {
+      const sem = year_mapping[yr].sem;
+      const subs = sem_subjects[sem] || sem_subjects[2];
+      
+      subs.forEach((sub, slot_idx) => {
+        const day = days[slot_idx % 5];
+        if (sub.code.endsWith("L")) {
+          // Division into split laboratory batches of 5 students
+          timetable.push({
+            id: `slot_${d}_${yr}_${sub.code}_g1`,
+            department: d, semester: sem, day: day, period_number: 5,
+            start_time: "14:00", end_time: "15:40", slot_type: "lab",
+            subject_code: sub.code, subject_name: `${sub.name} (Group 1)`,
+            room_number: "Lab-101", building: `${d} Block`, faculty_name: `Dr. Ramesh Kumar`
+          });
+          timetable.push({
+            id: `slot_${d}_${yr}_${sub.code}_g2`,
+            department: d, semester: sem, day: days[(slot_idx + 1) % 5], period_number: 5,
+            start_time: "14:00", end_time: "15:40", slot_type: "lab",
+            subject_code: sub.code, subject_name: `${sub.name} (Group 2)`,
+            room_number: "Lab-102", building: `${d} Block`, faculty_name: `Dr. Ramesh Kumar`
+          });
+        } else {
+          timetable.push({
+            id: `slot_${d}_${yr}_${sub.code}`,
+            department: d, semester: sem, day: day, period_number: slot_idx + 1,
+            start_time: `09:00`, end_time: `09:50`, slot_type: "lecture",
+            subject_code: sub.code, subject_name: sub.name,
+            room_number: `LH-${100 + yr}`, building: "Main Block", faculty_name: `Dr. Ramesh Kumar`
+          });
+        }
+      });
+    }
+  });
+
+  // 3. Results History & GPA Calculations
+  const results: any[] = [];
+  const creditProgresses: any[] = [];
+  const internalMarks: any[] = [];
+  const grade_points: Record<string, number> = { "O": 10.0, "A+": 9.0, "A": 8.0, "B+": 7.5, "B": 7.0, "C": 6.0 };
+  const grades = Object.keys(grade_points);
+
+  users.forEach((student) => {
+    if (student.role !== "student") return;
+    const curr_sem = student.semester || 4;
+    
+    // Previous semester results for higher years
+    for (let prev_sem = 1; prev_sem < curr_sem; prev_sem++) {
+      const subs = sem_subjects[prev_sem] || sem_subjects[1];
+      subs.forEach((sub, sidx) => {
+        const grade = grades[(sidx + student.email.length) % grades.length];
+        const gp = grade_points[grade];
+        
+        results.push({
+          id: `res_${student.id}_s${prev_sem}_${sub.code}`,
+          student_id: student.id,
+          semester: prev_sem,
+          subject_code: sub.code,
+          subject_name: sub.name,
+          credits: sub.credits,
+          grade: grade,
+          grade_points: gp,
+          exam_type: "regular",
+          published: true
+        });
+      });
+    }
+
+    creditProgresses.push({
+      student_id: student.id,
+      total_required: 160,
+      total_earned: Math.min((curr_sem - 1) * 20, 160),
+      core_earned: Math.min((curr_sem - 1) * 12, 100),
+      elective_earned: Math.min((curr_sem - 1) * 4, 30),
+      lab_earned: Math.min((curr_sem - 1) * 4, 30)
+    });
+
+    const curr_subs = sem_subjects[curr_sem] || sem_subjects[2];
+    curr_subs.forEach((sub) => {
+      ["cat1", "cat2", "model"].forEach((test) => {
+        internalMarks.push({
+          id: `int_${student.id}_${sub.code}_${test}`,
+          student_id: student.id,
+          subject_code: sub.code,
+          subject_name: sub.name,
+          semester: curr_sem,
+          test_type: test,
+          max_marks: 50.0,
+          marks_obtained: parseFloat((30.0 + (student.email.length % 5) * 3 + (test === "cat1" ? 4 : test === "cat2" ? 2 : 5)).toFixed(1))
+        });
+      });
+    });
+  });
+
+  // 4. Syllabus Generation
+  const syllabus: any[] = [];
+  depts.forEach((d) => {
+    for (let sem = 1; sem <= 8; sem++) {
+      const subs = sem_subjects[sem] || sem_subjects[1];
+      subs.forEach((sub) => {
+        for (let unit = 1; unit <= 5; unit++) {
+          syllabus.push({
+            id: `syl_${d}_s${sem}_${sub.code}_u${unit}`,
+            subject_code: sub.code,
+            subject_name: sub.name,
+            department: d,
+            semester: sem,
+            unit_number: unit,
+            unit_title: `Unit ${unit}: Core Concepts of ${sub.name}`,
+            topics: `Core structures of ${sub.name}, focusing on foundational engineering concepts, practical lab exercises, design patterns, and case studies.`,
+            hours: 10,
+            is_completed: unit < 4,
+            academic_year: "2025-2026",
+            version: 1
+          });
+        }
+      });
+    }
+  });
+
+  // 5. Exam Schedules (Multi-tier)
+  const exams: any[] = [];
+  const exam_types = ["internal_exam", "mid_semester", "end_semester", "model_paper", "placement_aptitude"];
+  depts.forEach((d) => {
+    for (let yr = 1; yr <= 4; yr++) {
+      const sem = year_mapping[yr].sem;
+      const subs = sem_subjects[sem] || sem_subjects[2];
+      subs.forEach((sub, sidx) => {
+        exam_types.forEach((etype, oidx) => {
+          const dateVal = new Date();
+          dateVal.setDate(dateVal.getDate() + 15 + sidx + oidx * 5);
+          exams.push({
+            id: `exam_${d}_y${yr}_${sub.code}_${etype}`,
+            subject_code: sub.code,
+            subject_name: sub.name,
+            department: d,
+            semester: sem,
+            exam_date: dateVal.toISOString().split("T")[0],
+            start_time: "09:30",
+            end_time: "12:30",
+            room_number: `LH-${300 + sidx}`,
+            building: "Central Exam Hall",
+            exam_type: etype
+          });
+        });
+      });
+    }
+  });
+
+  // 6. Library Collections & Renewals
+  const libraryBooks: any[] = [];
+  const libraryIssues: any[] = [];
+  const lib_types = ["Textbook", "Reference Book", "Journal", "Research Material"];
+  let b_counter = 0;
+  depts.forEach((d) => {
+    for (let i = 1; i <= 15; i++) {
+      b_counter++;
+      const category = lib_types[i % lib_types.length];
+      const title = `${d} Core Engineering ${category} - Vol ${i}`;
+      const author = `Prof. ${stud_firsts[i % 40]} ${stud_lasts[i % 40]}`;
+      const isbn = `978-3-16-148${1000 + b_counter}`;
+      
+      libraryBooks.push({
+        id: `lib_${b_counter}`,
+        title: title,
+        author: author,
+        isbn: isbn,
+        category: `${d} ${category}`,
+        total_copies: 5,
+        available_copies: 4,
+        shelf_location: `${d}-Rack ${i}`
+      });
+
+      libraryIssues.push({
+        id: `issue_${b_counter}`,
+        book_id: `lib_${b_counter}`,
+        student_id: `std_${(i % 39) + 1}`,
+        issued_date: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString().split("T")[0],
+        due_date: new Date(Date.now() + 10 * 24 * 3600 * 1000).toISOString().split("T")[0],
+        status: "active"
+      });
+    }
+  });
+
+  // 7. Placements & Job Openings
+  const jobs = [
+    { id: "job_1", company_name: "Google", role_title: "Graduate Engineer Trainee - Software Development", description: "Software Trainee at Google. Expertise in React/Node/PostgreSQL. Min CGPA: 8.0.", package_lpa: 24.5, min_cgpa: 8.0, eligible_departments: "CSE,ECE", eligible_batch_year: 2022, job_type: "placement", is_active: true, last_date_apply: "2026-06-15", drive_date: "2026-06-25" },
+    { id: "job_2", company_name: "Microsoft", role_title: "Cloud Support Engineer - AWS/Azure", description: "Cloud Engineer Trainee. Python & scripting. Min CGPA: 7.5.", package_lpa: 18.0, min_cgpa: 7.5, eligible_departments: "CSE,ECE", eligible_batch_year: 2022, job_type: "placement", is_active: true, last_date_apply: "2026-06-18", drive_date: "2026-06-28" },
+    { id: "job_3", company_name: "Qualcomm", role_title: "Silicon Verification Engineer", description: "Qualcomm chips testing and VLSI. Min CGPA: 8.0.", package_lpa: 22.0, min_cgpa: 8.0, eligible_departments: "ECE", eligible_batch_year: 2022, job_type: "placement", is_active: true, last_date_apply: "2026-06-12", drive_date: "2026-06-22" },
+    { id: "job_4", company_name: "Intel", role_title: "Embedded Systems Intern", description: "Firmware and microcontrollers development. Min CGPA: 7.0.", package_lpa: 8.0, min_cgpa: 7.0, eligible_departments: "ECE,Mech", eligible_batch_year: 2022, job_type: "internship", is_active: true, last_date_apply: "2026-06-10", drive_date: "2026-06-20" }
+  ];
+
+  // 8. PYQs
+  const questionPapers: any[] = [];
+  depts.forEach((d) => {
+    for (let yr = 1; yr <= 4; yr++) {
+      const sem = year_mapping[yr].sem;
+      const subs = sem_subjects[sem] || sem_subjects[1];
+      subs.forEach((sub) => {
+        exam_types.forEach((etype) => {
+          questionPapers.push({
+            id: `pyq_${d}_s${sem}_${sub.code}_${etype}`,
+            subject_code: sub.code,
+            subject_name: sub.name,
+            department: d,
+            semester: sem,
+            year: 2025,
+            exam_type: etype,
+            download_count: Math.floor(Math.random() * 800) + 100
+          });
+        });
+      });
+    }
+  });
+
+  // 9. Referral Hub Alumni
+  const alumni = [
+    { id: "alum_1", name: "Alumni Priya Sen", email: "alumnipriya@gmail.com", batch_year: 2021, department: "CSE", company: "Meta", designation: "Senior Software Engineer", linkedin_url: "https://linkedin.com/in/alumnipriya", is_open_to_referral: true },
+    { id: "alum_2", name: "Alumni Kartik Roy", email: "alumnikartik@gmail.com", batch_year: 2020, department: "ECE", company: "Qualcomm", designation: "Staff Verification Engineer", linkedin_url: "https://linkedin.com/in/alumnikartik", is_open_to_referral: true },
+    { id: "alum_3", name: "Alumni Vikram Gill", email: "alumnivikram@gmail.com", batch_year: 2022, department: "Mech", company: "Tesla", designation: "Mechanical Design Engineer", linkedin_url: "https://linkedin.com/in/alumnivikram", is_open_to_referral: true },
+    { id: "alum_4", name: "Alumni Pooja Hegde", email: "alumnipooja@gmail.com", batch_year: 2019, department: "Biomed", company: "Johnson & Johnson", designation: "Biomedical Systems Architect", linkedin_url: "https://linkedin.com/in/alumnipooja", is_open_to_referral: true }
+  ];
+
+  // 10. Team Finder Profiles
+  const teamProfiles: any[] = [];
+  const skills_list = ["React,TypeScript,Tailwind", "Python,FastAPI,SQL", "Figma,UI/UX,React", "C++,Embedded,RTOS", "Machine Learning,PyTorch", "Data Science,Pandas"];
+  for (let i = 0; i < 15; i++) {
+    const s = users[i];
+    const sem = s.semester || 4;
+    teamProfiles.push({
+      id: `team_${s.id}`,
+      user_id: s.id,
+      name: s.first_name + " " + s.last_name,
+      department: s.department,
+      year: sem <= 2 ? "1st Year" : sem <= 4 ? "2nd Year" : sem <= 6 ? "3rd Year" : "4th Year",
+      skills: skills_list[i % skills_list.length].split(","),
+      looking_for: `Collaborating on a project inside ${s.department} department`,
+      bio: `Enthusiastic developer looking for teammates to win hackathons.`,
+      match_pct: 75 + (i * 3) % 25
+    });
+  }
+
+  // 11. Skill Badge System
+  const badges = [
+    { id: "b1", name: "Python Developer", description: "Mastered scripting, algorithms & OOP in Python", category: "technical", icon: "terminal", color: "#4f46e5", points: 50, criteria: "Complete Python Workshop" },
+    { id: "b2", name: "Web Development", description: "Built and deployed rich responsive frontends in React", category: "technical", icon: "globe", color: "#06b6d4", points: 50, criteria: "Build a full stack React project" },
+    { id: "b3", name: "Machine Learning", description: "Trained and optimized deep neural network weights", category: "technical", icon: "brain", color: "#ec4899", points: 50, criteria: "Implement MLP/CNN layers offline" },
+    { id: "b4", name: "Data Analytics", description: "Analyzed complex datasets using Pandas & Numpy", category: "technical", icon: "bar-chart", color: "#10b981", points: 30, criteria: "Data Cleaning + Wrangling pipelines" },
+    { id: "b5", name: "Cloud Computing", description: "Successfully configured pipelines on AWS or GCP", category: "technical", icon: "cloud", color: "#eab308", points: 50, criteria: "Setup fully functional Docker CI pipelines" },
+    { id: "b6", name: "Problem Solving", description: "Solved 250+ technical logic algorithm tasks", category: "technical", icon: "cpu", color: "#f97316", points: 100, criteria: "Clear advanced aptitude coding tests" }
+  ];
+
+  // 12. Company Prep Module Questions
+  const companyPrep = [
+    { id: "pq_1", company_name: "Google", question_text: "Explain how a hash map resolves collisions using separate chaining vs linear probing. What is the time complexity in both cases?", category: "technical", year: 2025, upvotes: 142 },
+    { id: "pq_2", company_name: "Microsoft", question_text: "Given a binary tree, write a function to return its level order traversal. Explain spatial complexity of the queue-based implementation.", category: "technical", year: 2025, upvotes: 98 },
+    { id: "pq_3", company_name: "Qualcomm", question_text: "What is the difference between a mutex and a semaphore? In what scenarios would you choose one over the other in RTOS?", category: "technical", year: 2024, upvotes: 75 },
+    { id: "pq_4", company_name: "Amazon", question_text: "Explain the process of designing a URL Shortener system with horizontal database scaling. Detail memory caching strategies.", category: "technical", year: 2025, upvotes: 110 }
+  ];
+
+  // 13. Mock Test Platform
+  const mockTests = [
+    {
+      id: "test_1",
+      title: "Academic & Programming Mock Assessment I",
+      description: "Assess your logic, data structure, and technical aptitude. Consist of core programming questions.",
+      category: "aptitude",
+      duration_minutes: 30,
+      total_questions: 3,
+      difficulty: "medium",
+      is_active: true
+    }
+  ];
+
+  const mockTestQuestions = [
+    { id: "q1", test_id: "test_1", question_text: "What is the worst case complexity of Quick Sort?", option_a: "O(N)", option_b: "O(N log N)", option_c: "O(N^2)", option_d: "O(2^N)", correct_option: "c", explanation: "Pivot choice could lead to O(N^2) complexity in worst sorted sequences.", order_num: 1 },
+    { id: "q2", test_id: "test_1", question_text: "Which data structure operates on a Last In First Out (LIFO) basis?", option_a: "Queue", option_b: "Stack", option_c: "Tree", option_d: "Graph", correct_option: "b", explanation: "A stack is a LIFO linear data structure.", order_num: 2 },
+    { id: "q3", test_id: "test_1", question_text: "Which of the following is not an operating system?", option_a: "Linux", option_b: "Windows", option_c: "Oracle", option_d: "macOS", correct_option: "c", explanation: "Oracle is a database engine company, not an OS.", order_num: 3 }
+  ];
+
+  const completeDb = {
+    is_comprehensive: true,
+    users,
+    timetable,
+    results,
+    syllabus,
+    badges,
+    notices: [
+      { id: "n1", title: "End Semester Exams Schedule Published", content: "The end-semester examinations UG classes commence on June 15, 2026. Dates and halls are visible inside the Exam tab.", category: "academic", date: "2026-05-28" },
+      { id: "n2", title: "Split-Batch Laboratory Classes Formed", content: "To manage equipment availability, students are split into Group 1 and Group 2 inside your smart timetable schedules.", category: "general", date: "2026-05-29" }
+    ],
     projects: [
       {
         id: "p1",
         title: "University Super-App",
         description: "A comprehensive campus management system with React + Flask",
-        team_members: "Priya K.,Rahul S.",
+        team_members: "Priya K., Rahul S.",
         deadline: "2026-06-30",
         status: "in_progress",
         progress_pct: 40,
@@ -264,12 +499,52 @@ const getMockDb = () => {
     hostelPasses: [],
     canteenOrders: [],
     notifications: [],
-    attendanceSubjects: INITIAL_ATTENDANCE_SUBJECTS,
-    attendanceRecords: INITIAL_ATTENDANCE_RECORDS,
-    attendanceDiscrepancies: []
+    attendanceSubjects: [
+      { student_id: "std_1", subject_code: "CS301", subject_name: "Database Management Systems", total_classes: 25, present: 22, absent: 3, late: 0, on_duty: 0, leave: 0, percentage: 88.0 },
+      { student_id: "std_1", subject_code: "CS302", subject_name: "Operating Systems", total_classes: 24, present: 18, absent: 6, late: 0, on_duty: 0, leave: 0, percentage: 75.0 },
+      { student_id: "std_1", subject_code: "HU301", subject_name: "Professional Ethics", total_classes: 22, present: 19, absent: 3, late: 0, on_duty: 0, leave: 0, percentage: 86.4 }
+    ],
+    attendanceRecords: [
+      { id: "rec_1", session_id: "sess_1", student_id: "std_1", status: "absent", method: "bulk", marked_at: "2026-05-29T10:00:00Z", remarks: null, discrepancy_reported: false, discrepancy: null, session: { subject_code: "CS301", subject_name: "Database Management Systems", session_date: "2026-05-29", period_number: 1 } },
+      { id: "rec_2", session_id: "sess_2", student_id: "std_1", status: "present", method: "qr_scan", marked_at: "2026-05-28T09:00:00Z", remarks: null, discrepancy_reported: false, discrepancy: null, session: { subject_code: "CS302", subject_name: "Operating Systems", session_date: "2026-05-28", period_number: 2 } }
+    ],
+    attendanceDiscrepancies: [],
+    // Database collections
+    internalMarks,
+    creditProgresses,
+    exams,
+    libraryBooks,
+    libraryIssues,
+    jobs,
+    savedJobs: [],
+    jobApplications: [],
+    questionPapers,
+    alumni,
+    teamProfiles,
+    swipes: [],
+    matches: [],
+    messages: [],
+    companyPrep,
+    mockTests,
+    mockTestQuestions,
+    mockTestAttempts: []
   };
-  localStorage.setItem('mock_db', JSON.stringify(initialDb));
-  return initialDb;
+
+  localStorage.setItem('mock_db', JSON.stringify(completeDb));
+  return completeDb;
+};
+
+const getMockDb = () => {
+  const data = localStorage.getItem('mock_db');
+  if (data) {
+    try {
+      const parsedDb = JSON.parse(data);
+      if (parsedDb.is_comprehensive) {
+        return parsedDb;
+      }
+    } catch { /* fallback */ }
+  }
+  return seedComprehensiveMockDb();
 };
 
 const saveMockDb = (db: any) => {
@@ -941,6 +1216,360 @@ export const handleMockRequest = async (config: any): Promise<any> => {
         ]
       }
     };
+  }
+
+  // ==========================================
+  // Job & Placement Portal Routes
+  // ==========================================
+  if (cleanUrl === '/career/jobs' && method === 'get') {
+    return { status: 200, data: db.jobs };
+  }
+  if (cleanUrl === '/career/jobs/saved' && method === 'get') {
+    const saved = db.savedJobs || [];
+    const savedList = db.jobs.filter((j: any) => saved.includes(j.id));
+    return { status: 200, data: savedList };
+  }
+  if (cleanUrl === '/career/jobs/my-applications' && method === 'get') {
+    const apps = db.jobApplications || [];
+    const myApps = apps.filter((a: any) => a.student_id === activeUserId);
+    return { status: 200, data: myApps };
+  }
+  if (cleanUrl.startsWith('/career/jobs/') && cleanUrl.endsWith('/save') && method === 'post') {
+    const jid = cleanUrl.split('/')[3];
+    if (!db.savedJobs) db.savedJobs = [];
+    const idx = db.savedJobs.indexOf(jid);
+    if (idx !== -1) {
+      db.savedJobs.splice(idx, 1);
+    } else {
+      db.savedJobs.push(jid);
+    }
+    saveMockDb(db);
+    return { status: 200, data: { success: true, saved: db.savedJobs.includes(jid) } };
+  }
+  if (cleanUrl.startsWith('/career/jobs/') && cleanUrl.endsWith('/apply') && method === 'post') {
+    const jid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    if (!db.jobApplications) db.jobApplications = [];
+    const job = db.jobs.find((j: any) => j.id === jid);
+    if (job) {
+      const newApp = {
+        id: `app_${Date.now()}`,
+        job_id: jid,
+        student_id: activeUserId,
+        status: "applied",
+        applied_at: new Date().toISOString(),
+        resume_url: payload.resume_url || "https://cdn.veltech.edu.in/resumes/std_resume.pdf",
+        job: job
+      };
+      db.jobApplications.push(newApp);
+      saveMockDb(db);
+      return { status: 201, data: newApp };
+    }
+    return { status: 404, data: { error: "Job not found" } };
+  }
+
+  // ==========================================
+  // Library Portal Routes
+  // ==========================================
+  if (cleanUrl === '/campus/library/books' && method === 'get') {
+    const q = urlParams.get('q')?.toLowerCase() || '';
+    const books = db.libraryBooks || [];
+    const filtered = books.filter((b: any) => 
+      !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q) || b.category.toLowerCase().includes(q)
+    );
+    return { status: 200, data: filtered };
+  }
+  if (cleanUrl === '/campus/library/my-issues' && method === 'get') {
+    const issues = db.libraryIssues || [];
+    const myIssues = issues.filter((i: any) => i.student_id === activeUserId);
+    myIssues.forEach((issue: any) => {
+      issue.book = db.libraryBooks.find((b: any) => b.id === issue.book_id);
+    });
+    return { status: 200, data: myIssues };
+  }
+  if (cleanUrl.startsWith('/campus/library/renew/') && method === 'post') {
+    const issueId = cleanUrl.split('/').pop();
+    const issue = db.libraryIssues.find((i: any) => i.id === issueId);
+    if (issue) {
+      const oldDue = new Date(issue.due_date);
+      oldDue.setDate(oldDue.getDate() + 14);
+      issue.due_date = oldDue.toISOString().split("T")[0];
+      saveMockDb(db);
+      return { status: 200, data: { success: true, message: "Book renewed successfully!", due_date: issue.due_date } };
+    }
+    return { status: 404, data: { error: "Transaction not found" } };
+  }
+
+  // ==========================================
+  // Company Prep Routes
+  // ==========================================
+  if (cleanUrl.startsWith('/career/prep/') && method === 'get') {
+    const compStr = cleanUrl.split('/').pop() || '';
+    const q = decodeURIComponent(compStr).toLowerCase();
+    const list = db.companyPrep || [];
+    const filtered = list.filter((p: any) => p.company_name.toLowerCase().includes(q) || p.question_text.toLowerCase().includes(q));
+    return { status: 200, data: filtered };
+  }
+  if (cleanUrl.startsWith('/career/prep/') && cleanUrl.endsWith('/question') && method === 'post') {
+    const compStr = cleanUrl.split('/')[3] || '';
+    const company = decodeURIComponent(compStr);
+    const payload = getPayload(config.data);
+    const newQ = {
+      id: `prep_${Date.now()}`,
+      company_name: company,
+      question_text: payload.question_text,
+      category: payload.category || "technical",
+      year: parseInt(payload.year) || 2026,
+      upvotes: 0
+    };
+    db.companyPrep.push(newQ);
+    saveMockDb(db);
+    return { status: 201, data: newQ };
+  }
+  if (cleanUrl.startsWith('/career/prep/question/') && method === 'put') {
+    const qid = cleanUrl.split('/').pop();
+    const payload = getPayload(config.data);
+    const qIdx = db.companyPrep.findIndex((p: any) => p.id === qid);
+    if (qIdx !== -1) {
+      db.companyPrep[qIdx] = { ...db.companyPrep[qIdx], ...payload };
+      saveMockDb(db);
+      return { status: 200, data: db.companyPrep[qIdx] };
+    }
+  }
+  if (cleanUrl.startsWith('/career/prep/question/') && method === 'delete') {
+    const qid = cleanUrl.split('/').pop();
+    db.companyPrep = db.companyPrep.filter((p: any) => p.id !== qid);
+    saveMockDb(db);
+    return { status: 200, data: { success: true } };
+  }
+  if (cleanUrl.startsWith('/career/prep/question/') && cleanUrl.endsWith('/upvote') && method === 'post') {
+    const qid = cleanUrl.split('/')[4];
+    const q = db.companyPrep.find((p: any) => p.id === qid);
+    if (q) {
+      q.upvotes = (q.upvotes || 0) + 1;
+      saveMockDb(db);
+      return { status: 200, data: q };
+    }
+  }
+
+  // ==========================================
+  // Alumni & Referral Hub Routes
+  // ==========================================
+  if (cleanUrl === '/career/alumni/referral-hub' && method === 'get') {
+    return { status: 200, data: db.alumni };
+  }
+  if (cleanUrl === '/career/alumni' && method === 'get') {
+    const compFilter = urlParams.get('company')?.toLowerCase() || '';
+    const filtered = db.alumni.filter((a: any) => !compFilter || a.company.toLowerCase().includes(compFilter));
+    return { status: 200, data: filtered };
+  }
+
+  // ==========================================
+  // Team Finder Routes
+  // ==========================================
+  if (cleanUrl === '/career/team-finder/profile' && method === 'get') {
+    const profile = db.teamProfiles.find((t: any) => t.user_id === activeUserId);
+    return { status: 200, data: { profile: profile || null } };
+  }
+  if (cleanUrl === '/career/team-finder/profile' && method === 'post') {
+    const payload = getPayload(config.data);
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    let profile = db.teamProfiles.find((t: any) => t.user_id === activeUserId);
+    if (!profile) {
+      profile = {
+        id: `team_${activeUserId}`,
+        user_id: activeUserId,
+        name: activeUser ? `${activeUser.first_name} ${activeUser.last_name}` : "Student",
+        department: activeUser?.department || "CSE",
+        year: "3rd Year",
+        skills: payload.skills || [],
+        looking_for: payload.looking_for || "",
+        bio: payload.bio || "",
+        match_pct: 100
+      };
+      db.teamProfiles.push(profile);
+    } else {
+      profile.skills = payload.skills || [];
+      profile.looking_for = payload.looking_for || "";
+      profile.bio = payload.bio || "";
+    }
+    saveMockDb(db);
+    return { status: 200, data: { profile } };
+  }
+  if (cleanUrl === '/career/team-finder/profiles' && method === 'get') {
+    const swipedTargets = (db.swipes || [])
+      .filter((s: any) => s.user_id === activeUserId)
+      .map((s: any) => s.target_id);
+    
+    let list = db.teamProfiles.filter((t: any) => t.user_id !== activeUserId && !swipedTargets.includes(t.user_id));
+    return { status: 200, data: { profiles: list } };
+  }
+  if (cleanUrl === '/career/team-finder/swipe' && method === 'post') {
+    const payload = getPayload(config.data);
+    const { target_id, direction } = payload;
+    if (!db.swipes) db.swipes = [];
+    db.swipes.push({ user_id: activeUserId, target_id, direction });
+    
+    let is_match = false;
+    if (direction === 'right') {
+      is_match = Math.random() < 0.7;
+      if (is_match) {
+        if (!db.matches) db.matches = [];
+        const matchId = `match_${Date.now()}`;
+        db.matches.push({
+          id: matchId,
+          user1_id: activeUserId,
+          user2_id: target_id,
+          matched_at: new Date().toISOString()
+        });
+      }
+    }
+    saveMockDb(db);
+    return { status: 200, data: { success: true, is_match } };
+  }
+  if (cleanUrl === '/career/team-finder/matches' && method === 'get') {
+    const myMatches = (db.matches || []).filter((m: any) => m.user1_id === activeUserId || m.user2_id === activeUserId);
+    const matchesMapped = myMatches.map((m: any) => {
+      const otherId = m.user1_id === activeUserId ? m.user2_id : m.user1_id;
+      const otherUser = db.teamProfiles.find((t: any) => t.user_id === otherId);
+      return {
+        id: m.id,
+        matched_at: m.matched_at,
+        other_user: otherUser ? {
+          id: otherUser.user_id,
+          name: otherUser.name,
+          department: otherUser.department,
+          skills: otherUser.skills
+        } : null
+      };
+    });
+    return { status: 200, data: { matches: matchesMapped } };
+  }
+  if (cleanUrl.startsWith('/career/team-finder/messages/') && method === 'get') {
+    const matchId = cleanUrl.split('/').pop();
+    const chatMsgs = (db.messages || []).filter((msg: any) => msg.match_id === matchId);
+    return { status: 200, data: { messages: chatMsgs } };
+  }
+  if (cleanUrl.startsWith('/career/team-finder/messages/') && method === 'post') {
+    const matchId = cleanUrl.split('/').pop();
+    const payload = getPayload(config.data);
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    if (!db.messages) db.messages = [];
+    const newMsg = {
+      id: `msg_${Date.now()}`,
+      match_id: matchId,
+      sender_id: activeUserId,
+      sender_name: activeUser ? `${activeUser.first_name} ${activeUser.last_name}` : "Teammate",
+      content: payload.content,
+      sent_at: new Date().toISOString()
+    };
+    db.messages.push(newMsg);
+    saveMockDb(db);
+    return { status: 201, data: { message: newMsg } };
+  }
+  if (cleanUrl === '/career/team-finder/report' && method === 'post') {
+    const payload = getPayload(config.data);
+    if (!db.swipes) db.swipes = [];
+    db.swipes.push({ user_id: activeUserId, target_id: payload.reported_id, direction: 'left' });
+    saveMockDb(db);
+    return { status: 200, data: { success: true } };
+  }
+
+  // ==========================================
+  // Mock Test Routes
+  // ==========================================
+  if (cleanUrl === '/career/mock-tests' && method === 'get') {
+    return { status: 200, data: db.mockTests };
+  }
+  if (cleanUrl.startsWith('/career/mock-tests/') && cleanUrl.endsWith('/questions') && method === 'get') {
+    const tid = cleanUrl.split('/')[3];
+    const questions = db.mockTestQuestions.filter((q: any) => q.test_id === tid);
+    return { status: 200, data: questions };
+  }
+  if (cleanUrl.startsWith('/career/mock-tests/') && cleanUrl.endsWith('/submit') && method === 'post') {
+    const tid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    const questions = db.mockTestQuestions.filter((q: any) => q.test_id === tid);
+    
+    let score = 0;
+    const details = questions.map((q: any) => {
+      const selected = payload.answers?.[q.id] || '';
+      const isCorrect = selected.toLowerCase() === q.correct_option.toLowerCase();
+      if (isCorrect) score += 1;
+      return {
+        question_id: q.id,
+        selected_option: selected,
+        correct_option: q.correct_option,
+        is_correct: isCorrect
+      };
+    });
+
+    const attempt = {
+      id: `att_${Date.now()}`,
+      test_id: tid,
+      student_id: activeUserId,
+      score,
+      total_questions: questions.length,
+      percentage: parseFloat(((score / questions.length) * 100).toFixed(1)),
+      attempted_at: new Date().toISOString(),
+      details
+    };
+    if (!db.mockTestAttempts) db.mockTestAttempts = [];
+    db.mockTestAttempts.push(attempt);
+    saveMockDb(db);
+    return { status: 200, data: attempt };
+  }
+  if (cleanUrl === '/career/mock-tests' && method === 'post') {
+    const payload = getPayload(config.data);
+    const newTest = {
+      id: `test_${Date.now()}`,
+      title: payload.title,
+      description: payload.description || "",
+      category: payload.category || "aptitude",
+      duration_minutes: parseInt(payload.duration_minutes) || 30,
+      total_questions: parseInt(payload.total_questions) || 0,
+      difficulty: payload.difficulty || "medium",
+      is_active: true
+    };
+    db.mockTests.push(newTest);
+    saveMockDb(db);
+    return { status: 201, data: newTest };
+  }
+  if (cleanUrl.startsWith('/career/mock-tests/') && method === 'put') {
+    const tid = cleanUrl.split('/').pop();
+    const payload = getPayload(config.data);
+    const idx = db.mockTests.findIndex((t: any) => t.id === tid);
+    if (idx !== -1) {
+      db.mockTests[idx] = { ...db.mockTests[idx], ...payload };
+      saveMockDb(db);
+      return { status: 200, data: db.mockTests[idx] };
+    }
+  }
+  if (cleanUrl.startsWith('/career/mock-tests/') && method === 'delete') {
+    const tid = cleanUrl.split('/').pop();
+    db.mockTests = db.mockTests.filter((t: any) => t.id !== tid);
+    saveMockDb(db);
+    return { status: 200, data: { success: true } };
+  }
+
+  // ==========================================
+  // Exam Schedules Routes
+  // ==========================================
+  if (cleanUrl === '/academic/exams' && method === 'get') {
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    if (activeUser && activeUser.role === 'student') {
+      const studentExams = db.exams.filter((e: any) => e.department === activeUser.department && e.semester === activeUser.semester);
+      return { status: 200, data: studentExams };
+    }
+    return { status: 200, data: db.exams };
+  }
+
+  // ==========================================
+  // Previous Year Question Papers (PYQs)
+  // ==========================================
+  if (cleanUrl === '/academic/question-papers' && method === 'get') {
+    const papers = db.questionPapers || [];
+    return { status: 200, data: papers };
   }
 
   // Default fallback for any unmocked GET request
