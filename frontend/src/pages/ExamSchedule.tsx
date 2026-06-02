@@ -18,6 +18,7 @@ interface Exam {
   start_time: string;
   end_time: string;
   room_number: string | null;
+  building?: string | null;
   exam_type: string;
 }
 
@@ -520,74 +521,39 @@ const ExamSchedule = () => {
         </div>
       </div>
 
-      {/* Selected Exam Ticking Countdown Sheet */}
+      {/* Selected Exam Timetable Sheet */}
       {selectedExam && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in">
           <div className="bg-white w-full max-w-md rounded-t-[40px] p-6 pb-12 shadow-2xl animate-slide-up relative border-t border-slate-100">
             <button 
-              onClick={() => { setSelectedExam(null); setBotConsultMsg(false); }} 
-              className="absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold"
+              onClick={() => setSelectedExam(null)} 
+              className="absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold hover:bg-slate-200 transition-colors"
             >
               ✕
             </button>
             
-            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1.5">Exam Core Detail</p>
+            <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1.5">Exam Timetable Details</p>
             <h3 className="text-xl font-black text-slate-950 pr-8 leading-tight">{selectedExam.subject_name}</h3>
             <p className="text-xs text-slate-500 font-bold mt-1.5">{selectedExam.subject_code} · {examTypeLabel(selectedExam.exam_type)}</p>
 
-            {/* Countdown component */}
-            <div className="mt-5 mb-6">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">TIME REMAINING</p>
-              <ExamTimer targetDate={selectedExam.exam_date} startTime={selectedExam.start_time} />
-            </div>
-
             {/* Exam info summary */}
-            <div className="bg-slate-50 rounded-3xl p-4 border border-slate-100 flex flex-col gap-2.5 mb-6">
+            <div className="bg-slate-50 rounded-3xl p-5 border border-slate-100 flex flex-col gap-3.5 mt-5">
               <div className="flex justify-between items-center text-xs font-bold">
                 <span className="text-slate-400">Date:</span>
                 <span className="text-slate-800">{new Date(selectedExam.exam_date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
               </div>
               <div className="flex justify-between items-center text-xs font-bold">
-                <span className="text-slate-400">Time Cohort:</span>
+                <span className="text-slate-400">Time:</span>
                 <span className="text-slate-800">{selectedExam.start_time.slice(0, 5)} – {selectedExam.end_time.slice(0, 5)}</span>
               </div>
               <div className="flex justify-between items-center text-xs font-bold">
                 <span className="text-slate-400">Room Location:</span>
                 <span className="text-slate-800">{selectedExam.room_number || "To be allocated"}</span>
               </div>
-            </div>
-
-            {/* Direct Study Resources Row */}
-            <div className="flex flex-col gap-3">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Study Preparation Resources</p>
-              
-              <a 
-                href={`/academic/pyqs?code=${selectedExam.subject_code}`}
-                onClick={(e) => { e.preventDefault(); navigate(`/academic/pyqs`); }}
-                className="w-full bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-700 p-4 rounded-2xl flex flex-col items-center text-center gap-1.5 transition-colors"
-              >
-                <BookOpen className="w-5 h-5 text-rose-500" />
-                <span className="text-[11px] font-black tracking-wide uppercase">Download Previous Year Question Papers (PYQ)</span>
-              </a>
-
-              {/* Consult AI Study Assistant */}
-              <button 
-                onClick={() => setBotConsultMsg(true)}
-                className="w-full mt-2 bg-gradient-to-br from-[#22346c] to-indigo-950 text-white py-4 rounded-2xl text-xs font-black shadow-lg flex items-center justify-center gap-2 active:scale-98 transition-all hover:shadow-xl"
-              >
-                <Sparkles className="w-4 h-4 text-pink-400 animate-pulse" />
-                CONSULT AI STUDY ASSISTANT
-              </button>
-
-              {botConsultMsg && (
-                <div className="bg-slate-900 text-slate-200 border border-slate-800 rounded-2xl p-4 text-[11px] leading-relaxed font-semibold animate-fade-in flex gap-2">
-                  <Sparkles className="w-4 h-4 text-pink-400 shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-white uppercase tracking-wider text-[9px] mb-1">AI Recommendation</p>
-                    For <span className="text-pink-400 font-bold">{selectedExam.subject_name}</span>, focus heavily on the previous 3 years' question papers. Revise dynamic allocations, sorting algorithms, and heap constructs tonight!
-                  </div>
-                </div>
-              )}
+              <div className="flex justify-between items-center text-xs font-bold">
+                <span className="text-slate-400">Building:</span>
+                <span className="text-slate-800">{selectedExam.building || "Main Block"}</span>
+              </div>
             </div>
           </div>
         </div>

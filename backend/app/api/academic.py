@@ -497,67 +497,225 @@ def upload_exams_spreadsheet():
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
         
-    # Standard coordinator uploads parse and merge scheduled slots
-    # We will simulate parsing three slots: Midterm, Unit Test, and Model Exam
-    from datetime import date, time, timedelta
-    
-    # Check if there are already active exams, else seed them
-    today = date.today()
-    
-    parsed_exams = [
-        ExamSchedule(
-            subject_code='CS301',
-            subject_name='Data Structures',
-            department='CSE',
-            semester=4,
-            exam_date=today + timedelta(days=10),
-            start_time=time(10, 0),
-            end_time=time(12, 0),
-            room_number='LH-101',
-            building='Main Block',
-            exam_type='midterm'
-        ),
-        ExamSchedule(
-            subject_code='CS302',
-            subject_name='Digital Logic',
-            department='CSE',
-            semester=4,
-            exam_date=today + timedelta(days=5),
-            start_time=time(14, 0),
-            end_time=time(15, 30),
-            room_number='LH-102',
-            building='Main Block',
-            exam_type='unit'
-        ),
-        ExamSchedule(
-            subject_code='CS303',
-            subject_name='Operating Systems',
-            department='CSE',
-            semester=4,
-            exam_date=today + timedelta(days=15),
-            start_time=time(9, 30),
-            end_time=time(12, 30),
-            room_number='LH-103',
-            building='Central Exam Hall',
-            exam_type='model'
-        )
-    ]
-      
+    import pypdf
+    import re
+    import io
+    from datetime import datetime, date, time, timedelta
+
+    # Standard course mappings
+    KNOWN_COURSES = {
+        "CS101": "Intro to Programming",
+        "CS101L": "Programming Lab",
+        "MA101": "Mathematics I",
+        "PH101": "Engineering Physics",
+        "EN101": "English Communication",
+        "CS201": "Object Oriented Programming",
+        "CS201L": "OOP Lab",
+        "CS202": "Data Structures",
+        "CS202L": "DS Lab",
+        "MA102": "Mathematics II",
+        "CS302": "Computer Organization",
+        "CS303": "Database Management Systems",
+        "CS303L": "DBMS Lab",
+        "MA201": "Discrete Mathematics",
+        "CS399": "Mini Project I",
+        "CS301": "Data Structures & Alg.",
+        "CS303": "Operating Systems",
+        "CS305": "Theory of Computation",
+        "CS401": "Advanced Operating Systems",
+        "CS499": "Capstone Project",
+    }
+
+    try:
+        pdf_file = io.BytesIO(file.read())
+        reader = pypdf.PdfReader(pdf_file)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() + "\n"
+    except Exception as e:
+        return jsonify({"error": f"Failed to parse PDF file: {str(e)}"}), 400
+
+    lines = text.split('\n')
+    parsed_exams = []
+
+    # Compile regex patterns
+    course_pattern = re.compile(r'\b([A-Z]{2,4}\d{3}[A-Z]?)\b')
+    date_pattern = re.compile(r'\b(\d{4}-\d{2}-\d{2}|\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}|\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-zA-Z]*\s+\d{4})\b', re.IGNORECASE)
+    time_pattern = re.compile(r'\b(\d{1,2}[:.]\d{2})\s*(?:AM|PM|am|pm)?\s*(?:\-|to)\s*(\d{1,2}[:.]\d{2})\s*(?:AM|PM|am|pm)?\b', re.IGNORECASE)
+    room_pattern = re.compile(r'\b(LH-\d{3}|Rm\s*\d{3}|Room\s*\d{3}|\b[A-Z]\d{3}\b)\b', re.IGNORECASE)
+    exam_type_pattern = re.compile(r'\b(cat1|cat2|midterm|unit|model|end_semester|end[ \-_]semester|semester)\b', re.IGNORECASE)
+
+    # Determine general exam type of document if not found on individual lines
+    doc_type = "end_semester"
+    if "cat 1" in text.lower() or "cat1" in text.lower():
+        doc_type = "cat1"
+    elif "cat 2" in text.lower() or "cat2" in text.lower():
+        doc_type = "cat2"
+    elif "midterm" in text.lower() or "mid semester" in text.lower():
+        doc_type = "midterm"
+    elif "unit test" in text.lower() or "unit_test" in text.lower():
+        doc_type = "unit"
+    elif "model" in text.lower():
+        doc_type = "model"
+
+    for line in lines:
+        course_match = course_pattern.search(line)
+        if not course_match:
+            continue
+
+        subject_code = course_match.group(1).upper()
+
+        # Parse date
+        exam_date_val = None
+        date_match = date_pattern.search(line)
+        if date_match:
+            date_str = date_match.group(1)
+            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y", "%d-%m-%y"):
+                try:
+                    exam_date_val = datetime.strptime(date_str, fmt).date()
+                    break
+                except ValueError:
+                    continue
+            if not exam_date_val:
+                try:
+                    cleaned_date = re.sub(r'\s+', ' ', date_str).strip()
+                    for fmt in ("%d %b %Y", "%d %B %Y", "%d-%b-%Y", "%d-%B-%Y"):
+                        try:
+                            exam_date_val = datetime.strptime(cleaned_date, fmt).date()
+                            break
+                        except ValueError:
+                            continue
+                except Exception:
+                    pass
+
+        if not exam_date_val:
+            exam_date_val = date.today() + timedelta(days=10)
+
+        # Parse times
+        start_time_val = None
+        end_time_val = None
+        time_match = time_pattern.search(line)
+        if time_match:
+            try:
+                st_str = time_match.group(1).replace('.', ':')
+                et_str = time_match.group(2).replace('.', ':')
+                shour, smin = map(int, st_str.split(':'))
+                ehour, emin = map(int, et_str.split(':'))
+                start_time_val = time(shour, smin)
+                end_time_val = time(ehour, emin)
+            except Exception:
+                pass
+
+        if not start_time_val:
+            start_time_val = time(10, 0)
+            end_time_val = time(13, 0)
+
+        # Parse room
+        room_val = "LH-101"
+        room_match = room_pattern.search(line)
+        if room_match:
+            room_val = room_match.group(1).upper()
+
+        # Parse exam type
+        type_val = doc_type
+        type_match = exam_type_pattern.search(line)
+        if type_match:
+            matched_type = type_match.group(1).lower()
+            if "cat1" in matched_type:
+                type_val = "cat1"
+            elif "cat2" in matched_type:
+                type_val = "cat2"
+            elif "midterm" in matched_type:
+                type_val = "midterm"
+            elif "unit" in matched_type:
+                type_val = "unit"
+            elif "model" in matched_type:
+                type_val = "model"
+            elif "end" in matched_type or "semester" in matched_type:
+                type_val = "end_semester"
+
+        # Determine subject name
+        subject_name_val = KNOWN_COURSES.get(subject_code)
+        if not subject_name_val:
+            cleaned_line = line.replace(course_match.group(0), "")
+            if date_match:
+                cleaned_line = cleaned_line.replace(date_match.group(0), "")
+            if time_match:
+                cleaned_line = cleaned_line.replace(time_match.group(0), "")
+            if room_match:
+                cleaned_line = cleaned_line.replace(room_match.group(0), "")
+            cleaned_line = re.sub(r'[|,\-;:_]', ' ', cleaned_line)
+            cleaned_line = re.sub(r'\s+', ' ', cleaned_line).strip()
+            if cleaned_line and len(cleaned_line) > 3:
+                subject_name_val = cleaned_line
+            else:
+                subject_name_val = f"Subject {subject_code}"
+
+        # Department & Semester mapping
+        dept_val = "CSE"
+        sem_val = 4
+        if subject_code.startswith("MA"):
+            dept_val = "MATH"
+        elif subject_code.startswith("PH"):
+            dept_val = "PHYS"
+        elif subject_code.startswith("EN") or subject_code.startswith("HU"):
+            dept_val = "HUM"
+
+        parsed_exams.append(ExamSchedule(
+            subject_code=subject_code,
+            subject_name=subject_name_val,
+            department=dept_val,
+            semester=sem_val,
+            exam_date=exam_date_val,
+            start_time=start_time_val,
+            end_time=end_time_val,
+            room_number=room_val,
+            building="Main Block",
+            exam_type=type_val
+        ))
+
+    # If no exams parsed, check text generally for course codes
+    if not parsed_exams:
+        all_codes = course_pattern.findall(text)
+        if all_codes:
+            for code in set(all_codes):
+                code = code.upper()
+                parsed_exams.append(ExamSchedule(
+                    subject_code=code,
+                    subject_name=KNOWN_COURSES.get(code, f"Subject {code}"),
+                    department="CSE" if not code.startswith("MA") else "MATH",
+                    semester=4,
+                    exam_date=date.today() + timedelta(days=10),
+                    start_time=time(10, 0),
+                    end_time=time(13, 0),
+                    room_number="LH-101",
+                    building="Main Block",
+                    exam_type=doc_type
+                ))
+
     created = 0
+    updated = 0
     for new_exam in parsed_exams:
-        # Avoid duplicate code and exam_type slots
         exists = ExamSchedule.query.filter_by(
             subject_code=new_exam.subject_code,
             exam_type=new_exam.exam_type
         ).first()
-        if not exists:
+        if exists:
+            exists.exam_date = new_exam.exam_date
+            exists.start_time = new_exam.start_time
+            exists.end_time = new_exam.end_time
+            exists.room_number = new_exam.room_number
+            exists.building = new_exam.building
+            exists.subject_name = new_exam.subject_name
+            updated += 1
+        else:
             db.session.add(new_exam)
             created += 1
             
     db.session.commit()
     
     return jsonify({
-        "message": f"Successfully parsed spreadsheet. Registered {created} scheduled slots (Midterm, Unit Test, Model Exam)."
+        "message": f"Successfully parsed PDF timetable. Registered {created} new slots, updated {updated} existing slots."
     }), 201
 
 

@@ -3,6 +3,9 @@ import { ChevronLeft, GraduationCap, ArrowUpRight, Flame, Target, Lock, Unlock, 
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import BottomNav from '../components/BottomNav';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 interface CreditBreakdown {
   student_id: string;
@@ -181,13 +184,40 @@ const CreditDashboard = () => {
         responseType: 'blob'
       });
       const blob = new Blob([response.data], { type: 'application/pdf' });
-      const link = document.createElement('a');
-      link.href = window.URL.createObjectURL(blob);
-      link.download = `Degree_Audit_Student.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      triggerConfetti(); // celebrate on successful download!
+      
+      if (Capacitor.isNativePlatform()) {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const base64Data = (reader.result as string).split(',')[1];
+            const fileName = `Degree_Audit_Student.pdf`;
+            const fileResult = await Filesystem.writeFile({
+              path: fileName,
+              data: base64Data,
+              directory: Directory.Cache
+            });
+            await Share.share({
+              title: 'Degree Audit PDF',
+              text: 'VelTech University Degree Audit Report',
+              url: fileResult.uri,
+              dialogTitle: 'Save or Share PDF'
+            });
+            triggerConfetti();
+          } catch (err: any) {
+            console.error('Filesystem/Share error:', err);
+            alert("Failed to save or share PDF: " + err.message);
+          }
+        };
+        reader.readAsDataURL(blob);
+      } else {
+        const link = document.createElement('a');
+        link.href = window.URL.createObjectURL(blob);
+        link.download = `Degree_Audit_Student.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        triggerConfetti();
+      }
     } catch (err: any) {
       console.error(err);
       alert("Failed to download PDF Transcript. Check if you have passed all courses required.");
