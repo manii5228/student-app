@@ -178,6 +178,68 @@ def bunk_o_meter():
     return jsonify(result), 200
 
 
+@attendance_bp.route("/bunk-calculator", methods=["GET"])
+@jwt_required()
+@role_required("student", "guest")
+def bunk_calculator():
+    """
+    Calculate dynamic bunk limits globally and per-course.
+    """
+    student_id = resolve_student_identity(get_jwt_identity())
+    summary = attendance_service.get_bunk_o_meter(student_id)
+    subjects = summary.get("subjects", [])
+
+    total_global = 0
+    present_global = 0
+
+    subjects_calc = []
+    for s in subjects:
+        present = s.get("present", 0) + s.get("late", 0) + s.get("on_duty", 0)
+        total = s.get("total_classes", 0)
+        pct = s.get("percentage", 0.0)
+
+        total_global += total
+        present_global += present
+
+        if pct >= 75.0:
+            bunk_limit = int(present / 0.75) - total
+            consecutive = 0
+        else:
+            bunk_limit = 0
+            consecutive = 3 * total - 4 * present
+
+        subjects_calc.append({
+            "subject_code": s.get("subject_code"),
+            "subject_name": s.get("subject_name"),
+            "present": present,
+            "total": total,
+            "percentage": pct,
+            "safe": pct >= 75.0,
+            "bunk_limit": max(0, bunk_limit),
+            "consecutive_needed": max(0, consecutive)
+        })
+
+    global_pct = (present_global / total_global * 100) if total_global > 0 else 0.0
+    if global_pct >= 75.0:
+        global_bunk_limit = int(present_global / 0.75) - total_global
+        global_consecutive = 0
+    else:
+        global_bunk_limit = 0
+        global_consecutive = 3 * total_global - 4 * present_global
+
+    return jsonify({
+        "global": {
+            "present": present_global,
+            "total": total_global,
+            "percentage": round(global_pct, 2),
+            "safe": global_pct >= 75.0,
+            "bunk_limit": max(0, global_bunk_limit),
+            "consecutive_needed": max(0, global_consecutive)
+        },
+        "subjects": subjects_calc
+    }), 200
+
+
 # ── Faculty Sessions ──────────────────────────────────────────────
 
 @attendance_bp.route("/my-sessions", methods=["GET"])

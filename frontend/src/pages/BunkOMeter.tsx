@@ -79,6 +79,150 @@ const BunkOMeter = () => {
   const [submittingDispute, setSubmittingDispute] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Bunkometer Long Press States
+  const [pressTimer, setPressTimer] = useState<any>(null);
+  const [pressedItem, setPressedItem] = useState<{ type: 'global' | 'subject'; code?: string } | null>(null);
+  const [pressProgress, setPressProgress] = useState(0); // 0 to 100
+  const [longPressActive, setLongPressActive] = useState(false);
+  const [bunkCalcResult, setBunkCalcResult] = useState<{
+    title: string;
+    percentage: number;
+    safe: boolean;
+    bunk_limit: number;
+    consecutive_needed: number;
+    present: number;
+    total: number;
+  } | null>(null);
+
+  const startPress = (type: 'global' | 'subject', code?: string) => {
+    cancelPress();
+    setPressedItem({ type, code });
+
+    const intervalTime = 50; // ms
+    const increment = 100 / (5000 / intervalTime); // progress percentage per interval
+    let progress = 0;
+    
+    const interval = setInterval(() => {
+      progress += increment;
+      if (progress >= 100) {
+        clearInterval(interval);
+        setPressProgress(100);
+      } else {
+        setPressProgress(progress);
+      }
+    }, intervalTime);
+
+    const timer = setTimeout(() => {
+      clearInterval(interval);
+      setPressProgress(0);
+      setPressedItem(null);
+      if (navigator.vibrate) {
+        navigator.vibrate([100]);
+      }
+      triggerBunkCalculation(type, code);
+    }, 5000);
+
+    (timer as any)._interval = interval;
+    setPressTimer(timer);
+  };
+
+  const cancelPress = () => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      if (pressTimer._interval) {
+        clearInterval(pressTimer._interval);
+      }
+      setPressTimer(null);
+    }
+    setPressedItem(null);
+    setPressProgress(0);
+  };
+
+  const handleMouseDown = (type: 'global' | 'subject', code?: string) => {
+    if ('ontouchstart' in window) return;
+    startPress(type, code);
+  };
+
+  const triggerBunkCalculation = async (type: 'global' | 'subject', code?: string) => {
+    setLongPressActive(true);
+    try {
+      const { data } = await api.get('/attendance/bunk-calculator');
+      if (type === 'global') {
+        setBunkCalcResult({
+          title: 'Global Compliance Summary',
+          percentage: data.global.percentage,
+          safe: data.global.safe,
+          bunk_limit: data.global.bunk_limit,
+          consecutive_needed: data.global.consecutive_needed,
+          present: data.global.present,
+          total: data.global.total
+        });
+      } else {
+        const sub = data.subjects.find((s: any) => s.subject_code === code);
+        if (sub) {
+          setBunkCalcResult({
+            title: sub.subject_name,
+            percentage: sub.percentage,
+            safe: sub.safe,
+            bunk_limit: sub.bunk_limit,
+            consecutive_needed: sub.consecutive_needed,
+            present: sub.present,
+            total: sub.total
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load bunk calculations:", err);
+      // Local fallback
+      if (type === 'global') {
+        const total = subjects.reduce((sum, s) => sum + s.total_classes, 0);
+        const present = subjects.reduce((sum, s) => sum + s.present + s.late + s.on_duty, 0);
+        const pct = total > 0 ? (present / total * 100) : 0;
+        const safe = pct >= 75;
+        const bunk_limit = safe ? Math.floor(present / 0.75) - total : 0;
+        const consecutive = safe ? 0 : 3 * total - 4 * present;
+        setBunkCalcResult({
+          title: 'Global Compliance Summary (Local)',
+          percentage: Math.round(pct * 10) / 10,
+          safe,
+          bunk_limit: Math.max(0, bunk_limit),
+          consecutive_needed: Math.max(0, consecutive),
+          present,
+          total
+        });
+      } else {
+        const s = subjects.find(sub => sub.subject_code === code);
+        if (s) {
+          const present = s.present + s.late + s.on_duty;
+          const total = s.total_classes;
+          const pct = s.percentage;
+          const safe = pct >= 75;
+          const bunk_limit = safe ? Math.floor(present / 0.75) - total : 0;
+          const consecutive = safe ? 0 : 3 * total - 4 * present;
+          setBunkCalcResult({
+            title: s.subject_name,
+            percentage: pct,
+            safe,
+            bunk_limit: Math.max(0, bunk_limit),
+            consecutive_needed: Math.max(0, consecutive),
+            present,
+            total
+          });
+        }
+      }
+    }
+  };
+
+  const handleCardClick = (e: React.MouseEvent, code: string) => {
+    if (longPressActive) {
+      e.preventDefault();
+      e.stopPropagation();
+      setLongPressActive(false);
+      return;
+    }
+    setExpandedSubject(expandedSubject === code ? null : code);
+  };
+
   // Easter Egg States
   const [secretTapCount, setSecretTapCount] = useState(0);
   const [showSecretBunk, setShowSecretBunk] = useState(false);
@@ -244,7 +388,28 @@ const BunkOMeter = () => {
         </div>
 
         {/* Overall Stats Card */}
-        <div className="absolute left-6 right-6 bottom-0 translate-y-1/2 bg-white rounded-3xl p-5 shadow-xl border border-slate-100 text-slate-800">
+        <div 
+          onMouseDown={() => handleMouseDown('global')}
+          onMouseUp={cancelPress}
+          onMouseLeave={cancelPress}
+          onTouchStart={() => startPress('global')}
+          onTouchEnd={cancelPress}
+          className="absolute left-6 right-6 bottom-0 translate-y-1/2 bg-white rounded-3xl p-5 shadow-xl border border-slate-100 text-slate-800 select-none overflow-hidden"
+        >
+          {pressedItem && pressedItem.type === 'global' && (
+            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-[2px] rounded-3xl flex flex-col items-center justify-center text-white z-20 pointer-events-none animate-fade-in">
+              <div className="relative w-12 h-12 flex items-center justify-center">
+                <svg className="w-12 h-12 transform -rotate-90">
+                  <circle cx="24" cy="24" r="20" stroke="rgba(255,255,255,0.2)" strokeWidth="4" fill="transparent" />
+                  <circle cx="24" cy="24" r="20" stroke="#27bcd1" strokeWidth="4" fill="transparent" 
+                          strokeDasharray={2 * Math.PI * 20}
+                          strokeDashoffset={2 * Math.PI * 20 * (1 - pressProgress / 100)} />
+                </svg>
+                <span className="absolute text-[10px] font-black">{Math.ceil(5 - (pressProgress / 20))}s</span>
+              </div>
+              <p className="text-[10px] font-bold mt-2 uppercase tracking-widest text-cyan-200">Analyzing Slacking Threshold...</p>
+            </div>
+          )}
           <div className="flex items-center justify-between mb-2">
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cumulative Attendance</p>
@@ -408,15 +573,34 @@ const BunkOMeter = () => {
               return (
                 <div 
                   key={sub.subject_code}
-                  className={`rounded-3xl transition-all duration-300 border ${
+                  className={`rounded-3xl transition-all duration-300 border relative ${
                     !isSubSafe 
                       ? 'bg-red-50/50 border-red-200/50' 
                       : 'bg-white border-slate-100 shadow-sm'
                   }`}
                 >
+                  {pressedItem && pressedItem.type === 'subject' && pressedItem.code === sub.subject_code && (
+                    <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-[2px] rounded-3xl flex items-center justify-between px-6 text-white z-20 pointer-events-none animate-fade-in">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-cyan-200">Locking Bunkometer Matrix...</span>
+                      <div className="relative w-10 h-10 flex items-center justify-center shrink-0">
+                        <svg className="w-10 h-10 transform -rotate-90">
+                          <circle cx="20" cy="20" r="16" stroke="rgba(255,255,255,0.2)" strokeWidth="3" fill="transparent" />
+                          <circle cx="20" cy="20" r="16" stroke="#27bcd1" strokeWidth="3" fill="transparent" 
+                                  strokeDasharray={2 * Math.PI * 16}
+                                  strokeDashoffset={2 * Math.PI * 16 * (1 - pressProgress / 100)} />
+                        </svg>
+                        <span className="absolute text-[9px] font-black">{Math.ceil(5 - (pressProgress / 20))}s</span>
+                      </div>
+                    </div>
+                  )}
                   <button 
-                    onClick={() => setExpandedSubject(isExpanded ? null : sub.subject_code)}
-                    className="w-full text-left p-5 flex items-center justify-between"
+                    onClick={(e) => handleCardClick(e, sub.subject_code)}
+                    onMouseDown={() => handleMouseDown('subject', sub.subject_code)}
+                    onMouseUp={cancelPress}
+                    onMouseLeave={cancelPress}
+                    onTouchStart={() => startPress('subject', sub.subject_code)}
+                    onTouchEnd={cancelPress}
+                    className="w-full text-left p-5 flex items-center justify-between select-none"
                   >
                     <div className="flex-1">
                       <p className="text-sm font-black text-slate-800 leading-snug">{sub.subject_name}</p>
@@ -629,6 +813,88 @@ const BunkOMeter = () => {
                 )}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bunkometer Calculation Modal */}
+      {bunkCalcResult && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-100 animate-slide-up text-slate-800 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-600"></div>
+            
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Bunkometer Calculation</span>
+              <button 
+                onClick={() => {
+                  setBunkCalcResult(null);
+                  setLongPressActive(false);
+                }}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center"
+              >
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+
+            <h3 className="text-base font-black text-[#22346c] mb-1 leading-snug">{bunkCalcResult.title}</h3>
+            <p className="text-xs text-slate-400 font-bold mb-6">Academic Compliance Audit</p>
+
+            {/* Progress display */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="relative w-28 h-28 flex items-center justify-center">
+                <svg className="w-28 h-28 transform -rotate-90">
+                  <circle cx="56" cy="56" r="48" stroke="#f1f5f9" strokeWidth="8" fill="transparent" />
+                  <circle cx="56" cy="56" r="48" stroke={bunkCalcResult.safe ? "#10b981" : "#ef4444"} strokeWidth="8" fill="transparent" 
+                          strokeDasharray={2 * Math.PI * 48}
+                          strokeDashoffset={2 * Math.PI * 48 * (1 - bunkCalcResult.percentage / 100)} 
+                          strokeLinecap="round" />
+                </svg>
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-2xl font-black text-slate-800">{bunkCalcResult.percentage}%</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Attendance</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 font-bold mt-2">({bunkCalcResult.present} / {bunkCalcResult.total} total sessions)</p>
+            </div>
+
+            {/* Result box */}
+            <div className={`p-5 rounded-2xl border mb-6 text-left ${
+              bunkCalcResult.safe 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}>
+              {bunkCalcResult.safe ? (
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 mb-1">Status: COMPLIANT</p>
+                  <p className="text-xs font-black leading-relaxed">
+                    You can safely bunk <span className="text-base font-black underline decoration-2">{bunkCalcResult.bunk_limit}</span> more class{bunkCalcResult.bunk_limit === 1 ? '' : 'es'}.
+                  </p>
+                  <p className="text-[9px] text-emerald-500 font-bold mt-2 leading-relaxed">
+                    Your overall attendance will remain at or above the 75% threshold.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[9px] font-black uppercase tracking-widest text-red-600 mb-1">Status: NON-COMPLIANT</p>
+                  <p className="text-xs font-black leading-relaxed">
+                    You cannot bunk! You must attend <span className="text-base font-black underline decoration-2">{bunkCalcResult.consecutive_needed}</span> consecutive class{bunkCalcResult.consecutive_needed === 1 ? '' : 'es'}.
+                  </p>
+                  <p className="text-[9px] text-red-500 font-bold mt-2 leading-relaxed">
+                    Required to bring your percentage back to the safe 75% threshold.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <button 
+              onClick={() => {
+                setBunkCalcResult(null);
+                setLongPressActive(false);
+              }}
+              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 transition-colors text-white font-bold rounded-2xl text-xs uppercase tracking-wider shadow-md font-mono"
+            >
+              Acknowledge
+            </button>
           </div>
         </div>
       )}

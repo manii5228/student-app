@@ -1602,7 +1602,6 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     return { status: 200, data: db.canteenOrders };
   }
 
-  // Bunk-O-Meter Attendance
   if (cleanUrl === '/attendance/bunk-o-meter' && method === 'get') {
     const userSubjects = db.attendanceSubjects.filter((s: any) => s.student_id === activeUserId);
     if (userSubjects.length === 0) {
@@ -1612,6 +1611,70 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       return { status: 200, data: { subjects: userSeed } };
     }
     return { status: 200, data: { subjects: userSubjects } };
+  }
+
+  if (cleanUrl === '/attendance/bunk-calculator' && method === 'get') {
+    let userSubjects = db.attendanceSubjects.filter((s: any) => s.student_id === activeUserId);
+    if (userSubjects.length === 0) {
+      userSubjects = INITIAL_ATTENDANCE_SUBJECTS.map((s: any) => ({ ...s, student_id: activeUserId }));
+      db.attendanceSubjects.push(...userSubjects);
+      saveMockDb(db);
+    }
+
+    let total_global = 0;
+    let present_global = 0;
+
+    const subjects_calc = userSubjects.map((s: any) => {
+      const present = s.present + s.late + s.on_duty;
+      const total = s.total_classes;
+      const pct = s.percentage;
+
+      total_global += total;
+      present_global += present;
+
+      let bunk_limit = 0;
+      let consecutive = 0;
+      if (pct >= 75.0) {
+        bunk_limit = Math.floor(present / 0.75) - total;
+      } else {
+        consecutive = 3 * total - 4 * present;
+      }
+
+      return {
+        subject_code: s.subject_code,
+        subject_name: s.subject_name,
+        present: present,
+        total: total,
+        percentage: pct,
+        safe: pct >= 75.0,
+        bunk_limit: Math.max(0, bunk_limit),
+        consecutive_needed: Math.max(0, consecutive)
+      };
+    });
+
+    const global_pct = total_global > 0 ? (present_global / total_global * 100) : 0.0;
+    let global_bunk_limit = 0;
+    let global_consecutive = 0;
+    if (global_pct >= 75.0) {
+      global_bunk_limit = Math.floor(present_global / 0.75) - total_global;
+    } else {
+      global_consecutive = 3 * total_global - 4 * present_global;
+    }
+
+    return {
+      status: 200,
+      data: {
+        global: {
+          present: present_global,
+          total: total_global,
+          percentage: Math.round(global_pct * 100) / 100,
+          safe: global_pct >= 75.0,
+          bunk_limit: Math.max(0, global_bunk_limit),
+          consecutive_needed: Math.max(0, global_consecutive)
+        },
+        subjects: subjects_calc
+      }
+    };
   }
 
   if (cleanUrl === '/attendance/my-records' && method === 'get') {

@@ -1,30 +1,5 @@
 # Improvements: Project & Skill Management
 
-
-
----
-
-
- 
----
-
-
----
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 there lot of space in the team finder card lets aslo add team size feature or number of team and looking for and skills need to be centered and lower down the cards and swapping button and it also need to work with swipping 
 the dropdown need to be styled,complementary toogle button is dismatched
 the faculty need to accept students for projects and need to approve the project is completed. Make the changs in frontend and backend also
