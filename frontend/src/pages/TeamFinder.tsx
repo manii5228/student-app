@@ -241,8 +241,12 @@ const TeamFinder = () => {
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Department</label>
-                <select value={filterDept} onChange={e=>setFilterDept(e.target.value)} className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-[#22346c] focus:ring-1 focus:ring-[#22346c]/20">
+                <label className="text-[10px] font-bold text-[#22346c]/70 tracking-wider uppercase mb-1.5 block">Department</label>
+                <select 
+                  value={filterDept} 
+                  onChange={e=>setFilterDept(e.target.value)} 
+                  className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 hover:border-slate-300 transition-all duration-200 focus:outline-none focus:border-[#22346c] focus:ring-2 focus:ring-[#22346c]/10 text-slate-700 font-medium h-[36px]"
+                >
                   <option value="">All</option>
                   <option value="CSE">CSE</option><option value="ECE">ECE</option>
                   <option value="IT">IT</option><option value="EEE">EEE</option>
@@ -250,14 +254,23 @@ const TeamFinder = () => {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Skill</label>
-                <input value={filterSkill} onChange={e=>setFilterSkill(e.target.value)} placeholder="e.g. React" className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-[#22346c] focus:ring-1 focus:ring-[#22346c]/20"/>
+                <label className="text-[10px] font-bold text-[#22346c]/70 tracking-wider uppercase mb-1.5 block">Skill</label>
+                <input 
+                  value={filterSkill} 
+                  onChange={e=>setFilterSkill(e.target.value)} 
+                  placeholder="e.g. React" 
+                  className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 hover:border-slate-300 transition-all duration-200 focus:outline-none focus:border-[#22346c] focus:ring-2 focus:ring-[#22346c]/10 text-slate-700 font-medium h-[36px]"
+                />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Academic Year</label>
-                <select value={filterYear} onChange={e=>setFilterYear(e.target.value)} className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-[#22346c] focus:ring-1 focus:ring-[#22346c]/20">
+                <label className="text-[10px] font-bold text-[#22346c]/70 tracking-wider uppercase mb-1.5 block">Academic Year</label>
+                <select 
+                  value={filterYear} 
+                  onChange={e=>setFilterYear(e.target.value)} 
+                  className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 hover:border-slate-300 transition-all duration-200 focus:outline-none focus:border-[#22346c] focus:ring-2 focus:ring-[#22346c]/10 text-slate-700 font-medium h-[36px]"
+                >
                   <option value="">All</option>
                   <option value="1">1st Year</option>
                   <option value="2">2nd Year</option>
@@ -265,11 +278,18 @@ const TeamFinder = () => {
                   <option value="4">4th Year</option>
                 </select>
               </div>
-              <div className="flex items-center justify-between pt-4">
-                <span className="text-[10px] font-bold text-slate-500 uppercase leading-none">Complementary</span>
-                <button onClick={()=>setFilterComplementary(!filterComplementary)} className={`w-9 h-5 rounded-full relative transition-colors ${filterComplementary ? 'bg-[#22346c]' : 'bg-slate-300'}`}>
-                  <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.8 transition-all shadow-sm ${filterComplementary ? 'left-5' : 'left-0.5'}`}></div>
-                </button>
+              <div>
+                <label className="text-[10px] font-bold text-[#22346c]/70 tracking-wider uppercase mb-1.5 block">Complementary Skills</label>
+                <div className="flex items-center justify-between bg-white rounded-xl px-3 py-1.5 border border-slate-200 hover:border-slate-300 transition-all duration-200 h-[36px]">
+                  <span className="text-xs text-slate-500 font-medium">Toggle Match</span>
+                  <button 
+                    type="button"
+                    onClick={()=>setFilterComplementary(!filterComplementary)} 
+                    className={`w-9 h-5 rounded-full relative transition-colors duration-200 focus:outline-none ${filterComplementary ? 'bg-[#22346c]' : 'bg-slate-300'}`}
+                  >
+                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-[3px] transition-all duration-200 shadow-sm ${filterComplementary ? 'left-[18px]' : 'left-[3px]'}`}></div>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

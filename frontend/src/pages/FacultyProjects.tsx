@@ -76,7 +76,7 @@ const FacultyProjects = () => {
 
   // Filter projects by tab
   const filteredProjects = projects.filter(p => {
-    if (activeTab === 'pending') return p.faculty_status === 'pending';
+    if (activeTab === 'pending') return p.faculty_status === 'pending' || p.faculty_status === 'pending_completion';
     if (activeTab === 'active') return p.faculty_status === 'approved' && p.status !== 'completed';
     if (activeTab === 'completed') return p.status === 'completed';
     return false;
@@ -103,7 +103,7 @@ const FacultyProjects = () => {
       <div className="px-4 mt-5 mb-2 shrink-0">
         <div className="flex bg-white border border-slate-200/60 rounded-2xl p-1 shadow-sm">
           <button onClick={() => setActiveTab('pending')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'pending' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
-            Requests ({projects.filter(p => p.faculty_status === 'pending').length})
+            Requests ({projects.filter(p => p.faculty_status === 'pending' || p.faculty_status === 'pending_completion').length})
           </button>
           <button onClick={() => setActiveTab('active')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${activeTab === 'active' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
             Active ({projects.filter(p => p.faculty_status === 'approved' && p.status !== 'completed').length})
@@ -192,6 +192,28 @@ const FacultyProjects = () => {
                       >
                         <CheckCircle className="w-3.5 h-3.5 text-emerald-400"/> Accept Advisor
                       </button>
+                    </div>
+                  )}
+
+                  {p.faculty_status === 'pending_completion' && (
+                    <div className="mt-1 pt-3 border-t border-slate-100 flex flex-col gap-2">
+                      <div className="text-xs font-semibold text-cyan-700 bg-cyan-50/50 p-2.5 rounded-xl border border-cyan-100 mb-1">
+                        📢 Student has requested final sign-off and project completion approval.
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => handleDecline(p.id)}
+                          className="py-2.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border border-red-200"
+                        >
+                          <X className="w-3.5 h-3.5"/> Reject Completion
+                        </button>
+                        <button
+                          onClick={() => handleComplete(p.id)}
+                          className="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                          <BadgeCheck className="w-3.5 h-3.5 text-emerald-200"/> Approve Completion
+                        </button>
+                      </div>
                     </div>
                   )}
 

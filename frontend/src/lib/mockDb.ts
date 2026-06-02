@@ -2468,7 +2468,12 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     const payload = getPayload(config.data);
     const idx = db.projects.findIndex((p: any) => p.id === pid);
     if (idx !== -1) {
-      db.projects[idx] = { ...db.projects[idx], ...payload };
+      const p = db.projects[idx];
+      if (payload.faculty_id !== undefined && payload.faculty_id !== p.faculty_id) {
+        p.faculty_id = payload.faculty_id;
+        p.faculty_status = payload.faculty_id ? "pending" : "approved";
+      }
+      db.projects[idx] = { ...p, ...payload };
       saveMockDb(db);
       return { status: 200, data: { project: db.projects[idx] } };
     }
@@ -2547,8 +2552,12 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     const pid = cleanUrl.split('/')[3];
     const project = db.projects.find((p: any) => p.id === pid);
     if (project) {
-      project.faculty_status = 'declined';
-      project.status = 'declined';
+      if (project.faculty_status === 'pending_completion') {
+        project.faculty_status = 'approved';
+      } else {
+        project.faculty_status = 'declined';
+        project.status = 'declined';
+      }
       saveMockDb(db);
       return { status: 200, data: { project } };
     }
@@ -2558,9 +2567,33 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     const pid = cleanUrl.split('/')[3];
     const project = db.projects.find((p: any) => p.id === pid);
     if (project) {
-      project.status = 'completed';
-      project.faculty_status = 'completed';
-      project.progress_pct = 100;
+      const activeUser = db.users.find((u: any) => u.id === activeUserId);
+      const isFaculty = activeUser?.role === 'faculty' || project.faculty_id === activeUserId;
+      if (isFaculty) {
+        project.status = 'completed';
+        project.faculty_status = 'completed';
+        project.progress_pct = 100;
+        if (project.milestones) {
+          project.milestones.forEach((m: any) => {
+            m.column = 'done';
+            m.is_completed = true;
+          });
+        }
+      } else {
+        if (project.faculty_id) {
+          project.faculty_status = 'pending_completion';
+        } else {
+          project.status = 'completed';
+          project.faculty_status = 'completed';
+          project.progress_pct = 100;
+          if (project.milestones) {
+            project.milestones.forEach((m: any) => {
+              m.column = 'done';
+              m.is_completed = true;
+            });
+          }
+        }
+      }
       saveMockDb(db);
       return { status: 200, data: { project } };
     }

@@ -477,7 +477,7 @@ def accept_project(pid):
 @career_bp.route("/projects/<pid>/decline", methods=["POST"])
 @jwt_required()
 def decline_project(pid):
-    """Faculty declines student supervision request."""
+    """Faculty declines student supervision request or completion request."""
     p = db.session.get(Project, pid)
     if not p:
         return jsonify({"error": "Project not found"}), 404
@@ -485,27 +485,63 @@ def decline_project(pid):
     user = db.session.get(User, uid)
     if not user or user.role != UserRole.FACULTY or p.faculty_id != uid:
         return jsonify({"error": "Unauthorized"}), 403
-    p.faculty_status = "declined"
-    p.status = "declined"
+    
+    if p.faculty_status == "pending_completion":
+        p.faculty_status = "approved"  # Revert to approved so they can continue working
+        message = "Project completion request declined. Project remains active."
+    else:
+        p.faculty_status = "declined"
+        p.status = "declined"
+        message = "Project request declined."
+        
     db.session.commit()
-    return jsonify({"message": "Project request declined", "project": p.to_dict()}), 200
+    return jsonify({"message": message, "project": p.to_dict()}), 200
 
 
 @career_bp.route("/projects/<pid>/complete", methods=["POST"])
 @jwt_required()
 def complete_project(pid):
-    """Faculty or Student marks project as completed."""
+    """Faculty signs off and approves project completion, or Student requests it."""
     p = db.session.get(Project, pid)
     if not p:
         return jsonify({"error": "Project not found"}), 404
     uid = get_jwt_identity()
+    user = db.session.get(User, uid)
+    
+    # Check authorization
     if p.student_id != uid and p.faculty_id != uid:
         return jsonify({"error": "Unauthorized"}), 403
-    p.status = "completed"
-    p.progress_pct = 100
-    p.faculty_status = "completed"
-    db.session.commit()
-    return jsonify({"message": "Project completed", "project": p.to_dict()}), 200
+        
+    is_faculty = (user and user.role == UserRole.FACULTY) or (p.faculty_id == uid)
+    
+    if is_faculty:
+        # Faculty marks/approves completed
+        p.status = "completed"
+        p.faculty_status = "completed"
+        p.progress_pct = 100
+        # Automatically mark all milestones as done
+        for m in p.milestones:
+            m.column = "done"
+            m.is_completed = True
+            m.completed_at = datetime.now(timezone.utc)
+        db.session.commit()
+        return jsonify({"message": "Project approved and marked as completed", "project": p.to_dict()}), 200
+    else:
+        # Student marks/requests completion
+        if p.faculty_id:
+            p.faculty_status = "pending_completion"
+            db.session.commit()
+            return jsonify({"message": "Completion approval requested from advisor", "project": p.to_dict()}), 200
+        else:
+            p.status = "completed"
+            p.faculty_status = "completed"
+            p.progress_pct = 100
+            for m in p.milestones:
+                m.column = "done"
+                m.is_completed = True
+                m.completed_at = datetime.now(timezone.utc)
+            db.session.commit()
+            return jsonify({"message": "Project completed", "project": p.to_dict()}), 200
 
 
 @career_bp.route("/projects/<pid>", methods=["PUT"])
@@ -522,6 +558,11 @@ def update_project(pid):
     if "team_members" in data: p.team_members = data["team_members"]
     if "deadline" in data and data["deadline"]:
         p.deadline = dt_date.fromisoformat(data["deadline"].replace("Z", "").split("T")[0])
+    if "faculty_id" in data:
+        new_fid = data["faculty_id"]
+        if new_fid != p.faculty_id:
+            p.faculty_id = new_fid
+            p.faculty_status = "pending" if new_fid else "approved"
     db.session.commit()
     return jsonify({"project": p.to_dict()}), 200
 
@@ -602,10 +643,13 @@ def _update_project_progress(project):
     """Recalculate project progress based on milestone completion."""
     milestones = list(project.milestones)
     if milestones:
-        completed = sum(1 for m in milestones if m.is_completed)
+        completed = sum(1 for m in milestones if m.is_completed or m.column == "done")
         project.progress_pct = round((completed / len(milestones)) * 100)
         if project.progress_pct == 100:
-            project.status = "completed"
+            if project.faculty_id and project.faculty_status != "completed":
+                project.status = "in_progress"
+            else:
+                project.status = "completed"
         elif project.deadline and project.deadline < dt_date.today():
             project.status = "overdue"
         else:

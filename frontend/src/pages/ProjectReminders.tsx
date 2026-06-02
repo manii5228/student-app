@@ -36,6 +36,15 @@ const ProjectReminders = () => {
   // Collaboration indicators simulation
   const [collabNotification, setCollabNotification] = useState<string | null>(null);
 
+  const currentProject = projects.find(p => p.id === activeProject);
+  const teamMembers = currentProject?.team_members?.split(',').map(s=>s.trim()).filter(Boolean) || [];
+
+  const isLocked = currentProject?.faculty_id && (
+    currentProject.faculty_status === 'pending' || 
+    currentProject.faculty_status === 'pending_completion' || 
+    currentProject.faculty_status === 'completed'
+  );
+
   useEffect(() => {
     if (activeProject) {
       const timers = [
@@ -58,7 +67,8 @@ const ProjectReminders = () => {
   const fetchFaculties = async () => {
     try {
       const { data } = await api.get('/academic/faculty-directory');
-      setFaculties(data || []);
+      const list = data.faculty || data.faculties || (Array.isArray(data) ? data : []);
+      setFaculties(list);
     } catch {}
   };
 
@@ -90,6 +100,7 @@ const ProjectReminders = () => {
       await api.put(`/career/projects/${activeProject}`, {
         title: form.title, description: form.desc||undefined,
         deadline: form.deadline||undefined, team_members: form.team||undefined,
+        faculty_id: selectedFaculty || null
       });
       setShowEdit(false); fetchProjects();
     } catch{} setSubmitting(false);
@@ -106,6 +117,10 @@ const ProjectReminders = () => {
   };
 
   const handleCycleStatus = async (ms: MilestoneT) => {
+    if (isLocked) {
+      alert("Project is locked pending advisor action/completion.");
+      return;
+    }
     let nextCol = 'todo';
     if (ms.column === 'todo') {
       nextCol = 'in_progress';
@@ -126,6 +141,7 @@ const ProjectReminders = () => {
   };
 
   const createTask = async () => {
+    if (isLocked) return;
     if (!activeProject || !taskForm.title.trim()) return;
     setSubmitting(true);
     try {
@@ -158,6 +174,7 @@ const ProjectReminders = () => {
   };
 
   const moveMilestone = async (mid: string, newColumn: string) => {
+    if (isLocked) return;
     try {
       const {data} = await api.put(`/career/milestones/${mid}`, { column: newColumn });
       if (data && data.project) {
@@ -198,12 +215,10 @@ const ProjectReminders = () => {
 
   const daysLeft = (d:string|null) => { if(!d) return null; return Math.ceil((new Date(d).getTime()-Date.now())/(864e5)); };
 
-  const currentProject = projects.find(p => p.id === activeProject);
-  const teamMembers = currentProject?.team_members?.split(',').map(s=>s.trim()).filter(Boolean) || [];
-
   const handleDragStart = (mid: string) => setDragItem(mid);
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; };
   const handleDrop = (col: string) => {
+    if (isLocked) return;
     if (dragItem) { moveMilestone(dragItem, col); setDragItem(null); }
   };
 
@@ -251,7 +266,9 @@ const ProjectReminders = () => {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={()=>openAddTaskModal()} className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-xl text-[10px] font-bold hover:bg-cyan-100 flex items-center gap-1"><Plus className="w-3 h-3"/>Task</button>
+                  {!isLocked && (
+                    <button onClick={()=>openAddTaskModal()} className="px-3 py-1.5 bg-cyan-50 text-cyan-700 rounded-xl text-[10px] font-bold hover:bg-cyan-100 flex items-center gap-1"><Plus className="w-3 h-3"/>Task</button>
+                  )}
                   <button onClick={()=>del(currentProject.id)} className="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl text-[10px] font-bold hover:bg-red-100"><Trash2 className="w-3 h-3"/></button>
                 </div>
               </div>
@@ -283,14 +300,82 @@ const ProjectReminders = () => {
               )}
             </div>
           <div className="flex flex-col h-full p-4">
+            {/* Completion request banner */}
+            {currentProject.progress_pct === 100 && currentProject.faculty_id && currentProject.faculty_status === 'approved' && (
+              <div className="bg-gradient-to-r from-cyan-600 to-teal-600 rounded-2xl p-4 mb-4 text-white shadow-md flex items-center justify-between gap-3 animate-fade-in">
+                <div>
+                  <h4 className="text-xs font-bold">Project 100% Done! 🚀</h4>
+                  <p className="text-[10px] opacity-90">Please request completion sign-off from your advisor.</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    try {
+                      const { data } = await api.post(`/career/projects/${currentProject.id}/complete`);
+                      alert(data.message || "Completion approval requested!");
+                      fetchProjects();
+                    } catch {
+                      alert("Failed to send request.");
+                    }
+                  }}
+                  className="bg-white text-teal-700 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 hover:bg-slate-100 transition-colors shadow-sm animate-pulse"
+                >
+                  Request Sign-off
+                </button>
+              </div>
+            )}
+
+            {/* Advisor Status Alert Banners */}
+            {currentProject.faculty_id && (
+              <div className="mb-4">
+                {currentProject.faculty_status === 'pending' && (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-4 flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold">Awaiting Advisor Acceptance</h4>
+                      <p className="text-[10px] text-amber-600 mt-0.5">Your advisor request is pending. Dr. {faculties.find(f => f.id === currentProject.faculty_id)?.last_name || 'Advisor'} must accept the project before you can manage tasks.</p>
+                    </div>
+                  </div>
+                )}
+                {currentProject.faculty_status === 'declined' && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 rounded-2xl p-4 flex items-start gap-3">
+                    <X className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold">Supervision Request Declined</h4>
+                      <p className="text-[10px] text-red-650 mt-0.5">Your advisor declined to supervise this project. Please edit the project to select another advisor.</p>
+                    </div>
+                  </div>
+                )}
+                {currentProject.faculty_status === 'pending_completion' && (
+                  <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-2xl p-4 flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold">Completion Sign-off Pending</h4>
+                      <p className="text-[10px] text-blue-650 mt-0.5">You have requested project completion sign-off from your advisor. The workspace is currently locked.</p>
+                    </div>
+                  </div>
+                )}
+                {currentProject.faculty_status === 'completed' && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl p-4 flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold">Project Completed & Approved</h4>
+                      <p className="text-[10px] text-emerald-650 mt-0.5">This project is fully supervised, signed off, and marked as completed by your advisor.</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Status: {currentProject.status.replace('_', ' ')}</p>
                 {currentProject.last_modified_by && <p className="text-[10px] text-slate-400">Last edited by {currentProject.last_modified_by}</p>}
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={()=>{setForm({title:currentProject.title, desc:currentProject.description||'', deadline:currentProject.deadline||'', team:currentProject.team_members||''}); setShowEdit(true);}} className="text-xs font-bold bg-white text-cyan-600 px-3 py-1.5 rounded-lg shadow-sm border border-slate-200">Edit Project</button>
-                <button onClick={()=>openAddTaskModal()} className="text-xs font-bold bg-cyan-600 text-white px-3 py-1.5 rounded-lg shadow-md hover:bg-cyan-700 transition-colors">+ Task</button>
+                <button onClick={()=>{setForm({title:currentProject.title, desc:currentProject.description||'', deadline:currentProject.deadline||'', team:currentProject.team_members||''}); setSelectedFaculty(currentProject.faculty_id||''); setShowEdit(true);}} className="text-xs font-bold bg-white text-cyan-600 px-3 py-1.5 rounded-lg shadow-sm border border-slate-200">Edit Project</button>
+                {!isLocked && (
+                  <button onClick={()=>openAddTaskModal()} className="text-xs font-bold bg-cyan-600 text-white px-3 py-1.5 rounded-lg shadow-md hover:bg-cyan-700 transition-colors">+ Task</button>
+                )}
               </div>
             </div>
 
@@ -504,6 +589,19 @@ const ProjectReminders = () => {
             <div className="flex flex-col gap-4">
               <input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Project title *" className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-slate-200 focus:outline-none focus:border-cyan-400"/>
               <textarea value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} placeholder="Description" rows={3} className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400 resize-none"/>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Faculty Advisor / Mentor</label>
+                <select
+                  value={selectedFaculty}
+                  onChange={e => setSelectedFaculty(e.target.value)}
+                  className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-slate-200 focus:outline-none focus:border-cyan-400"
+                >
+                  <option value="">None (Self-supervised)</option>
+                  {faculties.map(f => (
+                    <option key={f.id} value={f.id}>Dr. {f.first_name} {f.last_name} ({f.department})</option>
+                  ))}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Deadline</label><input type="date" value={form.deadline} onChange={e=>setForm({...form,deadline:e.target.value})} className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400"/></div>
                 <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Team (comma sep.)</label><input value={form.team} onChange={e=>setForm({...form,team:e.target.value})} placeholder="Name, Name" className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400"/></div>
