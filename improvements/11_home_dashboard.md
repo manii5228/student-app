@@ -32,23 +32,14 @@
 
 ## Summary
 
-| # | Feature | Status |
-|---|---------|--------|
-| 1 | Dynamic Widgets / Card Layout | not Completed i want to reshape and darg and drop but this is not working |
-| 2 | Greeting & Day Overview | ✅ Completed |
-| 3 | Quick Action Bar | ✅ Completed |
-| 4 | Aggregated Feed API (`/home/feed`) | ✅ Completed |
-| 5 | Command Palette (Ctrl+K) | ✅ Completed |
-| 6 | Recent Searches & Trending | ✅ Completed |
-| 7 | Search Analytics Logging | ✅ Completed |
-| 8 | Notification Drawer + Categories | ✅ Completed |
-| 9 | Urgency Badges | ✅ Completed |
+
 | 10 | Recommendation Engine (ML) | ⏳ Balance |
 | 11 | Redis Caching Layer | ⏳ Balance |
 | 12 | Elasticsearch / Typesense | ⏳ Balance |
 | 13 | Push Notification Routing | ⏳ Balance |
 
-
-insteaD OF QUICK ACTIONS add the dargable wedigets 
+the dynamic wedigts ,rescalable like mobile app widgets so students darg and drop only their liked wedigts instead of all quick action
+instead OF QUICK ACTIONS add the dargable wedigets 
 the activity chart need ot be same as image
 
+for guest home page add image sliders from lavaza events

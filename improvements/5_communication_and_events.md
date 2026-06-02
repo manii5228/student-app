@@ -1,19 +1,12 @@
 # Status: Communication & Events
 
-
-
-
-
-
+remove all fake data from the notice board.
 in faculty/admin notice board section(broadcast) the select delivery channels should be delted both fron frontend and backend and add the 
-pdf or word or excel to be given to the notice board.
-
-no notices are coming to student  even if it updated in both faculties adn admins
-remove the canvas based certifacation instead add a skill badge to it
+pdf or word or excel from system like drop or drag feature to be given to the notice board.
 
 
-canteen preorder ,make it locked dont let the botton work.
- in the club section make the lavaza alone work and the others to make it locked i mean dont make it work.
+just remove present lock ui just make the buttons to disable for events,culbs,volunters
 
 
-
+in doucemnt scanner want to add multpile images for take photo and upload images,and upload images is redirecting to camer but not gallary.
+it need to able to download and delete after after 5mins
