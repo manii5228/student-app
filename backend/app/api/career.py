@@ -1240,6 +1240,9 @@ def list_mock_tests():
 @jwt_required()
 def get_test_questions(tid):
     """Get questions for a test (no answers revealed)."""
+    user = db.session.get(User, get_jwt_identity())
+    if user and user.role.value == "student":
+        return jsonify({"error": "Mock tests are suspended as part of VelTech Premium upgrade v1.0. Please contact administration."}), 403
     qs = MockTestQuestion.query.filter_by(test_id=tid)\
         .order_by(MockTestQuestion.order_num).all()
     return jsonify({"questions": [q.to_dict(show_answer=False) for q in qs]}), 200
@@ -1250,36 +1253,7 @@ def get_test_questions(tid):
 @role_required("student")
 def submit_test(tid):
     """Submit answers and get score."""
-    import json as json_lib
-    data = request.get_json()
-    answers = data.get("answers", {})  # {question_id: "a"}
-    questions = MockTestQuestion.query.filter_by(test_id=tid).all()
-    score = 0
-    total = len(questions)
-    results = []
-    for q in questions:
-        student_ans = answers.get(q.id, "")
-        is_correct = student_ans.lower() == q.correct_option.lower()
-        if is_correct:
-            score += 1
-        results.append({
-            "question_id": q.id, "correct_option": q.correct_option,
-            "student_answer": student_ans, "is_correct": is_correct,
-            "explanation": q.explanation,
-        })
-    attempt = MockTestAttempt(
-        test_id=tid, student_id=get_jwt_identity(),
-        answers_json=json_lib.dumps(answers),
-        score=score, total=total,
-        time_taken_seconds=data.get("time_taken_seconds"),
-    )
-    db.session.add(attempt)
-    db.session.commit()
-    return jsonify({
-        "score": score, "total": total,
-        "percentage": round((score / total * 100) if total else 0),
-        "results": results, "attempt": attempt.to_dict(),
-    }), 200
+    return jsonify({"error": "Mock tests are suspended as part of VelTech Premium upgrade v1.0. Please contact administration."}), 403
 
 
 @career_bp.route("/mock-tests/my-attempts", methods=["GET"])
