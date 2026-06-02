@@ -5,7 +5,7 @@ import {
   Calendar, CheckSquare, Upload, Clock, UserCheck,
   Briefcase, Target, BarChart3, Coffee, MapPin, Heart,
   AlertTriangle, RefreshCw, MessageSquare, ChevronRight,
-  BookOpen, GraduationCap, ClipboardList, Lock, X
+  BookOpen, GraduationCap, ClipboardList, Lock, X, FolderKanban
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -95,6 +95,7 @@ const FacultyHub = () => {
     { name: 'Company Prep', desc: 'Add prep material', icon: <FileText className="w-5 h-5 text-blue-600"/>, color: 'bg-blue-100', path: '/career/prep' },
     { name: 'Internships', desc: 'Track student internships', icon: <PenTool className="w-5 h-5 text-teal-600"/>, color: 'bg-teal-100', path: '/career/internships' },
     { name: 'Skill Badges', desc: 'Create & award skill badges', icon: <Target className="w-5 h-5 text-amber-600"/>, color: 'bg-amber-100', path: '/career/badges' },
+    { name: 'Supervised Projects', desc: 'Accept, decline & complete student projects', icon: <FolderKanban className="w-5 h-5 text-cyan-600"/>, color: 'bg-cyan-100', path: '/faculty/projects' },
   ];
 
   const handleCardClick = (name: string, path: string) => {

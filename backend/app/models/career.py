@@ -20,6 +20,8 @@ class Project(db.Model):
     deadline = db.Column(db.Date, nullable=True)
     status = db.Column(db.String(20), default="in_progress")  # in_progress, completed, overdue
     progress_pct = db.Column(db.Integer, default=0)
+    faculty_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
+    faculty_status = db.Column(db.String(20), default="pending")
     last_modified_by = db.Column(db.String(36), nullable=True)
     last_modified_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -32,6 +34,7 @@ class Project(db.Model):
             "description": self.description, "subject_code": self.subject_code,
             "team_members": self.team_members, "deadline": str(self.deadline) if self.deadline else None,
             "status": self.status, "progress_pct": self.progress_pct,
+            "faculty_id": self.faculty_id, "faculty_status": self.faculty_status,
             "last_modified_by": self.last_modified_by,
             "last_modified_at": self.last_modified_at.isoformat() if self.last_modified_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,

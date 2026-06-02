@@ -2336,6 +2336,152 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   }
 
   // ==========================================
+  // Projects & Milestones Routes
+  // ==========================================
+  if (cleanUrl === '/career/projects' && method === 'get') {
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    let list = db.projects || [];
+    if (activeUser && activeUser.role === 'faculty') {
+      list = list.filter((p: any) => p.faculty_id === activeUserId || p.student_id === 'std_1');
+    } else {
+      list = list.filter((p: any) => p.student_id === activeUserId || !p.student_id);
+    }
+    return { status: 200, data: { projects: list } };
+  }
+
+  if (cleanUrl === '/career/projects' && method === 'post') {
+    const payload = getPayload(config.data);
+    const newProj = {
+      id: `proj_${Date.now()}`,
+      student_id: activeUserId,
+      title: payload.title,
+      description: payload.description || "",
+      subject_code: payload.subject_code || "",
+      team_members: payload.team_members || "",
+      deadline: payload.deadline || null,
+      status: "in_progress",
+      progress_pct: 0,
+      faculty_id: payload.faculty_id || null,
+      faculty_status: payload.faculty_id ? "pending" : "approved",
+      milestones: (payload.milestones || []).map((m: any, idx: number) => ({
+        id: `ms_${Date.now()}_${idx}`,
+        title: m.title,
+        due_date: m.due_date || null,
+        column: m.column || "todo",
+        is_completed: m.is_completed || false,
+        assigned_to: m.assigned_to || null
+      }))
+    };
+    if (!db.projects) db.projects = [];
+    db.projects.push(newProj);
+    saveMockDb(db);
+    return { status: 201, data: { message: "Project created", project: newProj } };
+  }
+
+  if (cleanUrl.startsWith('/career/projects/') && method === 'put') {
+    const pid = cleanUrl.split('/').pop();
+    const payload = getPayload(config.data);
+    const idx = db.projects.findIndex((p: any) => p.id === pid);
+    if (idx !== -1) {
+      db.projects[idx] = { ...db.projects[idx], ...payload };
+      saveMockDb(db);
+      return { status: 200, data: { project: db.projects[idx] } };
+    }
+  }
+
+  if (cleanUrl.startsWith('/career/projects/') && method === 'delete') {
+    const pid = cleanUrl.split('/').pop();
+    db.projects = (db.projects || []).filter((p: any) => p.id !== pid);
+    saveMockDb(db);
+    return { status: 200, data: { success: true } };
+  }
+
+  if (cleanUrl.startsWith('/career/projects/') && cleanUrl.endsWith('/milestones') && method === 'post') {
+    const pid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    const project = db.projects.find((p: any) => p.id === pid);
+    if (project) {
+      const newMs = {
+        id: `ms_${Date.now()}`,
+        title: payload.title,
+        due_date: payload.due_date || null,
+        column: payload.column || "todo",
+        is_completed: payload.column === 'done',
+        assigned_to: payload.assigned_to || null
+      };
+      if (!project.milestones) project.milestones = [];
+      project.milestones.push(newMs);
+      
+      const doneCount = project.milestones.filter((m: any) => m.column === 'done').length;
+      project.progress_pct = Math.round((doneCount / project.milestones.length) * 100);
+      
+      saveMockDb(db);
+      return { status: 201, data: { milestone: newMs, project } };
+    }
+  }
+
+  if (cleanUrl.startsWith('/career/milestones/') && method === 'put') {
+    const mid = cleanUrl.split('/').pop();
+    const payload = getPayload(config.data);
+    let updatedProject: any = null;
+    
+    (db.projects || []).forEach((proj: any) => {
+      const ms = (proj.milestones || []).find((m: any) => m.id === mid);
+      if (ms) {
+        if (payload.column !== undefined) {
+          ms.column = payload.column;
+          ms.is_completed = payload.column === 'done';
+        }
+        if (payload.assigned_to !== undefined) {
+          ms.assigned_to = payload.assigned_to;
+        }
+        const doneCount = proj.milestones.filter((m: any) => m.column === 'done').length;
+        proj.progress_pct = Math.round((doneCount / proj.milestones.length) * 100);
+        updatedProject = proj;
+      }
+    });
+    
+    if (updatedProject) {
+      saveMockDb(db);
+      return { status: 200, data: { project: updatedProject } };
+    }
+  }
+
+  if (cleanUrl.startsWith('/career/projects/') && cleanUrl.endsWith('/accept') && method === 'post') {
+    const pid = cleanUrl.split('/')[3];
+    const project = db.projects.find((p: any) => p.id === pid);
+    if (project) {
+      project.faculty_status = 'approved';
+      project.status = 'in_progress';
+      saveMockDb(db);
+      return { status: 200, data: { project } };
+    }
+  }
+
+  if (cleanUrl.startsWith('/career/projects/') && cleanUrl.endsWith('/decline') && method === 'post') {
+    const pid = cleanUrl.split('/')[3];
+    const project = db.projects.find((p: any) => p.id === pid);
+    if (project) {
+      project.faculty_status = 'declined';
+      project.status = 'declined';
+      saveMockDb(db);
+      return { status: 200, data: { project } };
+    }
+  }
+
+  if (cleanUrl.startsWith('/career/projects/') && cleanUrl.endsWith('/complete') && method === 'post') {
+    const pid = cleanUrl.split('/')[3];
+    const project = db.projects.find((p: any) => p.id === pid);
+    if (project) {
+      project.status = 'completed';
+      project.faculty_status = 'completed';
+      project.progress_pct = 100;
+      saveMockDb(db);
+      return { status: 200, data: { project } };
+    }
+  }
+
+  // ==========================================
   // Badges Routes
   // ==========================================
   if (cleanUrl === '/career/badges' && method === 'get') {

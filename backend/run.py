@@ -26,6 +26,21 @@ with app.app_context():
             print("Successfully added hostel_status column via SQL.")
         except Exception as e:
             pass
+
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(projects)")
+            cols = [info[1] for info in cursor.fetchall()]
+            if 'faculty_id' not in cols:
+                cursor.execute("ALTER TABLE projects ADD COLUMN faculty_id TEXT")
+            if 'faculty_status' not in cols:
+                cursor.execute("ALTER TABLE projects ADD COLUMN faculty_status TEXT DEFAULT 'pending'")
+            conn.commit()
+            conn.close()
+            print("Successfully added faculty_id and faculty_status columns to projects via SQL.")
+        except Exception as e:
+            pass
     db.create_all()
 
     # 2. Seed default ID card templates if they do not exist

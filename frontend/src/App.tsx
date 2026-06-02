@@ -61,6 +61,7 @@ import FacultyResourceUploader from './pages/FacultyResourceUploader';
 import StudentMeetings from './pages/StudentMeetings';
 import FacultySyllabusTracker from './pages/FacultySyllabusTracker';
 import FacultyCareer from './pages/FacultyCareer';
+import FacultyProjects from './pages/FacultyProjects';
 import FacultyAssignmentGrader from './pages/FacultyAssignmentGrader';
 import FacultyReportGenerator from './pages/FacultyReportGenerator';
 import AdminHub from './pages/AdminHub';
@@ -249,6 +250,7 @@ function App() {
             <Route path="/faculty/mock-tests-manage" element={<FacultyRoute><FacultyResourceUploader /></FacultyRoute>} />
             <Route path="/faculty/student-performance" element={<FacultyRoute><FacultyMentees /></FacultyRoute>} />
             <Route path="/faculty/career" element={<FacultyRoute><FacultyCareer /></FacultyRoute>} />
+            <Route path="/faculty/projects" element={<FacultyRoute><FacultyProjects /></FacultyRoute>} />
 
             {/* Admin & Infrastructure Layer — Admin only */}
             <Route path="/admin" element={<AdminRoute><AdminHub /></AdminRoute>} />

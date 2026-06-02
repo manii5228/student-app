@@ -147,202 +147,15 @@ const PortfolioBuilder = () => {
 
   const handleDownloadPDF = () => {
     setActiveTab('preview');
-    // Build a fully self-contained beautifully-styled HTML resume download blob!
-    const docString = `
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>${portfolio.data.name || 'Student'}_Portfolio</title>
-    <style>
-      body {
-        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-        line-height: 1.6;
-        color: #1e293b;
-        background-color: #f8fafc;
-        margin: 0;
-        padding: 40px 20px;
-      }
-      .container {
-        max-width: 800px;
-        margin: 0 auto;
-        background: #ffffff;
-        border-radius: 24px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        border: 1px solid #e2e8f0;
-      }
-      .header {
-        background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
-        color: #ffffff;
-        padding: 48px;
-        text-align: center;
-      }
-      .avatar {
-        width: 96px;
-        height: 96px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 50%;
-        margin: 0 auto 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 36px;
-        font-weight: 900;
-        border: 2px solid rgba(255, 255, 255, 0.4);
-      }
-      h1 {
-        margin: 0;
-        font-size: 32px;
-        font-weight: 800;
-        letter-spacing: -0.025em;
-      }
-      .role {
-        font-size: 18px;
-        color: #bfdbfe;
-        font-weight: 600;
-        margin-top: 8px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      .content {
-        padding: 48px;
-      }
-      h2 {
-        font-size: 18px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: #64748b;
-        border-bottom: 2px solid #f1f5f9;
-        padding-bottom: 8px;
-        margin-top: 40px;
-        margin-bottom: 16px;
-      }
-      h2:first-of-type {
-        margin-top: 0;
-      }
-      .bio {
-        font-size: 16px;
-        color: #475569;
-        line-height: 1.75;
-        font-style: italic;
-      }
-      .skills-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .skill-tag {
-        background: #f1f5f9;
-        color: #334155;
-        padding: 8px 16px;
-        border-radius: 12px;
-        font-size: 14px;
-        font-weight: 600;
-        border: 1px solid #e2e8f0;
-      }
-      .projects-grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 20px;
-      }
-      @media(min-width: 600px) {
-        .projects-grid {
-          grid-template-columns: 1fr 1fr;
-        }
-      }
-      .project-card {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        border-top: 4px solid #4f46e5;
-      }
-      .project-title {
-        font-size: 16px;
-        font-weight: 800;
-        color: #0f172a;
-        margin: 0 0 8px 0;
-      }
-      .project-desc {
-        font-size: 13px;
-        color: #475569;
-        margin: 0;
-        line-height: 1.6;
-      }
-      .social-links {
-        display: flex;
-        justify-content: center;
-        gap: 16px;
-        margin-top: 24px;
-      }
-      .social-link {
-        color: #ffffff;
-        background: rgba(255, 255, 255, 0.1);
-        padding: 8px 20px;
-        border-radius: 9999px;
-        text-decoration: none;
-        font-size: 13px;
-        font-weight: bold;
-        transition: background 0.2s;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-      }
-      .social-link:hover {
-        background: rgba(255, 255, 255, 0.2);
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="header">
-        <div class="avatar">${portfolio.data.name?.charAt(0) || 'A'}</div>
-        <h1>${portfolio.data.name || 'Your Name'}</h1>
-        <div class="role">${portfolio.data.role || 'Your Professional Role'}</div>
-        <div class="social-links">
-          ${portfolio.data.links?.github ? `<a class="social-link" href="${portfolio.data.links.github}" target="_blank">GitHub</a>` : ''}
-          ${portfolio.data.links?.linkedin ? `<a class="social-link" href="${portfolio.data.links.linkedin}" target="_blank">LinkedIn</a>` : ''}
-        </div>
-      </div>
-      <div class="content">
-        <h2>About Me</h2>
-        <p class="bio">"${portfolio.data.bio || 'Professional bio details.'}"</p>
-        
-        <h2>Technical Skills</h2>
-        <div class="skills-grid">
-          ${(portfolio.data.skills || []).map(s => `<span class="skill-tag">${s}</span>`).join('')}
-        </div>
-        
-        <h2>Featured Projects</h2>
-        <div class="projects-grid">
-          ${(portfolio.data.projects || []).map(p => `
-            <div class="project-card">
-              <div class="project-title">${p.title}</div>
-              <p class="project-desc">${p.desc}</p>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    </div>
-  </body>
-</html>
-    `;
-    const blob = new Blob([docString], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${(portfolio.data.name || 'Student').replace(/\s+/g, '_')}_Portfolio.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   if (loading) return <div className="h-full flex items-center justify-center bg-slate-50"><span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></span></div>;
 
   return (
-    <div className="h-full bg-slate-50 flex flex-col font-sans relative pb-24 print:pb-0">
+    <div className="h-full bg-slate-50 flex flex-col font-sans relative pb-24 print:pb-0 print:bg-white print:h-auto">
 
       {/* NO-PRINT Header */}
       <div className="bg-slate-900 p-6 pt-12 shadow-md relative z-20 print:hidden">
@@ -378,8 +191,8 @@ const PortfolioBuilder = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto md:p-6 print:p-0">
-        <div className="max-w-3xl mx-auto w-full h-full flex flex-col gap-6 print:block">
+      <div className="flex-1 overflow-y-auto md:p-6 print:p-0 print:overflow-visible">
+        <div className="max-w-3xl mx-auto w-full h-full flex flex-col gap-6 print:block print:max-w-full print:h-auto">
           
           {/* EDITOR COLUMN */}
           <div className={`w-full flex flex-col gap-4 p-4 md:p-0 animate-fade-in print:hidden ${activeTab === 'edit' ? 'flex' : 'hidden'}`}>
@@ -521,7 +334,7 @@ const PortfolioBuilder = () => {
           </div>
 
           {/* PREVIEW COLUMN */}
-          <div className={`w-full flex flex-col items-center justify-start p-4 md:p-6 animate-fade-in print:p-0 bg-slate-200 rounded-3xl shadow-inner border border-slate-300/50 min-h-[600px] ${activeTab === 'preview' ? 'flex' : 'hidden'}`}>
+          <div className={`w-full flex flex-col items-center justify-start p-4 md:p-6 animate-fade-in print:p-0 print:bg-transparent print:shadow-none print:border-none min-h-[600px] print:min-h-0 ${activeTab === 'preview' ? 'flex' : 'hidden'}`}>
             <div className="w-full max-w-2xl min-h-[800px] shadow-2xl border border-slate-300 bg-white relative print:shadow-none print:border-none print:min-h-0 overflow-hidden print:overflow-visible rounded-2xl print:rounded-none">
 
               {portfolio.template === 'modern' && (
@@ -697,6 +510,39 @@ const PortfolioBuilder = () => {
       <div className="print:hidden">
         <BottomNav />
       </div>
+
+      <style>{`
+        @media print {
+          body, html {
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+          .print\:hidden {
+            display: none !important;
+          }
+          /* Ensure the preview container spans 100% of page */
+          div.bg-slate-200 {
+            background: transparent !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            min-height: 0 !important;
+          }
+          div.max-w-2xl {
+            max-width: 100% !important;
+            width: 100% !important;
+            box-shadow: none !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+            min-height: 0 !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

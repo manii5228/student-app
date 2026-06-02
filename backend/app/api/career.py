@@ -405,15 +405,16 @@ def get_aggregated_reminders():
 @career_bp.route("/projects", methods=["GET"])
 @jwt_required()
 def my_projects():
-    """Get projects — students see their own, faculty sees mentee projects."""
+    """Get projects — students see their own, faculty sees mentee and supervised projects."""
     uid = get_jwt_identity()
     user = db.session.get(User, uid)
     if user and user.role == UserRole.FACULTY:
-        # Faculty sees projects from all mentees
+        # Faculty sees projects from all mentees OR where they are the faculty_id
         mentees = User.query.filter_by(mentor_id=uid, role=UserRole.STUDENT).all()
         mentee_ids = [m.id for m in mentees]
-        projects = Project.query.filter(Project.student_id.in_(mentee_ids))\
-            .order_by(Project.created_at.desc()).all()
+        projects = Project.query.filter(
+            (Project.student_id.in_(mentee_ids)) | (Project.faculty_id == uid)
+        ).order_by(Project.created_at.desc()).all()
     else:
         projects = Project.query.filter_by(student_id=uid)\
             .order_by(Project.created_at.desc()).all()
@@ -426,12 +427,15 @@ def my_projects():
 def create_project():
     """Create a new project with milestones."""
     data = request.get_json()
+    fid = data.get("faculty_id")
     p = Project(
         student_id=get_jwt_identity(),
         title=data["title"],
         description=data.get("description"),
         subject_code=data.get("subject_code"),
         team_members=data.get("team_members"),
+        faculty_id=fid if fid else None,
+        faculty_status="pending" if fid else "approved"
     )
     if data.get("deadline"):
         p.deadline = dt_date.fromisoformat(data["deadline"].replace("Z", "").split("T")[0])
@@ -451,6 +455,57 @@ def create_project():
     # Auto-calculate progress
     _update_project_progress(p)
     return jsonify({"message": "Project created", "project": p.to_dict()}), 201
+
+
+@career_bp.route("/projects/<pid>/accept", methods=["POST"])
+@jwt_required()
+def accept_project(pid):
+    """Faculty accepts student supervision request."""
+    p = db.session.get(Project, pid)
+    if not p:
+        return jsonify({"error": "Project not found"}), 404
+    uid = get_jwt_identity()
+    user = db.session.get(User, uid)
+    if not user or user.role != UserRole.FACULTY or p.faculty_id != uid:
+        return jsonify({"error": "Unauthorized"}), 403
+    p.faculty_status = "approved"
+    p.status = "in_progress"
+    db.session.commit()
+    return jsonify({"message": "Project accepted successfully", "project": p.to_dict()}), 200
+
+
+@career_bp.route("/projects/<pid>/decline", methods=["POST"])
+@jwt_required()
+def decline_project(pid):
+    """Faculty declines student supervision request."""
+    p = db.session.get(Project, pid)
+    if not p:
+        return jsonify({"error": "Project not found"}), 404
+    uid = get_jwt_identity()
+    user = db.session.get(User, uid)
+    if not user or user.role != UserRole.FACULTY or p.faculty_id != uid:
+        return jsonify({"error": "Unauthorized"}), 403
+    p.faculty_status = "declined"
+    p.status = "declined"
+    db.session.commit()
+    return jsonify({"message": "Project request declined", "project": p.to_dict()}), 200
+
+
+@career_bp.route("/projects/<pid>/complete", methods=["POST"])
+@jwt_required()
+def complete_project(pid):
+    """Faculty or Student marks project as completed."""
+    p = db.session.get(Project, pid)
+    if not p:
+        return jsonify({"error": "Project not found"}), 404
+    uid = get_jwt_identity()
+    if p.student_id != uid and p.faculty_id != uid:
+        return jsonify({"error": "Unauthorized"}), 403
+    p.status = "completed"
+    p.progress_pct = 100
+    p.faculty_status = "completed"
+    db.session.commit()
+    return jsonify({"message": "Project completed", "project": p.to_dict()}), 200
 
 
 @career_bp.route("/projects/<pid>", methods=["PUT"])

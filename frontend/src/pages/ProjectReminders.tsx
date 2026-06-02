@@ -5,7 +5,7 @@ import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 
 interface MilestoneT { id: string; title: string; due_date: string | null; is_completed: boolean; column: string; assigned_to: string | null; }
-interface ProjectT { id: string; title: string; description: string|null; team_members: string|null; deadline: string|null; status: string; progress_pct: number; milestones: MilestoneT[]; last_modified_by: string|null; last_modified_at: string|null; }
+interface ProjectT { id: string; title: string; description: string|null; team_members: string|null; deadline: string|null; status: string; progress_pct: number; milestones: MilestoneT[]; last_modified_by: string|null; last_modified_at: string|null; faculty_id?: string|null; faculty_status?: string|null; }
 
 const COLUMNS = [
   { key: 'todo', label: 'To Do', color: 'bg-slate-100', accent: 'border-slate-300', badge: 'bg-slate-200 text-slate-600', icon: <Circle className="w-3.5 h-3.5" /> },
@@ -26,6 +26,8 @@ const ProjectReminders = () => {
   const [dragItem, setDragItem] = useState<string|null>(null);
   const [assignModal, setAssignModal] = useState<{mid: string; members: string[]}|null>(null);
   const [showEdit, setShowEdit] = useState(false);
+  const [faculties, setFaculties] = useState<any[]>([]);
+  const [selectedFaculty, setSelectedFaculty] = useState<string>('');
 
   // Custom Task Modal
   const [showTaskModal, setShowTaskModal] = useState(false);
@@ -48,7 +50,17 @@ const ProjectReminders = () => {
     }
   }, [activeProject]);
 
-  useEffect(() => { fetchProjects(); }, []);
+  useEffect(() => { 
+    fetchProjects(); 
+    fetchFaculties();
+  }, []);
+
+  const fetchFaculties = async () => {
+    try {
+      const { data } = await api.get('/academic/faculty-directory');
+      setFaculties(data || []);
+    } catch {}
+  };
 
   const fetchProjects = async () => {
     try { const {data} = await api.get('/career/projects'); setProjects(data.projects||[]); } catch{}
@@ -66,8 +78,9 @@ const ProjectReminders = () => {
         title: form.title, description: form.desc,
         deadline: form.deadline, team_members: form.team,
         milestones: newMs,
+        faculty_id: selectedFaculty || undefined
       });
-      setShowCreate(false); setForm({title:'',desc:'',deadline:'',team:''}); setNewMs([]); fetchProjects();
+      setShowCreate(false); setForm({title:'',desc:'',deadline:'',team:''}); setNewMs([]); setSelectedFaculty(''); fetchProjects();
     } catch{} setSubmitting(false);
   };
 
@@ -377,6 +390,19 @@ const ProjectReminders = () => {
                         <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase ${p.status==='completed'?'bg-emerald-100 text-emerald-700':p.status==='overdue'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'}`}>{p.status.replace('_',' ')}</span>
                       </div>
                       {p.description && <p className="text-xs text-slate-500 line-clamp-1">{p.description}</p>}
+                      {p.faculty_id && (
+                        <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[9px] font-bold text-slate-400">Advisor Status:</span>
+                          <span className={`text-[8.5px] font-extrabold px-2 py-0.5 rounded-full uppercase border ${
+                            p.faculty_status === 'approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            p.faculty_status === 'declined' ? 'bg-red-50 text-red-705 border-red-200' :
+                            p.faculty_status === 'completed' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            'bg-amber-50 text-amber-600 border-amber-200 animate-pulse'
+                          }`}>
+                            {p.faculty_status}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="relative w-12 h-12 shrink-0">
                       <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36"><path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e2e8f0" strokeWidth="3"/><path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={p.progress_pct===100?'#10b981':p.status==='overdue'?'#ef4444':'#06b6d4'} strokeWidth="3" strokeDasharray={`${p.progress_pct}, 100`} strokeLinecap="round"/></svg>
@@ -387,7 +413,7 @@ const ProjectReminders = () => {
                     {p.deadline && <span className={`text-[10px] font-bold flex items-center gap-1 px-2 py-1 rounded-lg ${d!==null&&d<0?'bg-red-50 text-red-600':d!==null&&d<=3?'bg-amber-50 text-amber-600':'bg-slate-50 text-slate-500'}`}><Calendar className="w-3 h-3"/>{d!==null&&d<0?`${Math.abs(d)}d overdue`:d===0?'Due today':`${d}d left`}</span>}
                     {p.team_members && <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Users className="w-3 h-3"/>{p.team_members.split(',').length}</span>}
                     {/* Mini Kanban indicator */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 font-sans">
                       <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">{todo}</span>
                       <span className="text-[9px] font-bold bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded">{doing}</span>
                       <span className="text-[9px] font-bold bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded">{done}</span>
@@ -436,6 +462,19 @@ const ProjectReminders = () => {
             <div className="flex flex-col gap-4">
               <input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Project title *" className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-slate-200 focus:outline-none focus:border-cyan-400"/>
               <textarea value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} placeholder="Description" rows={2} className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400 resize-none"/>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1.5 block">Faculty Advisor / Mentor</label>
+                <select
+                  value={selectedFaculty}
+                  onChange={e => setSelectedFaculty(e.target.value)}
+                  className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-sm font-medium border border-slate-200 focus:outline-none focus:border-cyan-400"
+                >
+                  <option value="">None (Self-supervised)</option>
+                  {faculties.map(f => (
+                    <option key={f.id} value={f.id}>Dr. {f.first_name} {f.last_name} ({f.department})</option>
+                  ))}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Deadline</label><input type="date" value={form.deadline} onChange={e=>setForm({...form,deadline:e.target.value})} className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400"/></div>
                 <div><label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Team (comma sep.)</label><input value={form.team} onChange={e=>setForm({...form,team:e.target.value})} placeholder="Name, Name" className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400"/></div>

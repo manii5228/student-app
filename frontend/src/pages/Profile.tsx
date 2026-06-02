@@ -5,7 +5,8 @@ import {
   Trash2, LogOut, Fingerprint, Shield, Key,
   Plus, X, CheckCircle, AlertTriangle, CreditCard,
   Palette, User, Link2, Globe, Edit3, Save, Camera,
-  RefreshCw, Laptop, Mail, ExternalLink, Trash
+  RefreshCw, Laptop, Mail, ExternalLink, Trash,
+  Award, Star, Code, BookOpen
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -132,10 +133,39 @@ const Profile = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scanTimeoutRef = useRef<any>(null);
 
+  // Skills, Badges & Projects Dynamic Sync State
+  const [myProjects, setMyProjects] = useState<any[]>([]);
+  const [myBadges, setMyBadges] = useState<any[]>([]);
+  const [mySkills, setMySkills] = useState<string[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(true);
+
+  const fetchDetailsData = async () => {
+    setLoadingDetails(true);
+    try {
+      const [projectsRes, badgesRes, skillProfileRes] = await Promise.all([
+        api.get('/career/projects'),
+        api.get('/career/badges/my-badges'),
+        api.get('/career/team-finder/profile').catch(() => ({ data: { profile: null } }))
+      ]);
+      setMyProjects(projectsRes.data.projects || []);
+      setMyBadges(badgesRes.data.earned_badges || []);
+      if (skillProfileRes.data?.profile) {
+        setMySkills(skillProfileRes.data.profile.skills || []);
+      } else {
+        setMySkills([]);
+      }
+    } catch (err) {
+      console.warn('Failed to load profile details data:', err);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
     fetchSessions();
     fetchBiometrics();
+    fetchDetailsData();
   }, []);
 
   const fetchProfile = async () => {
@@ -1028,6 +1058,147 @@ const Profile = () => {
                   <p className="text-xs text-center py-4" style={{ color: C.textSecondary }}>No custom links added yet.</p>
                 )}
               </div>
+            </div>
+
+            {/* Skills & Badges Section */}
+            <div className="rounded-2xl p-5 border flex flex-col gap-4" style={{ background: C.card, borderColor: C.border }}>
+              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: C.border }}>
+                <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: C.textPrimary }}>
+                  <Award className="w-4 h-4" style={{ color: C.blue }} /> Skills & Badges
+                </h4>
+                <div className="flex gap-2">
+                  <button onClick={() => navigate('/career/team-finder')} className="text-[10px] font-bold text-white px-2.5 py-1 rounded-lg" style={{ background: C.blue }}>
+                    Update Skills
+                  </button>
+                  <button onClick={() => navigate('/career/badges')} className="text-[10px] font-bold text-white px-2.5 py-1 rounded-lg" style={{ background: C.navy }}>
+                    View Badges
+                  </button>
+                </div>
+              </div>
+
+              {loadingDetails ? (
+                <div className="flex justify-center py-6">
+                  <span className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {/* Skills List */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: C.textSecondary }}>Active Skills (Team Finder)</p>
+                    {mySkills.length === 0 ? (
+                      <p className="text-xs italic" style={{ color: C.textSecondary }}>No skills added. Tap Update Skills to configure your match profile.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {mySkills.map((skill, idx) => (
+                          <span key={idx} className="text-[10px] font-bold px-2.5 py-1 rounded-lg" style={{ background: '#f1f5f9', color: C.textPrimary, border: `1px solid ${C.border}` }}>
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Badges List */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: C.textSecondary }}>Earned Badges ({myBadges.length})</p>
+                    {myBadges.length === 0 ? (
+                      <p className="text-xs italic" style={{ color: C.textSecondary }}>No badges earned yet. Complete projects and attend workshops to earn credentials.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        {myBadges.map((eb, idx) => {
+                          const b = eb?.badge; if (!b) return null;
+                          return (
+                            <div key={eb.id || idx} className="flex items-center gap-2.5 p-2 rounded-xl border animate-fade-in" style={{ borderColor: C.border, background: C.bg }}>
+                              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-sm shrink-0">
+                                <Award className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-bold truncate" style={{ color: C.textPrimary }}>{b.name}</p>
+                                <p className="text-[9px] font-semibold" style={{ color: C.textSecondary }}>{b.points} Points</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Capstone Projects Section */}
+            <div className="rounded-2xl p-5 border flex flex-col gap-4" style={{ background: C.card, borderColor: C.border }}>
+              <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: C.border }}>
+                <h4 className="text-sm font-bold flex items-center gap-2" style={{ color: C.textPrimary }}>
+                  <BookOpen className="w-4 h-4" style={{ color: C.blue }} /> Capstone Project Tracker
+                </h4>
+                <button onClick={() => navigate('/career/projects')} className="text-[10px] font-bold text-white px-2.5 py-1 rounded-lg" style={{ background: C.blue }}>
+                  Track Projects
+                </button>
+              </div>
+
+              {loadingDetails ? (
+                <div className="flex justify-center py-6">
+                  <span className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
+                </div>
+              ) : myProjects.length === 0 ? (
+                <div className="text-center py-6">
+                  <p className="text-xs italic" style={{ color: C.textSecondary }}>No projects registered yet.</p>
+                  <p className="text-[10px] mt-1" style={{ color: C.textSecondary }}>Track milestones, select faculty advisors, and manage your tasks.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {myProjects.map((p, idx) => {
+                    const statusColors: Record<string, string> = {
+                      approved: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                      pending: 'bg-amber-100 text-amber-800 border-amber-200',
+                      declined: 'bg-rose-100 text-rose-800 border-rose-200',
+                      completed: 'bg-blue-100 text-blue-800 border-blue-200'
+                    };
+                    const facultyStatus = p.faculty_status || 'approved';
+                    const statusLabel = facultyStatus.toUpperCase();
+
+                    return (
+                      <div key={p.id || idx} className="p-3.5 rounded-xl border flex flex-col gap-2.5 transition-all hover:shadow-sm" style={{ background: C.bg, borderColor: C.border }}>
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <h5 className="text-xs font-bold truncate max-w-[200px]" style={{ color: C.textPrimary }}>{p.title}</h5>
+                            {p.subject_code && (
+                              <span className="text-[9px] font-bold tracking-wide uppercase px-1.5 py-0.5 bg-slate-200/60 rounded mt-0.5 inline-block text-slate-500">
+                                {p.subject_code}
+                              </span>
+                            )}
+                          </div>
+                          <span className={`text-[8px] font-extrabold px-2 py-0.5 rounded-full border ${statusColors[facultyStatus] || 'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+
+                        {p.description && (
+                          <p className="text-[11px] line-clamp-2 leading-relaxed" style={{ color: C.textSecondary }}>{p.description}</p>
+                        )}
+
+                        {/* Progress bar */}
+                        <div>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Milestone Progress</span>
+                            <span className="text-[10px] font-extrabold" style={{ color: C.blue }}>{p.progress_pct}%</span>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                            <div className="h-1.5 rounded-full transition-all duration-300" style={{ width: `${p.progress_pct}%`, background: C.blue }} />
+                          </div>
+                        </div>
+
+                        {p.team_members && (
+                          <div className="text-[9px] font-medium" style={{ color: C.textSecondary }}>
+                            <span className="font-bold">Team:</span> {p.team_members}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             
             {accountSaved && (

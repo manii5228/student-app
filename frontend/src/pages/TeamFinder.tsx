@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 
-interface Profile { id: string; user_id: string; name: string; department: string|null; year: string|null; skills: string[]; looking_for: string|null; bio: string|null; match_pct: number; }
+interface Profile { id: string; user_id: string; name: string; department: string|null; year: string|null; skills: string[]; looking_for: string|null; bio: string|null; match_pct: number; team_size?: number|string; }
 interface Match { id: string; other_user: { id: string; name: string; department: string|null; skills: string[] }|null; matched_at: string; }
 interface Message { id: string; sender_id: string; sender_name: string; content: string; sent_at: string; }
 
@@ -43,7 +43,11 @@ const TeamFinder = () => {
   // Profile setup
   const [myProfile, setMyProfile] = useState<any>(null);
   const [showSetup, setShowSetup] = useState(false);
-  const [setupForm, setSetupForm] = useState({ skills: '', looking_for: '', bio: '' });
+  const [setupForm, setSetupForm] = useState({ skills: '', looking_for: '', bio: '', team_size: '3' });
+
+  // Touch Swipe gestures
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   useEffect(() => {
     init();
@@ -85,6 +89,7 @@ const TeamFinder = () => {
       await api.post('/career/team-finder/profile', {
         skills: setupForm.skills.split(',').map(s => s.trim()).filter(Boolean),
         looking_for: setupForm.looking_for, bio: setupForm.bio,
+        team_size: parseInt(setupForm.team_size) || 3
       });
       setShowSetup(false);
       init();
@@ -147,9 +152,6 @@ const TeamFinder = () => {
     try {
       const { data } = await api.get(`/career/team-finder/messages/${match.id}`);
       setMessages(data.messages || []);
-      if (!data.messages || data.messages.length === 0) {
-        setTimeout(() => triggerTypingSimulation(match), 1000);
-      }
     } catch {} finally { setChatLoading(false); }
   };
 
@@ -160,7 +162,6 @@ const TeamFinder = () => {
       setMessages(prev => [...prev, data.message]);
       setMsgInput('');
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-      setTimeout(() => triggerTypingSimulation(chatMatch), 1500);
     } catch {}
   };
 
@@ -177,6 +178,29 @@ const TeamFinder = () => {
       handleSwipe('left');
     } catch {
       alert('Failed to submit report.');
+    }
+  };
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    if (isLeftSwipe) {
+      handleSwipe('left');
+    } else if (isRightSwipe) {
+      handleSwipe('right');
     }
   };
 
@@ -218,7 +242,7 @@ const TeamFinder = () => {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Department</label>
-                <select value={filterDept} onChange={e=>setFilterDept(e.target.value)} className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-cyan-400">
+                <select value={filterDept} onChange={e=>setFilterDept(e.target.value)} className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-[#22346c] focus:ring-1 focus:ring-[#22346c]/20">
                   <option value="">All</option>
                   <option value="CSE">CSE</option><option value="ECE">ECE</option>
                   <option value="IT">IT</option><option value="EEE">EEE</option>
@@ -227,13 +251,13 @@ const TeamFinder = () => {
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Skill</label>
-                <input value={filterSkill} onChange={e=>setFilterSkill(e.target.value)} placeholder="e.g. React" className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-cyan-400"/>
+                <input value={filterSkill} onChange={e=>setFilterSkill(e.target.value)} placeholder="e.g. React" className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-[#22346c] focus:ring-1 focus:ring-[#22346c]/20"/>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Academic Year</label>
-                <select value={filterYear} onChange={e=>setFilterYear(e.target.value)} className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-cyan-400">
+                <select value={filterYear} onChange={e=>setFilterYear(e.target.value)} className="w-full bg-white rounded-xl px-3 py-2 text-xs border border-slate-200 focus:outline-none focus:border-[#22346c] focus:ring-1 focus:ring-[#22346c]/20">
                   <option value="">All</option>
                   <option value="1">1st Year</option>
                   <option value="2">2nd Year</option>
@@ -243,7 +267,7 @@ const TeamFinder = () => {
               </div>
               <div className="flex items-center justify-between pt-4">
                 <span className="text-[10px] font-bold text-slate-500 uppercase leading-none">Complementary</span>
-                <button onClick={()=>setFilterComplementary(!filterComplementary)} className={`w-9 h-5 rounded-full relative transition-colors ${filterComplementary ? 'bg-cyan-500' : 'bg-slate-300'}`}>
+                <button onClick={()=>setFilterComplementary(!filterComplementary)} className={`w-9 h-5 rounded-full relative transition-colors ${filterComplementary ? 'bg-[#22346c]' : 'bg-slate-300'}`}>
                   <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.8 transition-all shadow-sm ${filterComplementary ? 'left-5' : 'left-0.5'}`}></div>
                 </button>
               </div>
@@ -270,31 +294,45 @@ const TeamFinder = () => {
 
                 const avatarColors = ['bg-gradient-to-br from-cyan-400 to-blue-500', 'bg-gradient-to-br from-purple-400 to-pink-500', 'bg-gradient-to-br from-amber-400 to-orange-500'];
                 return (
-                  <div key={profile.id} className={`absolute inset-0 bg-white border border-slate-100 rounded-[32px] shadow-xl p-5 flex flex-col transition-all duration-400 ease-out origin-bottom ${transformClass} ${opacityClass}`} style={{ zIndex: 30 - index }}>
-                    <div className={`flex-1 rounded-[20px] ${avatarColors[index % 3]} flex flex-col items-center justify-center p-6 mb-4 relative overflow-hidden`}>
+                  <div
+                    key={profile.id}
+                    className={`absolute inset-0 bg-white border border-slate-100 rounded-[32px] shadow-xl p-5 flex flex-col transition-all duration-400 ease-out origin-bottom select-none ${transformClass} ${opacityClass}`}
+                    style={{ zIndex: 30 - index }}
+                    onTouchStart={isTop ? onTouchStart : undefined}
+                    onTouchMove={isTop ? onTouchMove : undefined}
+                    onTouchEnd={isTop ? onTouchEnd : undefined}
+                  >
+                    {/* Top avatar banner - optimized height */}
+                    <div className={`h-[42%] rounded-[20px] ${avatarColors[index % 3]} flex flex-col items-center justify-center p-4 mb-3 relative overflow-hidden`}>
                       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(255,255,255,0.15),transparent)]"></div>
-                      <div className="w-20 h-20 rounded-full bg-white/30 backdrop-blur-md shadow-sm flex items-center justify-center mb-3">
-                        <span className="text-3xl font-black text-white">{profile.name.charAt(0)}</span>
+                      <div className="w-16 h-16 rounded-full bg-white/30 backdrop-blur-md shadow-sm flex items-center justify-center mb-2">
+                        <span className="text-2xl font-black text-white">{profile.name.charAt(0)}</span>
                       </div>
-                      <h2 className="text-xl font-bold text-white">{profile.name}</h2>
-                      <p className="text-xs font-semibold text-white/80 mt-0.5">{profile.department} • {profile.year}</p>
-                      <div className="mt-3 bg-white/25 px-4 py-1.5 rounded-full backdrop-blur-sm">
-                        <p className="text-xs font-bold text-white">{profile.match_pct}% Match</p>
+                      <h2 className="text-lg font-bold text-white leading-tight">{profile.name}</h2>
+                      <p className="text-[10px] font-semibold text-white/80 mt-0.5">{profile.department} • {profile.year}</p>
+                      <div className="mt-2.5 bg-white/25 px-3 py-1 rounded-full backdrop-blur-sm">
+                        <p className="text-[10px] font-bold text-white">{profile.match_pct}% Match</p>
                       </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col min-h-0">
-                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Looking For</h3>
-                      <p className="text-sm font-bold text-slate-800 leading-tight mb-3">{profile.looking_for}</p>
+                    {/* Bottom content - fully centered with optimized gaps */}
+                    <div className="flex-1 flex flex-col justify-center items-center text-center px-2 py-1 min-h-0">
+                      <h3 className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Looking For</h3>
+                      <p className="text-xs font-extrabold text-slate-800 leading-snug mb-3 max-w-[90%]">{profile.looking_for}</p>
 
-                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Skills</h3>
-                      <div className="flex flex-wrap gap-1.5 mb-2">
+                      <h3 className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">Skills Needed</h3>
+                      <div className="flex flex-wrap gap-1.5 justify-center mb-3.5 max-w-[95%]">
                         {profile.skills.map(s => (
-                          <span key={s} className="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700">{s}</span>
+                          <span key={s} className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-700 shadow-sm">{s}</span>
                         ))}
                       </div>
 
-                      {profile.bio && <p className="text-[10px] text-slate-400 mt-auto line-clamp-2">{profile.bio}</p>}
+                      {/* Desired Team Size Attribute */}
+                      <span className="text-[9px] font-black uppercase bg-[#22346c]/10 text-[#22346c] px-3 py-1 rounded-lg tracking-wider mb-2">
+                        Desired Team: {profile.team_size || 3} Members
+                      </span>
+
+                      {profile.bio && <p className="text-[9.5px] text-slate-400 font-medium line-clamp-2 mt-1 leading-normal italic">"{profile.bio}"</p>}
                     </div>
                   </div>
                 );
@@ -430,6 +468,15 @@ const TeamFinder = () => {
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Short Bio</label>
                 <textarea value={setupForm.bio} onChange={e=>setSetupForm({...setupForm,bio:e.target.value})} placeholder="Tell people about yourself..." rows={2} className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400 resize-none"/>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Desired Team Size</label>
+                <select value={setupForm.team_size} onChange={e=>setSetupForm({...setupForm,team_size:e.target.value})} className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm border border-slate-200 focus:outline-none focus:border-cyan-400">
+                  <option value="2">2 Members</option>
+                  <option value="3">3 Members</option>
+                  <option value="4">4 Members</option>
+                  <option value="5">5+ Members</option>
+                </select>
               </div>
               <button onClick={saveProfile} disabled={!setupForm.skills.trim()} className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-3.5 rounded-2xl font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-40">Start Finding Teammates</button>
               <button onClick={()=>{setShowSetup(false); nav(-1);}} className="text-xs font-bold text-slate-400 text-center hover:text-slate-600 transition-colors">Skip for now</button>
