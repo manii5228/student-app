@@ -21,6 +21,10 @@ const Login = () => {
   const [ssoProcessingMsg, setSsoProcessingMsg] = useState('');
   const [highlightPassword, setHighlightPassword] = useState(false);
 
+  // Simulated Mobile Biometrics state
+  const [showBioSim, setShowBioSim] = useState(false);
+  const [bioSimStatus, setBioSimStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
+
   // Server Settings state
   const [showServerSettings, setShowServerSettings] = useState(false);
   const [serverUrl, setServerUrl] = useState(getApiBaseUrl());
@@ -131,6 +135,11 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
+    // Proactively clear existing token and user details to avoid ghost sessions on failure
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
     try {
       const res = await api.post('/auth/login', { email, password });
       
@@ -156,7 +165,7 @@ const Login = () => {
         const mode = localStorage.getItem('connection_mode') || 'not_set';
         setError(`Connection failed: ${err.message || err.toString()}. Mode: ${mode}. Target URL: ${getApiBaseUrl()}`);
       } else {
-        setError(err.response?.data?.error || 'Login failed. Please check your credentials.');
+        setError(err.response?.data?.error || err.message || 'Login failed. Please check your credentials.');
       }
     } finally {
       setLoading(false);
@@ -169,6 +178,10 @@ const Login = () => {
     setLoading(true);
     setSsoStage(1);
     setSsoProcessingMsg('Connecting to identity provider...');
+
+    // Proactively clear existing credentials to avoid residual access on failure
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
 
     setTimeout(() => {
       setSsoStage(2);
@@ -203,7 +216,7 @@ const Login = () => {
               navigate('/');
             }
           } catch (err: any) {
-            setError(err.message || err.response?.data?.error || 'SSO authentication failed. Is your account registered?');
+            setError(err.response?.data?.error || err.message || 'SSO authentication failed. Is your account registered?');
           } finally {
             setLoading(false);
             setSsoProvider(null);
@@ -228,13 +241,23 @@ const Login = () => {
     setShowSSOPopup(true);
   };
 
-  // ── Biometric Login (WebAuthn) ──
+  // ── Biometric Login (WebAuthn / Fallback mobile Biometric Simulator) ──
   const handleBiometric = async () => {
     setError('');
     
+    // Proactively clear existing credentials to ensure full authentication cycle
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
+    if (!email.trim()) {
+      setError('Please enter your college email address to identify your biometric key.');
+      return;
+    }
+
     if (!window.PublicKeyCredential) {
-      setError('WebAuthn is not supported on this browser. Use Chrome or Safari with biometric hardware.');
-      transitionToEmailFallback();
+      // Launch premium mobile/Capacitor FaceID/TouchID simulator overlay
+      setBioSimStatus('idle');
+      setShowBioSim(true);
       return;
     }
 
@@ -278,6 +301,45 @@ const Login = () => {
       transitionToEmailFallback();
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── Native Simulated Mobile Biometrics Authentication ──
+  const runBiometricSimulation = async () => {
+    setBioSimStatus('scanning');
+    
+    // Simulate FaceID/TouchID pulse delay
+    await new Promise(r => setTimeout(r, 1600));
+    
+    try {
+      // Send mock authentication request (our mockDb supports this seamlessly)
+      const res = await api.post('/auth/biometric/authenticate', {
+        credential_id: `mob_bio_${email}`,
+        sign_count: Date.now(),
+      });
+      
+      setBioSimStatus('success');
+      localStorage.setItem('token', res.data.access_token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      
+      setTimeout(() => {
+        setShowBioSim(false);
+        const role = res.data.user.role;
+        if (role === 'faculty') {
+          navigate('/faculty');
+        } else if (role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/');
+        }
+      }, 1000);
+    } catch (err: any) {
+      setBioSimStatus('error');
+      setError(err.response?.data?.error || err.message || 'Biometric authentication failed. Please register TouchID/FaceID in Profile first.');
+      setTimeout(() => {
+        setShowBioSim(false);
+        transitionToEmailFallback();
+      }, 1500);
     }
   };
 
@@ -666,6 +728,61 @@ const Login = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Simulated Mobile Biometrics Overlay */}
+      {showBioSim && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-6 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 text-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl text-center">
+            <h3 className="text-xl font-bold mb-1 tracking-tight">Simulated Biometrics</h3>
+            <p className="text-xs text-slate-400 font-medium mb-6">Enrolled: {email}</p>
+            
+            <div className="relative w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-2 border-white/5"></div>
+              {bioSimStatus === 'scanning' && (
+                <div className="absolute inset-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></div>
+              )}
+              <button
+                type="button"
+                onClick={runBiometricSimulation}
+                disabled={bioSimStatus === 'scanning' || bioSimStatus === 'success'}
+                className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 relative z-10 ${
+                  bioSimStatus === 'scanning'
+                    ? 'bg-slate-800 text-indigo-400 animate-pulse'
+                    : bioSimStatus === 'success'
+                    ? 'bg-emerald-600 text-white'
+                    : bioSimStatus === 'error'
+                    ? 'bg-red-950 text-red-500 border border-red-500/30'
+                    : 'bg-indigo-600 text-white hover:scale-[1.05] active:scale-[0.95]'
+                }`}
+              >
+                <Fingerprint className="w-10 h-10" />
+              </button>
+            </div>
+            
+            <p className="text-sm font-bold tracking-wide uppercase transition-colors duration-300">
+              {bioSimStatus === 'scanning' ? (
+                <span className="text-indigo-400 animate-pulse">Scanning fingerprint...</span>
+              ) : bioSimStatus === 'success' ? (
+                <span className="text-emerald-400">Authentication successful</span>
+              ) : bioSimStatus === 'error' ? (
+                <span className="text-red-400">Authentication failed</span>
+              ) : (
+                <span className="text-slate-300">Tap icon to scan fingerprint</span>
+              )}
+            </p>
+            
+            {bioSimStatus === 'idle' && (
+              <button
+                type="button"
+                onClick={() => setShowBioSim(false)}
+                className="mt-8 text-xs font-bold text-slate-500 hover:text-slate-400 tracking-wider uppercase"
+              >
+                Cancel
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -987,6 +987,162 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     return { status: 401, data: { error: "Unauthorized" } };
   }
 
+  // Password Change Mock Endpoint
+  if (cleanUrl === '/auth/change-password' && method === 'post') {
+    const payload = getPayload(config.data);
+    const activeUserStr = localStorage.getItem('user');
+    if (!activeUserStr) return { status: 401, data: { error: "Unauthorized" } };
+    
+    const activeUser = JSON.parse(activeUserStr);
+    const user = db.users.find((u: any) => u.id === activeUser.id);
+    if (!user) return { status: 404, data: { error: "User not found" } };
+    
+    if (payload.old_password !== user.password) {
+      return { status: 400, data: { error: "Current password is incorrect" } };
+    }
+    
+    // Update password
+    user.password = payload.new_password;
+    localStorage.setItem('user', JSON.stringify(user));
+    saveMockDb(db);
+    
+    // Revoke all sessions on password change
+    db.sessions = [];
+    saveMockDb(db);
+    
+    return {
+      status: 200,
+      data: { message: "Password changed successfully" }
+    };
+  }
+
+  // Active Sessions Mock Endpoints
+  if (cleanUrl === '/auth/sessions' && method === 'get') {
+    if (!db.sessions || db.sessions.length === 0) {
+      db.sessions = [
+        {
+          id: "sess_curr",
+          device_info: navigator.userAgent || "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+          device_type: /iPhone|iPad|Android/i.test(navigator.userAgent) ? "mobile" : "desktop",
+          ip_address: "192.168.1.42",
+          is_active: true,
+          is_current: true,
+          location: "Chennai, Tamil Nadu (VelTech Campus)",
+          created_at: new Date(Date.now() - 3600 * 1000).toISOString()
+        },
+        {
+          id: "sess_mac",
+          device_info: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0.0.0",
+          device_type: "desktop",
+          ip_address: "10.0.2.15",
+          is_active: true,
+          is_current: false,
+          location: "Bengaluru, Karnataka",
+          created_at: new Date(Date.now() - 86400 * 3 * 1000).toISOString()
+        }
+      ];
+      saveMockDb(db);
+    }
+    return {
+      status: 200,
+      data: { sessions: db.sessions }
+    };
+  }
+
+  if (cleanUrl.startsWith('/auth/sessions/') && method === 'delete') {
+    const sessId = cleanUrl.split('/').pop();
+    if (db.sessions) {
+      db.sessions = db.sessions.filter((s: any) => s.id !== sessId);
+      saveMockDb(db);
+    }
+    return {
+      status: 200,
+      data: { success: true, message: "Session revoked successfully." }
+    };
+  }
+
+  if (cleanUrl === '/auth/sessions/revoke-all' && method === 'post') {
+    db.sessions = [];
+    saveMockDb(db);
+    return {
+      status: 200,
+      data: { success: true, message: "All sessions revoked." }
+    };
+  }
+
+  // Biometrics Mock Endpoints
+  if (cleanUrl === '/auth/biometric/register' && method === 'post') {
+    const payload = getPayload(config.data);
+    if (!db.biometrics) db.biometrics = [];
+    
+    const newCred = {
+      id: `bio_${Date.now()}`,
+      credential_id: payload.credential_id,
+      public_key: payload.public_key,
+      device_name: payload.device_name || "TouchID/FaceID Device",
+      user_id: activeUserId,
+      created_at: new Date().toISOString()
+    };
+    
+    db.biometrics.push(newCred);
+    saveMockDb(db);
+    return {
+      status: 201,
+      data: { message: "Biometric registered successfully", credential: newCred }
+    };
+  }
+
+  if (cleanUrl === '/auth/biometric/credentials' && method === 'get') {
+    const list = (db.biometrics || []).filter((c: any) => c.user_id === activeUserId);
+    return {
+      status: 200,
+      data: { credentials: list }
+    };
+  }
+
+  if (cleanUrl.startsWith('/auth/biometric/credentials/') && method === 'delete') {
+    const credId = cleanUrl.split('/').pop();
+    if (db.biometrics) {
+      db.biometrics = db.biometrics.filter((c: any) => c.id !== credId);
+      saveMockDb(db);
+    }
+    return {
+      status: 200,
+      data: { success: true, message: "Credential revoked." }
+    };
+  }
+
+  if (cleanUrl === '/auth/biometric/authenticate' && method === 'post') {
+    const payload = getPayload(config.data);
+    const credId = payload.credential_id;
+    
+    const cred = (db.biometrics || []).find((c: any) => c.credential_id === credId);
+    if (!cred) {
+      return {
+        status: 401,
+        data: { error: "Biometric credential not found in standalone database." }
+      };
+    }
+    
+    const user = db.users.find((u: any) => u.id === cred.user_id);
+    if (!user) {
+      return {
+        status: 401,
+        data: { error: "Associated user not found in standalone database." }
+      };
+    }
+    
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('token', 'mock-jwt-token-biometric');
+    return {
+      status: 200,
+      data: {
+        access_token: 'mock-jwt-token-biometric',
+        user: user
+      }
+    };
+  }
+
   // Timetable Routes
   if (cleanUrl === '/timetable/my-timetable' && method === 'get') {
     // Construct the standard grid response expected by SmartTimetable.tsx

@@ -109,6 +109,11 @@ const Profile = () => {
   const [showBiometricNameModal, setShowBiometricNameModal] = useState(false);
   const [customDeviceName, setCustomDeviceName] = useState('');
   const [sessionLoading, setSessionLoading] = useState<string | null>(null);
+  
+  // Simulated Biometric Enrollment States
+  const [showBioEnrollSim, setShowBioEnrollSim] = useState(false);
+  const [bioEnrollProgress, setBioEnrollProgress] = useState(0);
+  const [bioEnrollStatus, setBioEnrollStatus] = useState<'scanning' | 'success' | 'error'>('scanning');
 
   // Account Links CRUD States
   const [socialLinks, setSocialLinks] = useState({ linkedin: '', github: '', google_scholar: '' });
@@ -240,8 +245,15 @@ const Profile = () => {
     setBiometricRegistering(true);
     setBiometricMsg(null);
     setShowBiometricNameModal(false);
+    
+    if (!window.PublicKeyCredential) {
+      setBioEnrollProgress(0);
+      setBioEnrollStatus('scanning');
+      setShowBioEnrollSim(true);
+      return;
+    }
+    
     try {
-      if (!window.PublicKeyCredential) throw new Error('WebAuthn is not supported on this browser.');
       const challenge = new Uint8Array(32);
       crypto.getRandomValues(challenge);
       const userId = new TextEncoder().encode(user?.id || 'user');
@@ -265,6 +277,46 @@ const Profile = () => {
     } catch (err: any) {
       setBiometricMsg({ type: 'error', text: err?.response?.data?.error || err?.message || 'Failed to register.' });
     } finally { setBiometricRegistering(false); }
+  };
+
+  const runBioEnrollSimulation = async () => {
+    setBioEnrollStatus('scanning');
+    setBioEnrollProgress(0);
+    
+    const duration = 2000;
+    const intervalTime = 50;
+    const steps = duration / intervalTime;
+    const stepIncrement = 100 / steps;
+    
+    for (let i = 1; i <= steps; i++) {
+      await new Promise(r => setTimeout(r, intervalTime));
+      setBioEnrollProgress(prev => Math.min(prev + stepIncrement, 100));
+    }
+    
+    try {
+      const mockCredId = `mob_bio_${user?.email}`;
+      await api.post('/auth/biometric/register', {
+        credential_id: mockCredId,
+        public_key: 'mock_mobile_biometric_public_key',
+        device_name: customDeviceName || 'Mobile Biometric'
+      });
+      
+      setBioEnrollStatus('success');
+      setBiometricMsg({ type: 'success', text: `Biometric for "${customDeviceName || 'Mobile Biometric'}" registered!` });
+      fetchBiometrics();
+      
+      setTimeout(() => {
+        setShowBioEnrollSim(false);
+        setBiometricRegistering(false);
+      }, 1500);
+    } catch (err: any) {
+      setBioEnrollStatus('error');
+      setBiometricMsg({ type: 'error', text: err?.response?.data?.error || err?.message || 'Failed to register biometric simulation.' });
+      setTimeout(() => {
+        setShowBioEnrollSim(false);
+        setBiometricRegistering(false);
+      }, 2000);
+    }
   };
 
   const revokeBiometric = async (credId: string) => {
@@ -1168,6 +1220,77 @@ const Profile = () => {
               <button onClick={() => setShowBiometricNameModal(false)} className="flex-1 py-3.5 rounded-[14px] font-semibold text-sm" style={{ background: C.bg, color: C.textPrimary }}>Cancel</button>
               <button onClick={() => registerBiometric(customDeviceName)} disabled={!customDeviceName.trim()} className="flex-1 py-3.5 rounded-[14px] font-semibold text-sm text-white disabled:opacity-50" style={{ background: C.blue }}>Proceed</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Simulated Mobile Biometrics Enrollment Overlay */}
+      {showBioEnrollSim && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm animate-fade-in p-6" style={{ background: C.navy + '60' }}>
+          <div className="bg-slate-900 border border-slate-800 text-white rounded-[32px] p-8 max-w-sm w-full shadow-2xl text-center">
+            <h3 className="text-xl font-bold mb-1 tracking-tight">Biometric Simulator</h3>
+            <p className="text-xs text-slate-400 font-medium mb-6">Enrolling device: {customDeviceName}</p>
+            
+            <div className="relative w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-2 border-white/5"></div>
+              {bioEnrollStatus === 'scanning' && (
+                <div className="absolute inset-0 rounded-full border-2 border-indigo-500 border-t-transparent animate-spin"></div>
+              )}
+              <button
+                type="button"
+                onClick={runBioEnrollSimulation}
+                disabled={bioEnrollStatus === 'scanning' || bioEnrollStatus === 'success'}
+                className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 relative z-10 ${
+                  bioEnrollStatus === 'scanning'
+                    ? 'bg-slate-800 text-indigo-400 animate-pulse'
+                    : bioEnrollStatus === 'success'
+                    ? 'bg-emerald-600 text-white'
+                    : bioEnrollStatus === 'error'
+                    ? 'bg-red-950 text-red-500 border border-red-500/30'
+                    : 'bg-indigo-600 text-white hover:scale-[1.05] active:scale-[0.95]'
+                }`}
+              >
+                <Fingerprint className="w-10 h-10" />
+              </button>
+            </div>
+            
+            {/* Progress bar */}
+            {bioEnrollStatus === 'scanning' && (
+              <div className="w-full bg-slate-800 rounded-full h-1.5 mb-6 overflow-hidden">
+                <div className="bg-indigo-500 h-1.5 rounded-full transition-all duration-75" style={{ width: `${bioEnrollProgress}%` }} />
+              </div>
+            )}
+            
+            <p className="text-sm font-bold tracking-wide uppercase transition-colors duration-300">
+              {bioEnrollStatus === 'scanning' ? (
+                <span className="text-indigo-400 animate-pulse">
+                  {bioEnrollProgress < 40 ? 'Place finger on scanner...' : bioEnrollProgress < 80 ? 'Scanning fingerprint...' : 'Registering credential...'}
+                </span>
+              ) : bioEnrollStatus === 'success' ? (
+                <span className="text-emerald-400">Enrollment successful</span>
+              ) : bioEnrollStatus === 'error' ? (
+                <span className="text-red-400">Enrollment failed</span>
+              ) : (
+                <span className="text-slate-300">Tap icon to begin scan</span>
+              )}
+            </p>
+            
+            {bioEnrollStatus === 'scanning' && (
+              <p className="text-[10px] text-slate-500 mt-1 font-mono">{Math.floor(bioEnrollProgress)}% Complete</p>
+            )}
+            
+            {bioEnrollStatus === 'scanning' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBioEnrollSim(false);
+                  setBiometricRegistering(false);
+                }}
+                className="mt-6 text-xs font-bold text-slate-500 hover:text-slate-400 tracking-wider uppercase"
+              >
+                Cancel
+              </button>
+            )}
           </div>
         </div>
       )}
