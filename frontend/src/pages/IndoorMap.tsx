@@ -6,6 +6,14 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
+// Fix default marker icon issues in Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
 // POIs for Vel Tech Campus
 const POIS = [
   { id: 'admin', name: 'Administrative Block (Block 10)', type: 'academic', coords: [13.1818, 80.0401] as [number, number], desc: 'Registrar, Admission Office & Finance Dept' },
@@ -51,7 +59,7 @@ const createCustomIcon = (poi: typeof POIS[0]) => {
   `;
   return new L.DivIcon({
     html: iconHtml,
-    className: '',
+    className: 'bg-transparent border-none',
     iconSize: [80, 56],
     iconAnchor: [40, 28],
     popupAnchor: [0, -28]
@@ -65,11 +73,22 @@ const startIcon = new L.DivIcon({
            </div>
            <div style="background:#10b981;color:white;font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;margin-top:2px;">START</div>
          </div>`,
-  className: '',
+  className: 'bg-transparent border-none',
   iconSize: [40, 50],
   iconAnchor: [20, 25],
   popupAnchor: [0, -25]
 });
+
+const MapInvalidateSize = () => {
+  const map = useMap();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+};
 
 const RecenterMap = ({ center, zoom = 17 }: { center: [number, number]; zoom?: number }) => {
   const map = useMap();
@@ -283,6 +302,7 @@ const CampusMap = () => {
       {/* Map Area */}
       <div className="flex-1 relative z-0" style={{ minHeight: '400px' }}>
         <MapContainer center={mapCenter} zoom={zoom} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+          <MapInvalidateSize />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

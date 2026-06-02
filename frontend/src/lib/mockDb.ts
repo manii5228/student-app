@@ -1533,17 +1533,61 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       const pass = (db.hostelPasses || []).find((p: any) => p.id === id);
       if (pass) {
         pass.mentor_status = status;
-        // If mentor approved and parent approved, set main status
-        if (status === 'approved' && pass.parent_status === 'approved') {
-          pass.status = 'approved';
-        }
         if (status === 'rejected') {
+          pass.parent_status = 'rejected';
           pass.status = 'rejected';
         }
       }
     });
     saveMockDb(db);
     return { status: 200, data: { success: true } };
+  }
+
+  // Warden single hostel pass status update
+  if (cleanUrl.match(/\/campus\/hostel-pass\/[^/]+\/warden-status/) && method === 'put') {
+    const pid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    const status = payload.status;
+    const pass = (db.hostelPasses || []).find((p: any) => p.id === pid);
+    if (pass) {
+      pass.status = status;
+      if (status === 'approved') {
+        pass.qr_code_url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-${pass.id}`;
+      }
+      saveMockDb(db);
+      return { status: 200, data: { success: true, pass } };
+    }
+    return { status: 404, data: { error: 'Pass not found' } };
+  }
+
+  // Warden bulk hostel pass status update
+  if (cleanUrl === '/campus/hostel-pass/warden-bulk-status' && method === 'put') {
+    const payload = getPayload(config.data);
+    const ids: string[] = payload.ids || [];
+    const status = payload.status;
+    ids.forEach((id: string) => {
+      const pass = (db.hostelPasses || []).find((p: any) => p.id === id);
+      if (pass) {
+        pass.status = status;
+        if (status === 'approved') {
+          pass.qr_code_url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-${pass.id}`;
+        }
+      }
+    });
+    saveMockDb(db);
+    return { status: 200, data: { success: true } };
+  }
+
+  // Parent approval simulation
+  if (cleanUrl.match(/\/campus\/hostel-pass\/[^/]+\/parent-approve/) && method === 'post') {
+    const pid = cleanUrl.split('/')[3];
+    const pass = (db.hostelPasses || []).find((p: any) => p.id === pid);
+    if (pass) {
+      pass.parent_status = 'approved';
+      saveMockDb(db);
+      return { status: 200, data: { success: true, pass } };
+    }
+    return { status: 404, data: { error: 'Pass not found' } };
   }
 
   // Resend parent SMS
@@ -1901,29 +1945,6 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       return matchQ && matchCat;
     });
     return { status: 200, data: { books: filtered } };
-  }
-  if (cleanUrl === '/campus/library/my-issues' && method === 'get') {
-    const issues = db.libraryIssues || [];
-    const myIssues = issues.filter((i: any) => i.student_id === activeUserId).map((iss: any) => ({
-      ...iss,
-      renewed_count: iss.renewed_count || 0,
-      fine_amount: iss.fine_amount || 0,
-      returned_date: iss.returned_date || null
-    }));
-    return { status: 200, data: { issues: myIssues } };
-  }
-  if (cleanUrl.startsWith('/campus/library/renew/') && method === 'post') {
-    const issueId = cleanUrl.split('/').pop();
-    const issue = db.libraryIssues.find((i: any) => i.id === issueId);
-    if (issue) {
-      const oldDue = new Date(issue.due_date);
-      oldDue.setDate(oldDue.getDate() + 14);
-      issue.due_date = oldDue.toISOString().split("T")[0];
-      issue.renewed_count = (issue.renewed_count || 0) + 1;
-      saveMockDb(db);
-      return { status: 200, data: { success: true, message: "Book renewed successfully!", issue: { due_date: issue.due_date, renewed_count: issue.renewed_count } } };
-    }
-    return { status: 404, data: { error: "Transaction not found" } };
   }
 
   // ==========================================

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, CheckCircle, XCircle, Search, Clock, MapPin, QrCode } from 'lucide-react';
+import { ChevronLeft, CheckCircle, XCircle, Search, Clock, Shield, User, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -12,6 +12,8 @@ interface Pass {
   from_date: string;
   to_date: string;
   status: 'pending' | 'approved' | 'rejected';
+  parent_status: 'pending' | 'approved' | 'rejected';
+  mentor_status: 'pending' | 'approved' | 'rejected';
   created_at: string;
 }
 
@@ -20,14 +22,15 @@ const MentorHostelPasses = () => {
   const [passes, setPasses] = useState<Pass[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all'|'pending'>('pending');
+  const [filter, setFilter] = useState<'all' | 'pending'>('pending');
+  const [role, setRole] = useState<'mentor' | 'warden'>('mentor');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchPasses = async () => {
     try {
       const { data } = await api.get('/campus/hostel-pass/mentees');
-      setPasses(data.passes);
+      setPasses(data.passes || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -58,7 +61,11 @@ const MentorHostelPasses = () => {
     if (selected.size === 0) return;
     setIsSubmitting(true);
     try {
-      await api.put('/campus/hostel-pass/bulk-status', {
+      const endpoint = role === 'mentor' 
+        ? '/campus/hostel-pass/bulk-status' 
+        : '/campus/hostel-pass/warden-bulk-status';
+      
+      await api.put(endpoint, {
         ids: Array.from(selected),
         status
       });
@@ -73,23 +80,73 @@ const MentorHostelPasses = () => {
   };
 
   const filtered = passes.filter(p => {
-    if (filter === 'pending' && p.status !== 'pending') return false;
-    if (search && !p.student_name.toLowerCase().includes(search.toLowerCase()) && !p.student_reg.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
+    // 1. Search query filter
+    if (search && !p.student_name.toLowerCase().includes(search.toLowerCase()) && !p.student_reg.toLowerCase().includes(search.toLowerCase())) {
+      return false;
+    }
+    
+    // 2. Role and status filtering
+    if (role === 'mentor') {
+      if (filter === 'pending') {
+        return p.mentor_status === 'pending';
+      }
+      return true;
+    } else { // warden role
+      if (filter === 'pending') {
+        // Warden only sees passes that are mentor and parent approved, but warden pending
+        return p.mentor_status === 'approved' && p.parent_status === 'approved' && p.status === 'pending';
+      }
+      // Warden 'All' view shows all passes that have passed the first 2 stages
+      return p.mentor_status === 'approved' && p.parent_status === 'approved';
+    }
   });
+
+  const getRoleStatus = (p: Pass) => {
+    return role === 'mentor' ? p.mentor_status : p.status;
+  };
 
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
       {/* Header */}
       <div className="bg-slate-900 p-6 pt-12 shadow-md relative overflow-hidden">
-        <div className="flex items-center gap-3 relative z-10 mb-4">
-          <button onClick={() => navigate('/faculty')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
-            <ChevronLeft className="w-5 h-5 text-white" />
-          </button>
-          <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">Hostel Out-Passes</h1>
-            <p className="text-xs text-slate-300">Mentee Approvals</p>
+        <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
+        <div className="absolute -left-10 -bottom-10 w-32 h-32 bg-white/5 rounded-full blur-xl"></div>
+        
+        <div className="flex items-center justify-between relative z-10 mb-4">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/faculty')} 
+              className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-white" />
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-tight">Hostel Out-Passes</h1>
+              <p className="text-xs text-slate-450 font-medium">
+                {role === 'mentor' ? '🛡️ Mentee Approvals Dashboard' : '🏢 Hostel Warden Dashboard'}
+              </p>
+            </div>
           </div>
+        </div>
+
+        {/* Dual Role Selector Tab */}
+        <div className="flex bg-white/10 p-1 rounded-2xl mb-4 border border-white/10 relative z-10">
+          <button 
+            onClick={() => { setRole('mentor'); setSelected(new Set()); }} 
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${
+              role === 'mentor' ? 'bg-white text-slate-900 shadow-md scale-[1.02]' : 'text-white'
+            }`}
+          >
+            Mentee Approvals (Mentor)
+          </button>
+          <button 
+            onClick={() => { setRole('warden'); setSelected(new Set()); }} 
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${
+              role === 'warden' ? 'bg-white text-slate-900 shadow-md scale-[1.02]' : 'text-white'
+            }`}
+          >
+            Hostel Approvals (Warden)
+          </button>
         </div>
 
         {/* Search */}
@@ -99,7 +156,7 @@ const MentorHostelPasses = () => {
             placeholder="Search by student name or reg no..." 
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/10 border border-white/20 rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:outline-none focus:bg-white/20 transition-all"
+            className="w-full bg-white/10 border border-white/20 rounded-2xl py-3 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:outline-none focus:bg-white/20 transition-all font-semibold"
           />
           <Search className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" />
         </div>
@@ -108,64 +165,149 @@ const MentorHostelPasses = () => {
       {/* Filters & Bulk Actions */}
       <div className="bg-white px-4 py-3 border-b border-slate-100 flex flex-col gap-3 z-10 shadow-sm sticky top-0">
         <div className="flex bg-slate-100 p-1 rounded-xl">
-          <button onClick={() => {setFilter('pending'); setSelected(new Set());}} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filter==='pending'?'bg-white shadow text-emerald-600':'text-slate-500'}`}>Pending</button>
-          <button onClick={() => {setFilter('all'); setSelected(new Set());}} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${filter==='all'?'bg-white shadow text-slate-800':'text-slate-500'}`}>All Passes</button>
+          <button 
+            onClick={() => { setFilter('pending'); setSelected(new Set()); }} 
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              filter === 'pending' ? 'bg-white shadow text-emerald-600' : 'text-slate-500'
+            }`}
+          >
+            Pending ({filtered.filter(p => getRoleStatus(p) === 'pending').length})
+          </button>
+          <button 
+            onClick={() => { setFilter('all'); setSelected(new Set()); }} 
+            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+              filter === 'all' ? 'bg-white shadow text-slate-800' : 'text-slate-500'
+            }`}
+          >
+            All Passes
+          </button>
         </div>
         
         {filter === 'pending' && filtered.length > 0 && (
           <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
-              <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={() => handleSelectAll(filtered)} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600" />
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={selected.size === filtered.length && filtered.length > 0} 
+                onChange={() => handleSelectAll(filtered)} 
+                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600" 
+              />
               Select All
             </label>
             {selected.size > 0 && (
-              <div className="flex gap-2">
-                <button onClick={() => bulkUpdateStatus('rejected')} disabled={isSubmitting} className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg border border-red-200 hover:bg-red-100 transition-colors">Reject ({selected.size})</button>
-                <button onClick={() => bulkUpdateStatus('approved')} disabled={isSubmitting} className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg hover:bg-emerald-700 transition-colors shadow-sm">Approve ({selected.size})</button>
+              <div className="flex gap-2 animate-scale-in">
+                <button 
+                  onClick={() => bulkUpdateStatus('rejected')} 
+                  disabled={isSubmitting} 
+                  className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-black rounded-lg border border-red-200 hover:bg-red-100 transition-colors"
+                >
+                  Reject ({selected.size})
+                </button>
+                <button 
+                  onClick={() => bulkUpdateStatus('approved')} 
+                  disabled={isSubmitting} 
+                  className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-black rounded-lg hover:bg-emerald-700 transition-colors shadow-md active:scale-95"
+                >
+                  Approve ({selected.size})
+                </button>
               </div>
             )}
           </div>
         )}
       </div>
 
+      {/* Passes Feed List */}
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
         {loading ? (
-          <div className="flex justify-center py-20"><span className="w-8 h-8 border-4 border-slate-300 border-t-slate-800 rounded-full animate-spin"></span></div>
+          <div className="flex justify-center py-20">
+            <span className="w-8 h-8 border-4 border-slate-300 border-t-slate-800 rounded-full animate-spin"></span>
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-20">
+          <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
             <CheckCircle className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-            <h2 className="text-base font-bold text-slate-800">No Passes Found</h2>
-            <p className="text-xs text-slate-500 mt-1">You're all caught up!</p>
+            <h2 className="text-sm font-bold text-slate-800">No Passes Found</h2>
+            <p className="text-xs text-slate-450 mt-1">There are no circulars or requests pending under this view.</p>
           </div>
         ) : (
-          filtered.map(p => (
-            <div key={p.id} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex gap-3 animate-slide-up">
-              {p.status === 'pending' && (
-                <div className="pt-1 shrink-0">
-                  <input type="checkbox" checked={selected.has(p.id)} onChange={() => handleSelect(p.id)} className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600" />
-                </div>
-              )}
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start mb-1">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 truncate">{p.student_name}</h3>
-                    <p className="text-[10px] font-bold text-slate-400">{p.student_reg}</p>
+          filtered.map(p => {
+            const roleStatus = getRoleStatus(p);
+            return (
+              <div key={p.id} className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex gap-3 animate-slide-up hover:border-slate-200 transition-all">
+                {roleStatus === 'pending' && filter === 'pending' && (
+                  <div className="pt-1 shrink-0">
+                    <input 
+                      type="checkbox" 
+                      checked={selected.has(p.id)} 
+                      onChange={() => handleSelect(p.id)} 
+                      className="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600 cursor-pointer" 
+                    />
                   </div>
-                  <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${p.status==='approved'?'bg-emerald-50 text-emerald-600 border border-emerald-200':p.status==='rejected'?'bg-red-50 text-red-600 border border-red-200':'bg-amber-50 text-amber-600 border border-amber-200'}`}>
-                    {p.status}
-                  </span>
-                </div>
+                )}
                 
-                <p className="text-xs text-slate-600 mt-2 font-medium bg-slate-50 p-2 rounded-lg border border-slate-100">"{p.reason}"</p>
-                
-                <div className="flex items-center gap-4 text-[10px] font-bold text-slate-500 mt-3">
-                  <div className="flex items-center gap-1"><Clock className="w-3 h-3"/> From: {new Date(p.from_date).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</div>
-                  <div className="flex items-center gap-1"><Clock className="w-3 h-3"/> To: {new Date(p.to_date).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start mb-1 flex-wrap gap-2">
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 truncate">{p.student_name}</h3>
+                      <p className="text-[9px] font-bold text-slate-400">{p.student_reg}</p>
+                    </div>
+                    <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                      roleStatus === 'approved' ? 'bg-emerald-50 text-emerald-600 border border-emerald-250' : 
+                      roleStatus === 'rejected' ? 'bg-red-50 text-red-600 border border-red-250' : 
+                      'bg-amber-50 text-amber-600 border border-amber-250'
+                    }`}>
+                      {roleStatus}
+                    </span>
+                  </div>
+                  
+                  <p className="text-xs text-slate-600 mt-2.5 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    "{p.reason}"
+                  </p>
+                  
+                  {/* Detailed Multi-stage Pipeline Status Row */}
+                  <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3.5 text-[9px] text-slate-400 font-black uppercase border-t border-slate-100 pt-3">
+                    <span className="flex items-center gap-1">
+                      🛡️ Mentor: 
+                      <strong className={
+                        p.mentor_status === 'approved' ? 'text-emerald-600' : 
+                        p.mentor_status === 'rejected' ? 'text-red-500' : 'text-amber-500'
+                      }>
+                        {p.mentor_status || 'pending'}
+                      </strong>
+                    </span>
+                    <span>·</span>
+                    <span className="flex items-center gap-1">
+                      📱 Parent: 
+                      <strong className={
+                        p.parent_status === 'approved' ? 'text-emerald-600' : 
+                        p.parent_status === 'rejected' ? 'text-red-500' : 'text-amber-500'
+                      }>
+                        {p.parent_status || 'pending'}
+                      </strong>
+                    </span>
+                    <span>·</span>
+                    <span className="flex items-center gap-1">
+                      🏢 Warden: 
+                      <strong className={
+                        p.status === 'approved' ? 'text-emerald-600' : 
+                        p.status === 'rejected' ? 'text-red-500' : 'text-amber-500'
+                      }>
+                        {p.status}
+                      </strong>
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center gap-4 text-[9px] font-bold text-slate-500 mt-2.5">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-400"/> From: {new Date(p.from_date).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-slate-400"/> To: {new Date(p.to_date).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
       <BottomNav />

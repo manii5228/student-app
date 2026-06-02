@@ -14,13 +14,25 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+// Map invalidation sizing helper to fix Leaflet rendering issues
+const MapInvalidateSize = () => {
+  const map = useMap();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+};
+
 // Custom div icons
 const busIcon = new L.DivIcon({
   html: `<div style="width:44px;height:44px;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.25);border:3px solid #3b82f6;position:relative;">
            <div style="position:absolute;inset:-4px;background:rgba(59,130,246,0.25);border-radius:50%;animation:ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></div>
            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>
          </div>`,
-  className: '',
+  className: 'bg-transparent border-none',
   iconSize: [44, 44],
   iconAnchor: [22, 22]
 });
@@ -29,7 +41,7 @@ const collegeIcon = new L.DivIcon({
   html: `<div style="width:36px;height:36px;background:#10b981;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.2);border:3px solid white;">
            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
          </div>`,
-  className: '',
+  className: 'bg-transparent border-none',
   iconSize: [36, 36],
   iconAnchor: [18, 18]
 });
@@ -41,7 +53,7 @@ const createHostelIcon = (label: string, color: string) => new L.DivIcon({
            </div>
            <span style="background:${color};color:white;font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;margin-top:3px;white-space:nowrap;letter-spacing:0.05em;box-shadow:0 2px 6px rgba(0,0,0,0.15);">${label}</span>
          </div>`,
-  className: '',
+  className: 'bg-transparent border-none',
   iconSize: [36, 50],
   iconAnchor: [18, 25]
 });
@@ -351,6 +363,7 @@ const LiveBusTracking = () => {
           {/* Map Area */}
           <div className="flex-1 relative z-0 min-h-[480px] h-[calc(100vh-280px)]">
             <MapContainer center={veltechCoords} zoom={14} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+              <MapInvalidateSize />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
