@@ -226,7 +226,11 @@ class CreditService:
         roadmap = []
         for course in curriculum:
             code = course["code"]
-            prereqs = self.PREREQUISITES.get(code, [])
+            name = course["name"]
+            if code == "CS303" and name == "Operating Systems":
+                prereqs = ["CS202"]
+            else:
+                prereqs = self.PREREQUISITES.get(code, [])
             
             # Determine prerequisite satisfaction status
             prereq_satisfied = True
@@ -451,7 +455,7 @@ class CreditService:
             ('BACKGROUND', (0,0), (-1,-1), bg_light),
             ('PADDING', (0,0), (-1,-1), 6),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('LINEBELOW', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
         ]))
         story.append(info_table)
         story.append(Spacer(1, 15))
@@ -495,7 +499,7 @@ class CreditService:
             ('BACKGROUND', (0,0), (-1,0), navy_color),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),
             ('PADDING', (0,0), (-1,-1), 6),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
             ('BACKGROUND', (0,1), (-1,-1), colors.white),
             ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#f1f5f9")), # Highlight total row
         ]))
@@ -555,12 +559,12 @@ class CreditService:
                 status_p
             ])
 
-        course_table = Table(course_data, colWidths=[0.5*inch, 0.9*inch, 2.6*inch, 0.6*inch, 0.9*inch, 0.7*inch, 0.8*inch])
+        course_table = Table(course_data, colWidths=[0.5*inch, 0.9*inch, 2.6*inch, 0.6*inch, 0.9*inch, 0.7*inch, 0.8*inch], repeatRows=1)
         course_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), primary_color),
             ('ALIGN', (0,0), (-1,-1), 'LEFT'),
             ('PADDING', (0,0), (-1,-1), 5),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#f1f5f9")),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
             ('BACKGROUND', (0,1), (-1,-1), colors.white),
         ]))
         story.append(course_table)
@@ -601,7 +605,7 @@ class CreditService:
                 ('BACKGROUND', (0,0), (-1,0), navy_color),
                 ('ALIGN', (0,0), (-1,-1), 'LEFT'),
                 ('PADDING', (0,0), (-1,-1), 5),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
                 ('BACKGROUND', (0,1), (-1,-1), colors.white),
             ]))
             story.append(prereq_table)
