@@ -17,23 +17,15 @@ const MOCK_PAPERS = [
   { id: '10', subject_code: 'HU301', subject_name: 'English', year: 2025, exam_type: 'end_semester', download_count: 310 },
 ];
 
-const YEARS = [2025, 2024, 2023, 2022];
-const EXAM_TYPES = ['all', 'end_semester', 'cat1', 'cat2'];
-
 const QuestionPapers = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [selectedYear, setSelectedYear] = useState<number | null>(null);
-  const [selectedType, setSelectedType] = useState('all');
   const [downloading, setDownloading] = useState<string | null>(null);
 
   const filtered = MOCK_PAPERS.filter(p => {
-    const matchSearch = !search || 
+    return !search || 
       p.subject_name.toLowerCase().includes(search.toLowerCase()) ||
       p.subject_code.toLowerCase().includes(search.toLowerCase());
-    const matchYear = !selectedYear || p.year === selectedYear;
-    const matchType = selectedType === 'all' || p.exam_type === selectedType;
-    return matchSearch && matchYear && matchType;
   });
 
   // Group by subject
@@ -46,10 +38,28 @@ const QuestionPapers = () => {
 
   const handleDownload = (paperId: string) => {
     setDownloading(paperId);
-    // Simulate CDN download
-    setTimeout(() => {
+    const paper = MOCK_PAPERS.find(p => p.id === paperId);
+    if (!paper) {
       setDownloading(null);
-    }, 1500);
+      return;
+    }
+    
+    // Simulate high-speed CDN download by compiling a valid local dummy PDF stream
+    setTimeout(() => {
+      const content = `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 200 >>\nstream\nBT\n/F1 12 Tf\n70 700 Td\n(VelTech University - PYQ Paper Repository) Tj\n0 -20 Td\n(Subject: ${paper.subject_name} (${paper.subject_code})) Tj\n0 -20 Td\n(Year: ${paper.year}  Exam Type: ${paper.exam_type.toUpperCase()}) Tj\n0 -40 Td\n(Download secure verified digital copy.) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000058 00000 n\n0000000115 00000 n\n0000000212 00000 n\ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n382\n%%EOF`;
+      
+      const blob = new Blob([content], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `VTU_${paper.subject_code}_${paper.exam_type.toUpperCase()}_${paper.year}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      setDownloading(null);
+    }, 1200);
   };
 
   const examTypeLabel = (t: string) => {
@@ -111,35 +121,8 @@ const QuestionPapers = () => {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="px-6 mt-6">
-        {/* Year Filter */}
-        <div className="flex gap-2 mb-3 overflow-x-auto hide-scrollbar">
-          <button onClick={() => setSelectedYear(null)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${!selectedYear ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}>
-            All Years
-          </button>
-          {YEARS.map(y => (
-            <button key={y} onClick={() => setSelectedYear(selectedYear === y ? null : y)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 transition-all ${selectedYear === y ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'}`}>
-              {y}
-            </button>
-          ))}
-        </div>
-
-        {/* Exam Type Filter */}
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-          {EXAM_TYPES.map(t => (
-            <button key={t} onClick={() => setSelectedType(t)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold shrink-0 capitalize transition-all ${selectedType === t ? 'bg-purple-600 text-white' : 'bg-purple-50 text-purple-600'}`}>
-              {t === 'all' ? 'All Types' : examTypeLabel(t)}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Results */}
-      <div className="px-6 mt-4 flex-1 overflow-y-auto">
+      <div className="px-6 mt-6 flex-1 overflow-y-auto">
         {Object.keys(grouped).length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />

@@ -121,7 +121,7 @@ const Results = () => {
     switch(grade) {
       case 'O': return 'text-emerald-600 bg-emerald-100';
       case 'A+': return 'text-blue-600 bg-blue-100';
-      case 'A': return 'text-indigo-600 bg-indigo-100';
+      case 'A': return 'text-[#0080c7] bg-blue-50';
       case 'B+': return 'text-purple-600 bg-purple-100';
       case 'B': return 'text-yellow-600 bg-yellow-100';
       case 'U': case 'F': return 'text-red-600 bg-red-100';
@@ -200,39 +200,19 @@ const Results = () => {
             {/* GPA Summary Card */}
             <div className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-rose-600" />
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-[#0080c7]" />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Semester {selectedSem} SGPA</p>
-                  <p className="text-2xl font-black text-slate-900">{sgpa > 0 ? sgpa.toFixed(2) : 'N/A'}</p>
+                  <p className="text-2xl font-black text-[#22346c]">{sgpa > 0 ? sgpa.toFixed(1) : 'N/A'}</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Overall CGPA</p>
-                <p className="text-xl font-bold text-slate-700">{cgpa > 0 ? cgpa.toFixed(2) : 'N/A'}</p>
+                <p className="text-xl font-black text-[#0080c7]">{cgpa > 0 ? cgpa.toFixed(1) : 'N/A'}</p>
               </div>
             </div>
-
-            {/* Percentile Ranking & Historical Card */}
-            {analytics && (
-              <div className="bg-slate-900 text-white rounded-[24px] p-5 shadow-lg border border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center">
-                    <AwardIcon className="w-6 h-6 text-yellow-500" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cohort Percentile Rank</p>
-                    <p className="text-lg font-black text-white">
-                      Top {Math.round(100 - analytics.overall_percentile)}% in Department
-                    </p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      Class Average Total Score: {analytics.overall_average.toFixed(1)} marks
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Subject-wise Grades */}
             <div>
@@ -242,28 +222,16 @@ const Results = () => {
               
               <div className="flex flex-col gap-3">
                 {results.map((res) => {
-                  const classAvg = analytics?.class_averages[res.subject_code] || 0.0;
-                  const subjectPct = analytics?.percentiles[res.subject_code] || 100.0;
                   return (
                     <div key={res.id} className="bg-white rounded-[20px] p-4 shadow-sm border border-slate-100 flex items-center justify-between">
                       <div className="flex-1 pr-4">
                         <p className="text-[10px] font-bold text-slate-400 mb-0.5">{res.subject_code} • {res.credits} Credits</p>
-                        <h4 className="text-sm font-bold text-slate-800 leading-tight">{res.subject_name}</h4>
+                        <h4 className="text-sm font-black text-[#22346c] leading-tight">{res.subject_name}</h4>
                         
                         <div className="flex items-center gap-3 mt-2">
-                          <span className="text-[10px] text-slate-500 font-semibold">INT: <span className="font-bold text-slate-700">{res.internal_marks || '-'}</span>/40</span>
-                          <span className="text-[10px] text-slate-500 font-semibold">EXT: <span className="font-bold text-slate-700">{res.external_marks || '-'}</span>/60</span>
+                          <span className="text-[10px] text-slate-500 font-semibold">INT: <span className="font-bold text-[#22346c]">{res.internal_marks || '-'}</span>/40</span>
+                          <span className="text-[10px] text-slate-500 font-semibold">EXT: <span className="font-bold text-[#0080c7]">{res.external_marks || '-'}</span>/60</span>
                         </div>
-
-                        {/* Historical Analysis Comparison */}
-                        {classAvg > 0 && (
-                          <div className="mt-2.5 pt-2 border-t border-slate-50 flex items-center justify-between text-[9px] font-bold">
-                            <span className="text-slate-400 uppercase">Class Average: {classAvg}%</span>
-                            <span className="text-rose-600 uppercase bg-rose-50 px-2 py-0.5 rounded">
-                              {subjectPct}% Percentile Score
-                            </span>
-                          </div>
-                        )}
                       </div>
                       
                       <div className="flex flex-col items-center gap-1 border-l border-slate-100 pl-4 min-w-[65px]">
@@ -297,11 +265,11 @@ const Results = () => {
               ✕
             </button>
             
-            <h3 className="text-base font-black text-slate-900 mb-4 text-center">Share Report Card</h3>
+            <h3 className="text-base font-black text-[#22346c] mb-4 text-center">Share Report Card</h3>
             
             {/* The actual styled image template */}
-            <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-5 border border-slate-800 shadow-lg text-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/10 rounded-full blur-xl"></div>
+            <div className="bg-gradient-to-br from-slate-900 to-[#22346c] text-white rounded-2xl p-5 border border-slate-800 shadow-lg text-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-[#0080c7]/10 rounded-full blur-xl"></div>
               
               <p className="text-[8px] font-black tracking-widest text-slate-400 uppercase">OFFICIAL EXAM RECEIPT</p>
               <h4 className="text-sm font-black text-white mt-1">VelTech University</h4>
@@ -311,20 +279,18 @@ const Results = () => {
               </div>
               
               <p className="text-xs text-slate-300 font-medium">Semester {selectedSem} CGPA</p>
-              <p className="text-3xl font-black text-white mt-1">{cgpa.toFixed(2)}</p>
+              <p className="text-3xl font-black text-white mt-1">{cgpa.toFixed(1)}</p>
               
-              {analytics && (
-                <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-2 gap-2 text-left">
-                  <div>
-                    <span className="text-[8px] text-slate-400 block font-bold uppercase tracking-wider">SGPA</span>
-                    <span className="text-xs font-bold text-white">{sgpa.toFixed(2)}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[8px] text-slate-400 block font-bold uppercase tracking-wider">Percentile</span>
-                    <span className="text-xs font-bold text-yellow-400">Top {Math.round(100 - analytics.overall_percentile)}%</span>
-                  </div>
+              <div className="mt-4 pt-4 border-t border-white/5 grid grid-cols-2 gap-2 text-left">
+                <div>
+                  <span className="text-[8px] text-slate-400 block font-bold uppercase tracking-wider">SGPA</span>
+                  <span className="text-xs font-bold text-white">{sgpa.toFixed(1)}</span>
                 </div>
-              )}
+                <div className="text-right">
+                  <span className="text-[8px] text-slate-400 block font-bold uppercase tracking-wider">Status</span>
+                  <span className="text-xs font-bold text-yellow-400">PASSED</span>
+                </div>
+              </div>
 
               {/* Digital cryptographic signature stamp */}
               {analytics?.signature_receipt && (

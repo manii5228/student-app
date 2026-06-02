@@ -112,31 +112,6 @@ const ExamSchedule = () => {
     }
   };
 
-  // Clash Validator check: overlaps on the same date with overlapping times
-  const checkConflicts = (examList: Exam[]) => {
-    const conflicts: Record<string, boolean> = {};
-    for (let i = 0; i < examList.length; i++) {
-      const e1 = examList[i];
-      const time1Start = e1.start_time;
-      const time1End = e1.end_time;
-      for (let j = i + 1; j < examList.length; j++) {
-        const e2 = examList[j];
-        if (e1.exam_date === e2.exam_date) {
-          const time2Start = e2.start_time;
-          const time2End = e2.end_time;
-          // Check time overlap: (start_time1 < end_time2) && (end_time1 > start_time2)
-          if ((time1Start < time2End) && (time1End > time2Start)) {
-            conflicts[e1.id] = true;
-            conflicts[e2.id] = true;
-          }
-        }
-      }
-    }
-    return conflicts;
-  };
-
-  const conflictsMap = checkConflicts(exams);
-
   const getNextExam = () => {
     if (exams.length === 0) return null;
     const now = new Date();
@@ -193,8 +168,7 @@ const ExamSchedule = () => {
     return 'upcoming';
   };
 
-  const getStatusStyle = (status: string, hasConflict: boolean) => {
-    if (hasConflict) return 'border-red-400 bg-red-50/70 shadow-sm ring-1 ring-red-400';
+  const getStatusStyle = (status: string) => {
     switch (status) {
       case 'today': return 'border-rose-300 bg-rose-50/50';
       case 'soon': return 'border-amber-200 bg-amber-50/30';
@@ -203,14 +177,7 @@ const ExamSchedule = () => {
     }
   };
 
-  const getStatusBadge = (status: string, hasConflict: boolean) => {
-    if (hasConflict) {
-      return (
-        <span className="text-[8px] font-black px-2 py-0.5 bg-red-600 text-white rounded-md uppercase tracking-wider flex items-center gap-1">
-          <AlertTriangle className="w-2.5 h-2.5" /> Conflict
-        </span>
-      );
-    }
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'today': return <span className="text-[9px] font-black px-2 py-0.5 bg-rose-600 text-white rounded-md uppercase">Today</span>;
       case 'soon': return <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500 text-white rounded-md uppercase">Soon</span>;
@@ -223,9 +190,11 @@ const ExamSchedule = () => {
     switch (t) {
       case 'cat1': return 'CAT-1';
       case 'cat2': return 'CAT-2';
-      case 'model': return 'Model Exam';
+      case 'midterm': case 'mid_semester': return 'Mid-Term Exam';
+      case 'unit': case 'unit_test': return 'Unit Test';
+      case 'model': case 'model_exam': return 'Model Exam';
       case 'end_semester': return 'End Semester';
-      default: return t;
+      default: return t.replace('_', ' ').toUpperCase();
     }
   };
 
@@ -260,70 +229,106 @@ const ExamSchedule = () => {
     }
   };
 
-  const handlePortalSubmit = () => {
+  const handlePortalSubmit = async () => {
     if (selectedFiles.length === 0) return;
     setParsing(true);
     setParseProgress(0);
 
-    const interval = setInterval(() => {
-      setParseProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 25;
-      });
-    }, 300);
+    const connectionMode = localStorage.getItem('connection_mode') || 'mock';
 
-    setTimeout(() => {
-      clearInterval(interval);
-      
-      // Seed two new exams dynamically: one general midterm and one conflicting end-sem exam to verify overlap indicators!
-      const newParsedExams: Exam[] = [
-        {
-          id: `coord_${Date.now()}_1`,
-          subject_code: 'CS305',
-          subject_name: 'Theory of Computation',
-          department: 'CSE',
-          semester: 4,
-          exam_date: '2026-06-18',
-          start_time: '10:00:00',
-          end_time: '13:00:00',
-          room_number: 'LH-102',
-          exam_type: 'model'
-        },
-        // This second one intentionally conflicts with the first seeded exam date/time (e.g. CS301 Stack exam on 2026-05-15)
-        {
-          id: `coord_${Date.now()}_2`,
-          subject_code: 'CS306',
-          subject_name: 'Database Management Systems',
-          department: 'CSE',
-          semester: 4,
-          // Intentionally clash with the next exam
-          exam_date: nextExam ? nextExam.exam_date : '2026-05-15',
-          start_time: nextExam ? nextExam.start_time : '10:00:00',
-          end_time: nextExam ? nextExam.end_time : '13:00:00',
-          room_number: 'LH-204',
-          exam_type: 'end_semester'
-        }
-      ];
+    if (connectionMode === 'live') {
+      try {
+        const formData = new FormData();
+        formData.append('file', selectedFiles[0]);
+        
+        // Simulating upload progress
+        const interval = setInterval(() => {
+          setParseProgress(prev => Math.min(prev + 15, 90));
+        }, 150);
+        
+        await api.post('/academic/exams/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        
+        clearInterval(interval);
+        setParseProgress(100);
+        setPortalSuccess("Timetable spreadsheet uploaded and parsed successfully on Flask backend!");
+        fetchExams();
+        setSelectedFiles([]);
+      } catch (err: any) {
+        console.error("Failed to upload schedule spreadsheet", err);
+        alert(err.response?.data?.error || "Failed to upload timetable spreadsheet.");
+      } finally {
+        setParsing(false);
+      }
+    } else {
+      // Mock Standalone mode simulation
+      const interval = setInterval(() => {
+        setParseProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            return 100;
+          }
+          return prev + 25;
+        });
+      }, 300);
 
-      setExams(prev => {
-        // Exclude duplicate codes if they exist
-        const codes = newParsedExams.map(pe => pe.subject_code);
-        const filteredPrev = prev.filter(e => !codes.includes(e.subject_code));
-        return [...filteredPrev, ...newParsedExams].sort((a, b) => 
-          new Date(`${a.exam_date}T${a.start_time}`).getTime() - new Date(`${b.exam_date}T${b.start_time}`).getTime()
-        );
-      });
+      setTimeout(() => {
+        clearInterval(interval);
+        
+        const newParsedExams: Exam[] = [
+          {
+            id: `coord_mid_${Date.now()}`,
+            subject_code: 'CS301',
+            subject_name: 'Data Structures',
+            department: 'CSE',
+            semester: 4,
+            exam_date: new Date(Date.now() + 10 * 864e5).toISOString().split('T')[0],
+            start_time: '10:00:00',
+            end_time: '12:00:00',
+            room_number: 'LH-101',
+            exam_type: 'midterm'
+          },
+          {
+            id: `coord_unit_${Date.now()}`,
+            subject_code: 'CS302',
+            subject_name: 'Digital Logic',
+            department: 'CSE',
+            semester: 4,
+            exam_date: new Date(Date.now() + 5 * 864e5).toISOString().split('T')[0],
+            start_time: '14:00:00',
+            end_time: '15:30:00',
+            room_number: 'LH-102',
+            exam_type: 'unit'
+          },
+          {
+            id: `coord_model_${Date.now()}`,
+            subject_code: 'CS303',
+            subject_name: 'Operating Systems',
+            department: 'CSE',
+            semester: 4,
+            exam_date: new Date(Date.now() + 15 * 864e5).toISOString().split('T')[0],
+            start_time: '09:30:00',
+            end_time: '12:30:00',
+            room_number: 'LH-103',
+            exam_type: 'model'
+          }
+        ];
 
-      setParsing(false);
-      setPortalSuccess("Timetable schedule parsed and merged successfully! (Conflict warning triggered for DBMS due to overlap).");
-      setSelectedFiles([]);
-      setParseProgress(0);
+        setExams(prev => {
+          const codes = newParsedExams.map(pe => pe.subject_code);
+          const filteredPrev = prev.filter(e => !codes.includes(e.subject_code));
+          return [...filteredPrev, ...newParsedExams].sort((a, b) => 
+            new Date(`${a.exam_date}T${a.start_time}`).getTime() - new Date(`${b.exam_date}T${b.start_time}`).getTime()
+          );
+        });
 
-      setTimeout(() => setPortalSuccess(null), 7000);
-    }, 1800);
+        setParsing(false);
+        setPortalSuccess("Timetable roster spreadsheet parsed! Imported 3 scheduled slots (Midterm, Unit Test, Model Exam).");
+        setSelectedFiles([]);
+        setParseProgress(0);
+      }, 1500);
+    }
   };
 
   return (
@@ -391,17 +396,15 @@ const ExamSchedule = () => {
             
             {exams.map((exam) => {
               const status = getExamStatus(exam.exam_date);
-              const hasConflict = !!conflictsMap[exam.id];
               return (
                 <div 
                   key={exam.id} 
                   onClick={() => setSelectedExam(exam)}
-                  className={`rounded-[24px] p-5 shadow-sm border flex gap-4 transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer active:scale-95 duration-155 ${getStatusStyle(status, hasConflict)}`}
+                  className={`rounded-[24px] p-5 shadow-sm border flex gap-4 transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer active:scale-95 duration-155 ${getStatusStyle(status)}`}
                 >
                   {/* Date Block */}
                   <div className="shrink-0 w-16 flex flex-col items-center justify-center">
                     <div className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center ${
-                      hasConflict ? 'bg-red-600 text-white animate-pulse' :
                       status === 'today' ? 'bg-rose-600 text-white' : 
                       status === 'soon' ? 'bg-amber-500 text-white' : 
                       'bg-slate-100 text-slate-700'
@@ -419,7 +422,7 @@ const ExamSchedule = () => {
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{exam.subject_code}</p>
                         <h3 className="text-sm font-bold text-slate-900 leading-tight mt-0.5">{exam.subject_name}</h3>
                       </div>
-                      {getStatusBadge(status, hasConflict)}
+                      {getStatusBadge(status)}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2.5 mt-3">
@@ -437,14 +440,6 @@ const ExamSchedule = () => {
                         {examTypeLabel(exam.exam_type)}
                       </span>
                     </div>
-
-                    {/* Conflict Highlight Details */}
-                    {hasConflict && (
-                      <div className="mt-2 text-[10px] text-red-700 bg-red-100/50 p-2 rounded-xl border border-red-200 font-bold leading-normal flex items-start gap-1">
-                        <AlertTriangle className="w-3.5 h-3.5 text-red-600 mt-0.5 shrink-0" />
-                        <span>Schedule clash! Another exam is scheduled on this same day/time cohort.</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               );
@@ -525,8 +520,6 @@ const ExamSchedule = () => {
         </div>
       </div>
 
-      <BottomNav />
-
       {/* Selected Exam Ticking Countdown Sheet */}
       {selectedExam && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in">
@@ -568,28 +561,14 @@ const ExamSchedule = () => {
             <div className="flex flex-col gap-3">
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Study Preparation Resources</p>
               
-              <div className="grid grid-cols-2 gap-2">
-                <a 
-                  href={`/academic/pyqs?code=${selectedExam.subject_code}`}
-                  onClick={(e) => { e.preventDefault(); navigate(`/academic/pyqs`); }}
-                  className="bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-700 p-4 rounded-2xl flex flex-col items-center text-center gap-1.5 transition-colors"
-                >
-                  <BookOpen className="w-5 h-5 text-rose-500" />
-                  <span className="text-[11px] font-black tracking-wide uppercase">Question Papers</span>
-                </a>
-                
-                <button 
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = '#';
-                    alert(`Downloaded ${selectedExam.subject_code}_Revision_Notes.pdf`);
-                  }}
-                  className="bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 p-4 rounded-2xl flex flex-col items-center text-center gap-1.5 transition-colors"
-                >
-                  <Download className="w-5 h-5 text-indigo-500" />
-                  <span className="text-[11px] font-black tracking-wide uppercase">Study Notes</span>
-                </button>
-              </div>
+              <a 
+                href={`/academic/pyqs?code=${selectedExam.subject_code}`}
+                onClick={(e) => { e.preventDefault(); navigate(`/academic/pyqs`); }}
+                className="w-full bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-700 p-4 rounded-2xl flex flex-col items-center text-center gap-1.5 transition-colors"
+              >
+                <BookOpen className="w-5 h-5 text-rose-500" />
+                <span className="text-[11px] font-black tracking-wide uppercase">Download Previous Year Question Papers (PYQ)</span>
+              </a>
 
               {/* Consult AI Study Assistant */}
               <button 
@@ -613,6 +592,7 @@ const ExamSchedule = () => {
           </div>
         </div>
       )}
+      <BottomNav />
     </div>
   );
 };

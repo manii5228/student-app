@@ -1164,9 +1164,16 @@ export const handleMockRequest = async (config: any): Promise<any> => {
 
   // Academic results
   if (cleanUrl === '/academic/results' && method === 'get') {
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    const semFilter = urlParams.get('semester');
+    let userResults = db.results.filter((r: any) => r.student_id === activeUserId);
+    if (semFilter) {
+      const semNum = parseInt(semFilter);
+      userResults = userResults.filter((r: any) => r.semester === semNum);
+    }
     return {
       status: 200,
-      data: db.results
+      data: { results: userResults }
     };
   }
 
@@ -1174,20 +1181,167 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     return {
       status: 200,
       data: {
-        gpa: 8.42,
-        class_average: 7.85,
-        highest_gpa: 9.8,
-        total_credits: 28,
-        backlogs: 0
+        class_averages: { "CS301": 78.5, "CS302": 82.0, "CS303": 75.0, "HU301": 85.0, "MA301": 72.0 },
+        percentiles: { "CS301": 92, "CS302": 88, "CS303": 95, "HU301": 90, "MA301": 85 },
+        overall_percentile: 91.5,
+        overall_average: 78.5,
+        signature_receipt: "vtu-sec-rec-9a8b7c6d5e4f3g2h1i0j"
       }
     };
   }
 
   // Syllabus
   if (cleanUrl === '/academic/syllabus' && method === 'get') {
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    const dept = urlParams.get('department') || activeUser?.department || 'CSE';
+    const sem = urlParams.get('semester') ? parseInt(urlParams.get('semester')!) : (activeUser?.semester || 4);
+    
+    const filteredSyllabus = db.syllabus.filter((s: any) => s.department === dept && s.semester === sem);
     return {
       status: 200,
-      data: db.syllabus
+      data: { syllabus: filteredSyllabus }
+    };
+  }
+
+  // Credits progress breakdown
+  if (cleanUrl === '/academic/credits' && method === 'get') {
+    const progress = db.creditProgresses.find((c: any) => c.student_id === activeUserId) || {
+      student_id: activeUserId,
+      total_required: 160,
+      total_earned: 62,
+      core_earned: 38,
+      elective_earned: 12,
+      lab_earned: 12
+    };
+    const pct = parseFloat(((progress.total_earned / progress.total_required) * 100).toFixed(1));
+    return {
+      status: 200,
+      data: {
+        credits: {
+          ...progress,
+          percentage: pct
+        }
+      }
+    };
+  }
+
+  // Credits Curriculum Roadmap
+  if (cleanUrl === '/academic/credits/roadmap' && method === 'get') {
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    const currSem = activeUser?.semester || 4;
+    const roadmap = [
+      { subject_code: "MA101", subject_name: "Mathematics I", semester: 1, credits: 4, category: "core", status: "passed", prerequisites: [], prereq_satisfied: true, missing_prerequisites: [] },
+      { subject_code: "CS101", subject_name: "Problem Solving & Programming", semester: 1, credits: 4, category: "core", status: "passed", prerequisites: [], prereq_satisfied: true, missing_prerequisites: [] },
+      { subject_code: "CS102", subject_name: "Data Structures", semester: 2, credits: 4, category: "core", status: "passed", prerequisites: ["CS101"], prereq_satisfied: true, missing_prerequisites: [] },
+      { subject_code: "MA201", subject_name: "Discrete Mathematics", semester: 3, credits: 4, category: "core", status: "passed", prerequisites: ["MA101"], prereq_satisfied: true, missing_prerequisites: [] },
+      { subject_code: "CS201", subject_name: "Object Oriented Programming", semester: 3, credits: 3, category: "core", status: "passed", prerequisites: ["CS101"], prereq_satisfied: true, missing_prerequisites: [] },
+      { subject_code: "CS301", subject_name: "Database Management Systems", semester: 4, credits: 4, category: "core", status: "in_progress", prerequisites: ["CS102"], prereq_satisfied: true, missing_prerequisites: [] },
+      { subject_code: "CS302", subject_name: "Operating Systems", semester: 4, credits: 4, category: "core", status: "in_progress", prerequisites: ["CS102"], prereq_satisfied: true, missing_prerequisites: [] },
+      { subject_code: "CS401", subject_name: "Computer Networks", semester: 5, credits: 4, category: "core", status: "not_started", prerequisites: ["CS302"], prereq_satisfied: false, missing_prerequisites: ["CS302"] },
+      { subject_code: "CS402", subject_name: "Software Engineering", semester: 5, credits: 3, category: "core", status: "not_started", prerequisites: [], prereq_satisfied: true, missing_prerequisites: [] },
+      { subject_code: "CS501", subject_name: "Compiler Design", semester: 6, credits: 4, category: "core", status: "not_started", prerequisites: ["CS302", "CS401"], prereq_satisfied: false, missing_prerequisites: ["CS302", "CS401"] }
+    ];
+    return {
+      status: 200,
+      data: {
+        roadmap,
+        current_semester: currSem
+      }
+    };
+  }
+
+  // Degree audit downloadable PDF transcript
+  if (cleanUrl === '/academic/credits/audit/pdf' && method === 'get') {
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    const content = `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 250 >>\nstream\nBT\n/F1 12 Tf\n70 700 Td\n(VelTech University - Official Degree Transcript & Audit) Tj\n0 -20 Td\n(Student: ${activeUser?.first_name || 'Mani'} ${activeUser?.last_name || 'Manjunath'}) Tj\n0 -20 Td\n(Roll Number: ${activeUser?.roll_number || '22CSE101'}) Tj\n0 -20 Td\n(Department: ${activeUser?.department || 'CSE'}  Semester: ${activeUser?.semester || 4}) Tj\n0 -40 Td\n(Earned Credits progress: 62 out of 160 required. CGPA: ${activeUser?.cgpa || 8.4}) Tj\n0 -20 Td\n(Cryptographically Signed Audit verification complete.) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000058 00000 n\n0000000115 00000 n\n0000000212 00000 n\ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n382\n%%EOF`;
+    return {
+      status: 200,
+      data: new Blob([content], { type: 'application/pdf' })
+    };
+  }
+
+  // Searchable faculty directory listings
+  if (cleanUrl === '/academic/faculty-directory' && method === 'get') {
+    const dept = urlParams.get('department');
+    const q = urlParams.get('q')?.toLowerCase() || '';
+    
+    let facList = db.users.filter((u: any) => u.role === 'faculty');
+    if (dept) {
+      facList = facList.filter((f: any) => f.department.toLowerCase() === dept.toLowerCase());
+    }
+    if (q) {
+      facList = facList.filter((f: any) => 
+        (f.first_name + " " + f.last_name).toLowerCase().includes(q) ||
+        f.email.toLowerCase().includes(q) ||
+        (f.specialization || '').toLowerCase().includes(q)
+      );
+    }
+    
+    const facMapped = facList.map((f: any) => ({
+      id: f.id,
+      first_name: f.first_name,
+      last_name: f.last_name,
+      full_name: `${f.first_name} ${f.last_name}`,
+      email: f.email,
+      phone: "+91 98765 43210",
+      department: f.department,
+      designation: f.designation || "Assistant Professor",
+      specialization: f.specialization || "Advanced Computing",
+      office_location: f.office_location || "LH-302, 3rd Floor, Main Block",
+      avatar_url: null
+    }));
+    
+    return {
+      status: 200,
+      data: { faculty: facMapped }
+    };
+  }
+
+  // Booking Meeting slots query
+  if (cleanUrl === '/faculty/meetings/slots' && method === 'get') {
+    const fid = urlParams.get('faculty_id') || 'fac_1';
+    if (!db.meetingSlots) db.meetingSlots = [];
+    const existingSlots = db.meetingSlots.filter((s: any) => s.faculty_id === fid);
+    
+    if (existingSlots.length === 0) {
+      const mockSlots = [
+        { id: `slot_m1_${fid}`, faculty_id: fid, date: new Date(Date.now() + 86400000).toISOString().split('T')[0], start_time: "10:00", end_time: "11:00", is_booked: false },
+        { id: `slot_m2_${fid}`, faculty_id: fid, date: new Date(Date.now() + 86400000).toISOString().split('T')[0], start_time: "14:00", end_time: "15:00", is_booked: false },
+        { id: `slot_m3_${fid}`, faculty_id: fid, date: new Date(Date.now() + 172800000).toISOString().split('T')[0], start_time: "11:00", end_time: "12:00", is_booked: false }
+      ];
+      if (fid === 'fac_1') {
+        return {
+          status: 200,
+          data: { slots: [] }
+        };
+      }
+      db.meetingSlots.push(...mockSlots);
+      saveMockDb(db);
+      return {
+        status: 200,
+        data: { slots: mockSlots }
+      };
+    }
+    
+    return {
+      status: 200,
+      data: { slots: existingSlots.filter((s: any) => !s.is_booked) }
+    };
+  }
+
+  // Booking a slot
+  if (cleanUrl.startsWith('/faculty/meetings/slots/') && cleanUrl.endsWith('/book') && method === 'post') {
+    const parts = cleanUrl.split('/');
+    const slotId = parts[parts.length - 2];
+    
+    const slot = (db.meetingSlots || []).find((s: any) => s.id === slotId);
+    if (slot) {
+      slot.is_booked = true;
+      saveMockDb(db);
+    }
+    return {
+      status: 200,
+      data: { success: true, message: "Meeting booked successfully!" }
     };
   }
 

@@ -86,7 +86,7 @@ const BunkOMeter = () => {
   const [bunkSliderVal, setBunkSliderVal] = useState(0);
 
   // Today Filters
-  const [filterTodayOnly, setFilterTodayOnly] = useState(false);
+  const [filterTodayOnly, setFilterTodayOnly] = useState(true);
   const [todaySubjects, setTodaySubjects] = useState<string[]>([]);
 
   // Fetch Data
@@ -579,7 +579,7 @@ const BunkOMeter = () => {
 
       {/* Discrepancy Reporting Modal */}
       {discrepancyModalOpen && selectedRecord && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-end justify-center sm:items-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-100 animate-slide-up text-slate-800 max-h-[85vh] overflow-y-auto pb-10">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-black text-slate-900">Report Attendance Discrepancy</h3>
