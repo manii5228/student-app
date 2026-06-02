@@ -101,6 +101,15 @@ interface Club {
 }
 
 const FALLBACK_CLUBS: Club[] = [
+  {
+    id: 'lavaza',
+    name: 'Lavaza Cultural Club',
+    description: 'The flagship cultural club organizing LAVAZA fest, cultural nights, dance-offs, and inter-college competitions.',
+    club_type: 'cultural',
+    member_count: 520,
+    whatsapp_link: 'https://chat.whatsapp.com/mock-lavaza',
+    instagram_link: 'https://instagram.com/veltech_lavaza'
+  },
   { 
     id: 'codechef', 
     name: 'CodeChef Chapter', 
@@ -129,6 +138,9 @@ const FALLBACK_CLUBS: Club[] = [
     instagram_link: 'https://instagram.com/veltech_finearts'
   },
 ];
+
+const LAVAZA_CLUB_ID = 'lavaza';
+const isLavazaClub = (clubId: string) => clubId.toLowerCase().includes('lavaza');
 
 const iconForClub = (type: string) => {
   if (type === 'cultural') return Palette;
@@ -290,6 +302,7 @@ const EventHub = () => {
   const [storyIndex, setStoryIndex] = useState(0);
   const [editingClubSocialsId, setEditingClubSocialsId] = useState<string | null>(null);
   const [socialForm, setSocialForm] = useState({ whatsapp: '', instagram: '' });
+  const [showClubRestricted, setShowClubRestricted] = useState(false);
 
   // Scanner modal state
   const [showScanner, setShowScanner] = useState(false);
@@ -498,9 +511,17 @@ const EventHub = () => {
     try { await api.post(`/campus/events/${eventId}/register`, { role: 'participant' }); } catch (error) { }
   };
 
-  // Club Direct Join Flow (replaces simulation requests)
+  // Club Direct Join Flow — only Lavaza is functional
   const handleRequestClubJoin = async (clubId: string) => {
     if (isGuest) { setUpsellOpen(true); return; }
+    
+    // Restrict non-Lavaza clubs
+    const club = clubs.find(c => c.id === clubId);
+    if (club && !isLavazaClub(club.id) && !club.name.toLowerCase().includes('lavaza')) {
+      setShowClubRestricted(true);
+      return;
+    }
+    
     if (joinedClubs.includes(clubId)) return;
 
     try {
@@ -517,6 +538,12 @@ const EventHub = () => {
   };
 
   const handleJoinClub = (clubId: string) => {
+    // Restrict non-Lavaza clubs from opening their space
+    const club = clubs.find(c => c.id === clubId);
+    if (club && !isLavazaClub(club.id) && !club.name.toLowerCase().includes('lavaza')) {
+      setShowClubRestricted(true);
+      return;
+    }
     setActiveClubFeed(activeClubFeed === clubId ? null : clubId);
   };
 
@@ -671,123 +698,7 @@ const EventHub = () => {
     document.body.removeChild(link);
   };
 
-  // Generate Certificate PDF (Mock high-res image download)
-  const handleDownloadCertificate = () => {
-    if (volunteerHours < 30) return;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 1200;
-    canvas.height = 850;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Background Velvet/Blue Gradient
-    const bgGrad = ctx.createLinearGradient(0, 0, 1200, 850);
-    bgGrad.addColorStop(0, '#f8fafc');
-    bgGrad.addColorStop(1, '#e2e8f0');
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, 1200, 850);
-
-    // Thick border
-    ctx.strokeStyle = '#0080c7';
-    ctx.lineWidth = 24;
-    ctx.strokeRect(12, 12, 1200 - 24, 850 - 24);
-
-    // Gold inner border
-    ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(36, 36, 1200 - 72, 850 - 72);
-
-    // Certificate details
-    ctx.fillStyle = '#0f172a';
-    ctx.textAlign = 'center';
-
-    // Crest/Header
-    ctx.font = 'bold 36px serif';
-    ctx.fillStyle = '#0080c7';
-    ctx.fillText('VELTECH HIGH TECH UNIVERSITY', 600, 120);
-
-    ctx.font = 'italic 20px sans-serif';
-    ctx.fillStyle = '#475569';
-    ctx.fillText('Student Development & Event Management Division', 600, 155);
-
-    // Title
-    ctx.fillStyle = '#d97706';
-    ctx.font = 'bold 44px sans-serif';
-    ctx.fillText('CERTIFICATE OF VOLUNTEERING EXCELLENCE', 600, 240);
-
-    // Body text
-    ctx.fillStyle = '#334155';
-    ctx.font = 'italic 22px serif';
-    ctx.fillText('This is proudly awarded to', 600, 310);
-
-    ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 38px sans-serif';
-    ctx.fillText(user?.full_name || 'VelTech Student Coordinator', 600, 370);
-
-    ctx.strokeStyle = '#0080c7';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(350, 390);
-    ctx.lineTo(850, 390);
-    ctx.stroke();
-
-    ctx.fillStyle = '#334155';
-    ctx.font = '20px sans-serif';
-    ctx.fillText('for exceptional, selfless volunteering contributions inside the Campus Hub ecosystem, completing', 600, 440);
-
-    ctx.fillStyle = '#0080c7';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText(`${volunteerHours} Hours of Verified Duty & Coordination Service`, 600, 485);
-
-    ctx.fillStyle = '#334155';
-    ctx.font = '20px sans-serif';
-    ctx.fillText('during the cultural fests, clubs coordination meetings, and community initiatives.', 600, 530);
-
-    // Date
-    ctx.font = 'bold 18px sans-serif';
-    ctx.fillStyle = '#475569';
-    ctx.fillText(`Issued on: ${new Date().toLocaleDateString()}`, 600, 600);
-
-    // Signatures
-    ctx.fillStyle = '#0f172a';
-    ctx.font = 'italic 22px serif';
-    ctx.fillText('Dr. S. K. Subramanian', 300, 690);
-    ctx.fillText('Prof. V. Meenakshi', 900, 690);
-
-    ctx.strokeStyle = '#94a3b8';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(180, 705);
-    ctx.lineTo(420, 705);
-    ctx.moveTo(780, 705);
-    ctx.lineTo(1020, 705);
-    ctx.stroke();
-
-    ctx.font = '14px sans-serif';
-    ctx.fillStyle = '#64748b';
-    ctx.fillText('Dean of Student Affairs', 300, 730);
-    ctx.fillText('Faculty Club Coordinator', 900, 730);
-
-    // Seal
-    ctx.fillStyle = '#d97706';
-    ctx.beginPath();
-    ctx.arc(600, 690, 45, 0, 2 * Math.PI);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText('OFFICIAL', 600, 685);
-    ctx.fillText('SEAL', 600, 703);
-
-    // Trigger download
-    const url = canvas.toDataURL('image/png');
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `VelTech_Volunteer_Certificate_${user?.full_name || 'Student'}.png`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // Certificate function removed — students earn the Volunteer Excellence Skill Badge instead.
 
   const renderTabs = () => (
     <div className="px-5 pt-5 pb-2">
@@ -910,19 +821,26 @@ const EventHub = () => {
               const isJoined = joinedClubs.includes(club.id);
               const isRequested = requestedClubs.includes(club.id);
               const isActiveFeed = activeClubFeed === club.id;
+              const clubIsLavaza = isLavazaClub(club.id) || club.name.toLowerCase().includes('lavaza');
 
               return (
-                <div key={club.id} className="bg-white rounded-[28px] p-5 shadow-sm border border-slate-100">
+                <div key={club.id} className={`bg-white rounded-[28px] p-5 shadow-sm border ${clubIsLavaza ? 'border-slate-100' : 'border-slate-100 relative'}`}>
+                  {/* Archived/Locked Badge for non-Lavaza */}
+                  {!clubIsLavaza && (
+                    <div className="absolute top-4 right-4 flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-wider">
+                      <Lock className="w-2.5 h-2.5" /> Archived
+                    </div>
+                  )}
                   <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-[#0080c7]/10 text-[#0080c7] flex items-center justify-center shrink-0">
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${clubIsLavaza ? 'bg-[#0080c7]/10 text-[#0080c7]' : 'bg-slate-100 text-slate-400'}`}>
                       <Icon className="w-7 h-7" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-base font-black text-slate-900 leading-tight">{club.name}</h3>
+                        <h3 className={`text-base font-black leading-tight ${clubIsLavaza ? 'text-slate-900' : 'text-slate-500'}`}>{club.name}</h3>
                         {isJoined && <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />}
                       </div>
-                      <p className="text-xs text-slate-500 leading-relaxed">{club.description}</p>
+                      <p className={`text-xs leading-relaxed ${clubIsLavaza ? 'text-slate-500' : 'text-slate-400'}`}>{club.description}</p>
                       
                       <div className="flex items-center gap-3 mt-3 text-[11px] font-bold text-slate-400">
                         <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {club.member_count} members</span>
@@ -933,9 +851,14 @@ const EventHub = () => {
                   {!isJoined && (
                     <button
                       onClick={() => handleRequestClubJoin(club.id)}
-                      className="mt-4 w-full py-3 rounded-2xl text-xs font-black bg-slate-900 text-white active:scale-95 transition-all shadow-sm"
+                      className={`mt-4 w-full py-3 rounded-2xl text-xs font-black active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5 ${
+                        clubIsLavaza 
+                          ? 'bg-slate-900 text-white' 
+                          : 'bg-slate-200 text-slate-500 cursor-not-allowed'
+                      }`}
                     >
-                      Join Club
+                      {!clubIsLavaza && <Lock className="w-3 h-3" />}
+                      {clubIsLavaza ? 'Join Club' : 'Club Suspended'}
                     </button>
                   )}
 
@@ -2038,6 +1961,33 @@ const EventHub = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Club Restricted Modal */}
+      {showClubRestricted && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-6" onClick={() => setShowClubRestricted(false)}>
+          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl p-6 text-center animate-scale-up relative overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Decorative glow */}
+            <div className="absolute top-[-30%] left-[-20%] w-40 h-40 rounded-full bg-amber-200/30 blur-3xl pointer-events-none" />
+            <div className="absolute bottom-[-20%] right-[-20%] w-32 h-32 rounded-full bg-amber-300/20 blur-3xl pointer-events-none" />
+            
+            <div className="relative z-10">
+              <div className="w-16 h-16 mx-auto mb-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-center">
+                <Lock className="w-7 h-7 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 mb-2">Club Portal Suspended</h3>
+              <p className="text-xs text-slate-500 leading-relaxed mb-6 max-w-xs mx-auto">
+                This club space has been archived by the administrator. Only the central <span className="font-black text-amber-700">Lavaza Cultural Club</span> space remains active for event registrations and club activities.
+              </p>
+              <button
+                onClick={() => setShowClubRestricted(false)}
+                className="w-full py-3.5 bg-slate-900 text-white rounded-2xl text-xs font-black active:scale-95 transition-all shadow-sm"
+              >
+                Got It
+              </button>
             </div>
           </div>
         </div>

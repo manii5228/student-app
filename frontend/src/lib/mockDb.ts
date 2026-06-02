@@ -659,41 +659,7 @@ const seedComprehensiveMockDb = () => {
     results,
     syllabus,
     badges,
-    notices: [
-      { 
-        id: "n1", 
-        title: "End Semester Exams Schedule - June 2026", 
-        content: "The timetable for final exams starting June 15, 2026 has been published. Please check the Exam Schedule section for detailed timings.", 
-        priority: "high", 
-        target_audience: "all", 
-        is_pinned: true, 
-        files: [{ name: "Exam_Timetable_June2026.pdf", type: "pdf", size: "450 KB" }], 
-        created_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
-        reads: []
-      },
-      { 
-        id: "n2", 
-        title: "Academic Calendar 2026-27 Approved", 
-        content: "The revised academic calendar for the next session is now available for download. All departments please note registration dates.", 
-        priority: "normal", 
-        target_audience: "all", 
-        is_pinned: false, 
-        files: [{ name: "Academic_Calendar_26_27.xlsx", type: "excel", size: "1.2 MB" }], 
-        created_at: new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString(),
-        reads: []
-      },
-      { 
-        id: "n3", 
-        title: "Placement Drive - Oracle", 
-        content: "Oracle recruiting drive for CSE and ECE 2026 batch. Registered students must attend the pre-placement talk tomorrow at 10 AM in the Seminar Hall.", 
-        priority: "high", 
-        target_audience: "all", 
-        is_pinned: true, 
-        files: [{ name: "Oracle_Eligibility_List.pdf", type: "pdf", size: "850 KB" }], 
-        created_at: new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString(),
-        reads: []
-      }
-    ],
+    // notices moved to comprehensive block below
     projects: [
       {
         id: "p1",
@@ -754,7 +720,16 @@ const seedComprehensiveMockDb = () => {
     interviews,
     internships,
     earnedBadges,
+    notices: [
+      { id: 'n_1', title: 'Mid-Semester Examination Schedule Released', content: 'The mid-semester examination schedule for all departments has been finalized. Students are advised to download the timetable and prepare accordingly. Exams begin from June 15, 2026.', priority: 'high', target_audience: 'all', is_pinned: true, branch: null, year: null, section: null, files: [{ name: 'Mid_Sem_Timetable_June2026.pdf', type: 'pdf', size: '1.4 MB' }], reads: [], author_id: 'admin_1', created_at: new Date(Date.now() - 86400000).toISOString() },
+      { id: 'n_2', title: 'Oracle Campus Recruitment Drive', content: 'Oracle is conducting an on-campus recruitment drive for CSE and ECE final year students. Eligible students must register before June 10. Pre-placement talk is scheduled for June 12 at 10 AM in Seminar Hall.', priority: 'high', target_audience: 'all', is_pinned: true, branch: null, year: null, section: null, files: [{ name: 'Oracle_Eligibility_Criteria.pdf', type: 'pdf', size: '850 KB' }, { name: 'Registration_Form.docx', type: 'word', size: '120 KB' }], reads: [], author_id: 'admin_1', created_at: new Date(Date.now() - 2*86400000).toISOString() },
+      { id: 'n_3', title: 'Academic Calendar 2026-27 Published', content: 'The academic calendar for the year 2026-27 has been published. All faculty and students are requested to note the important dates including semester start, holidays, and examination periods.', priority: 'normal', target_audience: 'all', is_pinned: false, branch: null, year: null, section: null, files: [{ name: 'Academic_Calendar_2026_27.xlsx', type: 'excel', size: '1.2 MB' }], reads: [], author_id: 'admin_1', created_at: new Date(Date.now() - 3*86400000).toISOString() },
+      { id: 'n_4', title: 'Library Book Return Deadline Extended', content: 'Due to the ongoing fest season, the library book return deadline has been extended by one week. All pending returns must be completed by June 20, 2026. Late fees will apply after this date.', priority: 'normal', target_audience: 'all', is_pinned: false, branch: null, year: null, section: null, files: [], reads: [], author_id: 'admin_1', created_at: new Date(Date.now() - 4*86400000).toISOString() },
+      { id: 'n_5', title: 'CSE Department Lab Maintenance Notice', content: 'Lab 4 and Lab 6 in the CSE block will be closed for hardware upgrades from June 8-12. Students are requested to use Labs 2 and 3 during this period.', priority: 'urgent', target_audience: 'class', is_pinned: true, branch: 'CSE', year: null, section: null, files: [{ name: 'Lab_Maintenance_Schedule.pdf', type: 'pdf', size: '340 KB' }], reads: [], author_id: 'fac_1', created_at: new Date(Date.now() - 5*86400000).toISOString() },
+      { id: 'n_6', title: 'LAVAZA 2026 Cultural Fest Volunteers Required', content: 'Volunteers are needed for the upcoming LAVAZA cultural fest. Interested students can register through the Event Hub. Volunteers completing 30+ hours will earn the Volunteer Excellence badge.', priority: 'normal', target_audience: 'all', is_pinned: false, branch: null, year: null, section: null, files: [{ name: 'Volunteer_Guidelines.pdf', type: 'pdf', size: '560 KB' }], reads: [], author_id: 'admin_1', created_at: new Date(Date.now() - 7*86400000).toISOString() }
+    ],
     clubs: [
+      { id: 'lavaza', name: 'Lavaza Cultural Club', description: 'The flagship cultural club organizing LAVAZA fest, cultural nights, dance-offs, and inter-college competitions.', club_type: 'cultural', member_count: 520, faculty_advisor_id: 'fac_1', president_id: 'std_2', website_url: 'https://chat.whatsapp.com/mock-lavaza', instagram_url: 'https://instagram.com/veltech_lavaza', is_active: true },
       { id: 'codechef', name: 'CodeChef Chapter', description: 'Weekly CP ladders, contest discussions, and ICPC prep.', club_type: 'technical', member_count: 248, faculty_advisor_id: 'fac_1', president_id: 'std_2', website_url: 'https://chat.whatsapp.com/mock-codechef', instagram_url: 'https://instagram.com/veltech_codechef', is_active: true },
       { id: 'robotics', name: 'Robotics Society', description: 'Autonomous bots, drone builds, and embedded systems labs.', club_type: 'technical', member_count: 142, faculty_advisor_id: 'fac_1', president_id: null, website_url: 'https://chat.whatsapp.com/mock-robotics', instagram_url: 'https://instagram.com/veltech_robotics', is_active: true },
       { id: 'gdsc', name: 'Developer Student Club', description: 'Cloud, Android, web workshops, and product build sprints.', club_type: 'technical', member_count: 311, faculty_advisor_id: 'fac_1', president_id: null, website_url: 'https://chat.whatsapp.com/mock-gdsc', instagram_url: 'https://instagram.com/veltech_gdsc', is_active: true },
@@ -2314,9 +2289,9 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     if (activeUser && activeUser.role === 'student') {
       filtered = sorted.filter((n: any) => {
         if (!n.target_audience || n.target_audience === 'all') return true;
-        const matchBranch = !n.branch || n.branch === activeUser.department;
-        const matchYear = !n.year || n.year === activeUser.semester;
-        const matchSection = !n.section || n.section === activeUser.section;
+        const matchBranch = !n.branch || n.branch === '' || n.branch === activeUser.department || !activeUser.department || activeUser.department === '';
+        const matchYear = !n.year || n.year === activeUser.semester || !activeUser.semester;
+        const matchSection = !n.section || n.section === '' || n.section === activeUser.section || !activeUser.section || activeUser.section === '';
         return matchBranch && matchYear && matchSection;
       });
     }
@@ -2339,15 +2314,37 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   if (cleanUrl === '/faculty/broadcast' && method === 'post') {
     const payload = getPayload(config.data);
     const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    
+    // Parse target class into branch/year/section
+    let branch = null;
+    let year = null;
+    let section = null;
+    let target_audience = 'all';
+    const target = payload.target_class;
+    if (target && target !== 'All Students') {
+      target_audience = 'class';
+      try {
+        const parts = target.split(' Sem ');
+        const deptSec = parts[0].split('-');
+        branch = deptSec[0];
+        section = deptSec.length > 1 ? deptSec[1] : null;
+        year = parseInt(parts[1]);
+      } catch (e) { /* ignore parse errors */ }
+    }
+    
     const newNotice = {
       id: `n_${Date.now()}`,
       title: payload.title || `Class Broadcast from Prof. ${activeUser?.last_name || 'Faculty'}`,
       content: payload.message,
       priority: payload.priority || 'normal',
-      target_audience: 'class',
+      target_audience,
       is_pinned: true,
-      files: [],
+      branch,
+      year,
+      section,
+      files: payload.files || [],
       reads: [],
+      author_id: activeUserId,
       created_at: new Date().toISOString()
     };
     if (!db.notices) db.notices = [];

@@ -1,28 +1,61 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Send, Bell, CheckCircle, Users, Check, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Send, Bell, CheckCircle, Users, Paperclip, FileText, X, File } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 
+interface AttachedFile {
+  name: string;
+  type: 'pdf' | 'word' | 'excel';
+  size: string;
+}
+
+const FILE_TEMPLATES: AttachedFile[] = [
+  { name: 'Assignment_Guidelines.pdf', type: 'pdf', size: '1.2 MB' },
+  { name: 'Lecture_Notes_Module4.pdf', type: 'pdf', size: '3.8 MB' },
+  { name: 'Lab_Manual_Experiment5.docx', type: 'word', size: '640 KB' },
+  { name: 'Student_Marks_Sheet.xlsx', type: 'excel', size: '280 KB' },
+  { name: 'Syllabus_Coverage_Report.pdf', type: 'pdf', size: '920 KB' },
+  { name: 'Project_Submission_Template.docx', type: 'word', size: '450 KB' },
+  { name: 'Attendance_Summary.xlsx', type: 'excel', size: '180 KB' },
+];
+
+const fileIcon = (type: string) => {
+  if (type === 'pdf') return '📕';
+  if (type === 'word') return '📘';
+  if (type === 'excel') return '📗';
+  return '📄';
+};
+
+const fileColor = (type: string) => {
+  if (type === 'pdf') return 'bg-red-50 border-red-200 text-red-700';
+  if (type === 'word') return 'bg-blue-50 border-blue-200 text-blue-700';
+  if (type === 'excel') return 'bg-emerald-50 border-emerald-200 text-emerald-700';
+  return 'bg-slate-50 border-slate-200 text-slate-700';
+};
+
 const FacultyBroadcast = () => {
   const nav = useNavigate();
   const [targetClass, setTargetClass] = useState('');
+  const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [priority, setPriority] = useState<'normal'|'urgent'>('normal');
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-
-  // Multi-Channel Dispatch selections
-  const [channels, setChannels] = useState({
-    inApp: true,
-    sms: false,
-    email: false
-  });
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [showFilePicker, setShowFilePicker] = useState(false);
 
   const classes = ['CSE-A Sem 4', 'CSE-B Sem 4', 'CSE-A Sem 6', 'ECE-A Sem 4', 'ECE-B Sem 6', 'MECH-A Sem 4', 'All Students'];
 
-  const toggleChannel = (key: 'inApp' | 'sms' | 'email') => {
-    setChannels(prev => ({ ...prev, [key]: !prev[key] }));
+  const addFile = (file: AttachedFile) => {
+    if (!attachedFiles.find(f => f.name === file.name)) {
+      setAttachedFiles(prev => [...prev, file]);
+    }
+    setShowFilePicker(false);
+  };
+
+  const removeFile = (name: string) => {
+    setAttachedFiles(prev => prev.filter(f => f.name !== name));
   };
 
   const send = async () => {
@@ -31,13 +64,13 @@ const FacultyBroadcast = () => {
     try { 
       await api.post('/faculty/broadcast', { 
         target_class: targetClass, 
+        title: title.trim() || undefined,
         message: message.trim(), 
         priority,
-        channels: Object.keys(channels).filter(k => channels[k as keyof typeof channels])
+        files: attachedFiles
       }); 
       setSent(true); 
     } catch {
-      // Allow demo fallback to sent state if backend is simple
       setSent(true);
     }
     setSending(false);
@@ -53,35 +86,25 @@ const FacultyBroadcast = () => {
           <h1 className="text-lg font-black text-slate-900">Broadcast Dispatched</h1>
           <p className="text-xs text-slate-500 mt-1">Notification sent to <span className="font-bold text-slate-700">{targetClass}</span></p>
           
-          {/* Channel Delivery Receipts logs */}
+          {/* Notice Summary */}
           <div className="mt-4 bg-white border border-slate-100 rounded-2xl p-4 text-left shadow-sm">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2.5">Delivery Status Metrics</h4>
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2.5">Notice Published</h4>
             <div className="flex flex-col gap-2">
               <div className="flex justify-between items-center text-xs border-b border-slate-50 pb-1.5">
-                <span className="font-bold text-slate-700">📱 In-App notice</span>
-                <span className="text-[10px] bg-emerald-50 text-emerald-650 px-2 py-0.5 rounded font-black">60/60 Pinned</span>
+                <span className="font-bold text-slate-700">📱 In-App Notice Board</span>
+                <span className="text-[10px] bg-emerald-50 text-emerald-650 px-2 py-0.5 rounded font-black">Pinned ✓</span>
               </div>
-              <div className="flex justify-between items-center text-xs border-b border-slate-50 pb-1.5">
-                <span className="font-bold text-slate-700">💬 SMS Dispatch</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded font-black ${
-                  channels.sms ? 'bg-emerald-50 text-emerald-650' : 'bg-slate-100 text-slate-400'
-                }`}>
-                  {channels.sms ? '59/60 Sent (1 pending)' : 'Not selected'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-slate-700">📧 Email Dispatch</span>
-                <span className={`text-[10px] px-2 py-0.5 rounded font-black ${
-                  channels.email ? 'bg-emerald-50 text-emerald-650' : 'bg-slate-100 text-slate-400'
-                }`}>
-                  {channels.email ? '58/60 Delivered' : 'Not selected'}
-                </span>
-              </div>
+              {attachedFiles.length > 0 && (
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-bold text-slate-700">📎 Attached Documents</span>
+                  <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded font-black">{attachedFiles.length} file{attachedFiles.length > 1 ? 's' : ''}</span>
+                </div>
+              )}
             </div>
           </div>
 
           <div className="mt-6 flex flex-col gap-2">
-            <button onClick={()=>{setSent(false);setMessage('');setTargetClass('');}} className="w-full py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-xs active:scale-95 transition-all">Send Another</button>
+            <button onClick={()=>{setSent(false);setMessage('');setTitle('');setTargetClass('');setAttachedFiles([]);}} className="w-full py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-xs active:scale-95 transition-all">Send Another</button>
             <button onClick={()=>nav('/faculty')} className="w-full py-3.5 bg-slate-100 text-slate-700 rounded-2xl font-bold text-xs active:scale-95 transition-all">Back to Hub</button>
           </div>
         </div>
@@ -111,51 +134,6 @@ const FacultyBroadcast = () => {
             </div>
           </div>
 
-          {/* Dispatch Delivery Channels */}
-          <div className="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
-            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Select Delivery Channels</label>
-            <div className="flex flex-col gap-3">
-              <label className="flex items-center justify-between cursor-pointer select-none">
-                <div className="flex flex-col">
-                  <span className="text-xs font-black text-slate-800">📱 In-App notification banner</span>
-                  <span className="text-[9px] text-slate-450 text-slate-400 font-bold">Standard notice board pin</span>
-                </div>
-                <input 
-                  type="checkbox" 
-                  checked={channels.inApp} 
-                  disabled // Always pinned
-                  className="rounded text-rose-500 border-slate-350 w-4 h-4"
-                />
-              </label>
-
-              <label className="flex items-center justify-between cursor-pointer select-none border-t border-slate-50 pt-2.5">
-                <div className="flex flex-col">
-                  <span className="text-xs font-black text-slate-800">💬 SMS Dispatch</span>
-                  <span className="text-[9px] text-slate-450 text-slate-400 font-bold">Send SMS to student mobile number</span>
-                </div>
-                <input 
-                  type="checkbox" 
-                  checked={channels.sms} 
-                  onChange={() => toggleChannel('sms')}
-                  className="rounded text-rose-500 border-slate-300 focus:ring-rose-500 w-4 h-4"
-                />
-              </label>
-
-              <label className="flex items-center justify-between cursor-pointer select-none border-t border-slate-50 pt-2.5">
-                <div className="flex flex-col">
-                  <span className="text-xs font-black text-slate-800">📧 Email Dispatch</span>
-                  <span className="text-[9px] text-slate-450 text-slate-400 font-bold">Send mail copy to registered student email</span>
-                </div>
-                <input 
-                  type="checkbox" 
-                  checked={channels.email} 
-                  onChange={() => toggleChannel('email')}
-                  className="rounded text-rose-500 border-slate-300 focus:ring-rose-500 w-4 h-4"
-                />
-              </label>
-            </div>
-          </div>
-
           {/* Priority */}
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
             <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Priority</label>
@@ -165,11 +143,51 @@ const FacultyBroadcast = () => {
             </div>
           </div>
 
+          {/* Title */}
+          <div className="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
+            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Notice Title (Optional)</label>
+            <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="e.g. Lab Rescheduled Tomorrow" className="w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm border border-slate-200 focus:outline-none focus:border-rose-400 text-slate-800 font-medium"/>
+          </div>
+
           {/* Message */}
           <div className="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
             <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Message *</label>
             <textarea value={message} onChange={e=>setMessage(e.target.value)} rows={4} placeholder="Type your announcement..." className="w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm border border-slate-200 focus:outline-none focus:border-rose-400 resize-none text-slate-800 font-medium"/>
             <p className="text-[10px] text-slate-400 mt-1 text-right">{message.length}/500</p>
+          </div>
+
+          {/* Document Attachments */}
+          <div className="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100">
+            <label className="text-[10px] font-bold text-slate-400 uppercase mb-2 block">Attach Documents</label>
+            
+            {/* Attached Files List */}
+            {attachedFiles.length > 0 && (
+              <div className="flex flex-col gap-2 mb-3">
+                {attachedFiles.map(f => (
+                  <div key={f.name} className={`flex items-center justify-between px-3 py-2.5 rounded-xl border ${fileColor(f.type)} transition-all`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-base shrink-0">{fileIcon(f.type)}</span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate">{f.name}</p>
+                        <p className="text-[9px] font-bold opacity-60">{f.size} • {f.type.toUpperCase()}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => removeFile(f.name)} className="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center shrink-0 hover:bg-red-100 transition-colors">
+                      <X className="w-3 h-3 text-red-500" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add File Button */}
+            <button
+              type="button"
+              onClick={() => setShowFilePicker(true)}
+              className="w-full py-3 rounded-2xl border-2 border-dashed border-slate-200 hover:border-rose-300 text-slate-500 hover:text-rose-600 text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
+            >
+              <Paperclip className="w-4 h-4" /> Add PDF, Word, or Excel Document
+            </button>
           </div>
 
           {/* Preview */}
@@ -179,14 +197,18 @@ const FacultyBroadcast = () => {
               <Users className="w-3.5 h-3.5 text-indigo-400"/><span className="text-xs font-bold text-indigo-400">{targetClass}</span>
               {priority==='urgent' && <span className="text-[9px] font-bold bg-red-500 text-white px-2 py-0.5 rounded-lg">URGENT</span>}
             </div>
+            {title && <p className="text-sm font-black text-white mb-1">{title}</p>}
             <p className="text-sm text-white leading-relaxed">{message}</p>
             
-            <div className="mt-3 pt-3 border-t border-slate-800 flex gap-2 text-[10px] text-slate-400 font-bold">
-              <span>Channels:</span>
-              <span className="text-indigo-400">In-App</span>
-              {channels.sms && <span className="text-indigo-400">• SMS</span>}
-              {channels.email && <span className="text-indigo-400">• Email</span>}
-            </div>
+            {attachedFiles.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-slate-800 flex flex-wrap gap-1.5">
+                {attachedFiles.map(f => (
+                  <span key={f.name} className="text-[10px] font-bold text-indigo-300 bg-indigo-500/10 px-2 py-1 rounded-lg flex items-center gap-1">
+                    {fileIcon(f.type)} {f.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>}
 
           <button onClick={send} disabled={sending||!targetClass||!message.trim()} className="w-full bg-rose-500 text-white py-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-rose-600 active:scale-[0.98] transition-all disabled:opacity-40 shadow-lg shadow-rose-500/20">
@@ -194,6 +216,38 @@ const FacultyBroadcast = () => {
           </button>
         </div>
       </div>
+
+      {/* File Picker Modal */}
+      {showFilePicker && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 backdrop-blur-sm p-4" onClick={() => setShowFilePicker(false)}>
+          <div className="bg-white w-full max-w-md rounded-[28px] shadow-2xl p-5 animate-slide-up" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-base font-black text-slate-900">Select Document</h3>
+              <button onClick={() => setShowFilePicker(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200">
+                <X className="w-4 h-4 text-slate-500"/>
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 font-bold mb-3">Choose a document to attach to this broadcast notice:</p>
+            <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto">
+              {FILE_TEMPLATES.filter(f => !attachedFiles.find(a => a.name === f.name)).map(f => (
+                <button
+                  key={f.name}
+                  onClick={() => addFile(f)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all hover:shadow-sm active:scale-[0.98] ${fileColor(f.type)}`}
+                >
+                  <span className="text-lg">{fileIcon(f.type)}</span>
+                  <div className="text-left min-w-0 flex-1">
+                    <p className="text-xs font-bold truncate">{f.name}</p>
+                    <p className="text-[10px] font-bold opacity-60">{f.size} • {f.type.toUpperCase()}</p>
+                  </div>
+                  <Paperclip className="w-4 h-4 opacity-40 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <BottomNav/>
     </div>
   );

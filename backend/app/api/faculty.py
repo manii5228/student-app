@@ -344,18 +344,22 @@ def broadcast_message():
                 pass
 
     # Save to Notice database so students see it!
+    files = data.get("files", [])
+    files_json = json.dumps(files)
+    priority = data.get("priority", "high")
+    
     notice = Notice(
         title=title,
         content=content,
         author_id=user_id,
-        priority="high",
+        priority=priority,
         target_audience=target_audience,
         is_pinned=True,
         branch=branch,
         year=year,
         section=section,
         media_json='[]',
-        files_json='[]'
+        files_json=files_json
     )
     db.session.add(notice)
     db.session.commit()

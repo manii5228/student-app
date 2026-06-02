@@ -403,15 +403,15 @@ def list_notices():
     
     query = Notice.query
     
-    # If the logged-in user is a student, filter targeted notices
+    # If the logged-in user is a student, filter targeted notices with graceful fallbacks
     if student and student.role.value == "student":
         query = query.filter(
             or_(
                 Notice.target_audience == "all",
                 and_(
-                    or_(Notice.branch == None, Notice.branch == student.department),
-                    or_(Notice.year == None, Notice.year == student.semester),
-                    or_(Notice.section == None, Notice.section == student.section)
+                    or_(Notice.branch == None, Notice.branch == '', Notice.branch == student.department, student.department == None, student.department == ''),
+                    or_(Notice.year == None, Notice.year == student.semester, student.semester == None),
+                    or_(Notice.section == None, Notice.section == '', Notice.section == student.section, student.section == None, student.section == '')
                 )
             )
         )
