@@ -292,57 +292,132 @@ const InterviewScheduler = () => {
               })}
             </div>
 
-            {/* Calendly booking picker modal */}
-            {activeJobIdForBooking && (
-              <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm p-0">
-                <div className="bg-white rounded-t-[32px] w-full max-w-md p-6 pb-10 shadow-2xl animate-slide-up">
-                  <div className="flex justify-between items-center mb-4">
-                    <div>
-                      <h4 className="text-lg font-black text-slate-900">Select Slot</h4>
-                      <p className="text-xs text-slate-500">Pick a Calendly-style interview time.</p>
+            {/* Calendar-style booking modal (mobile optimized) */}
+            {activeJobIdForBooking && (() => {
+              // Group slots by date for calendar view
+              const slotsByDate: Record<string, Slot[]> = {};
+              availableSlots.forEach(slot => {
+                const dateKey = new Date(slot.time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                if (!slotsByDate[dateKey]) slotsByDate[dateKey] = [];
+                slotsByDate[dateKey].push(slot);
+              });
+              const dateKeys = Object.keys(slotsByDate);
+              const activeDateKey = selectedSlotId 
+                ? (() => {
+                    const activeSlot = availableSlots.find(s => s.id === selectedSlotId);
+                    return activeSlot ? new Date(activeSlot.time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : dateKeys[0];
+                  })()
+                : dateKeys[0];
+
+              return (
+                <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm p-0">
+                  <div className="bg-white rounded-t-[32px] w-full max-w-md shadow-2xl animate-slide-up flex flex-col" style={{ maxHeight: '85vh' }}>
+                    {/* Header */}
+                    <div className="flex justify-between items-center p-6 pb-3 shrink-0">
+                      <div>
+                        <h4 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                          <CalendarIcon className="w-5 h-5 text-violet-600" /> Select Slot
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-0.5">Pick a date, then choose a time.</p>
+                      </div>
+                      <button
+                        onClick={() => { setActiveJobIdForBooking(null); setSelectedSlotId(null); }}
+                        className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 hover:bg-slate-200"
+                      >
+                        ✕
+                      </button>
                     </div>
-                    <button
-                      onClick={() => { setActiveJobIdForBooking(null); setSelectedSlotId(null); }}
-                      className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500"
-                    >
-                      ✕
-                    </button>
+
+                    {/* Date selector - horizontal scrollable calendar row */}
+                    <div className="px-4 pb-3 shrink-0">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 px-1">Available Dates</p>
+                      <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+                        {dateKeys.map(dateKey => {
+                          const dt = new Date(slotsByDate[dateKey][0].time);
+                          const dayName = dt.toLocaleDateString('en-IN', { weekday: 'short' });
+                          const dayNum = dt.getDate();
+                          const monthName = dt.toLocaleDateString('en-IN', { month: 'short' });
+                          const isActive = dateKey === activeDateKey;
+                          const hasSelected = slotsByDate[dateKey].some(s => s.id === selectedSlotId);
+
+                          return (
+                            <button
+                              key={dateKey}
+                              onClick={() => {
+                                // If not already selecting a slot on this date, clear selection
+                                if (!hasSelected) setSelectedSlotId(null);
+                              }}
+                              className={`shrink-0 flex flex-col items-center px-4 py-3 rounded-2xl border transition-all min-w-[72px] ${
+                                isActive
+                                  ? 'bg-violet-600 text-white border-violet-600 shadow-lg shadow-violet-500/20'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:border-violet-300'
+                              }`}
+                            >
+                              <span className={`text-[10px] font-bold uppercase ${isActive ? 'text-violet-200' : 'text-slate-400'}`}>{dayName}</span>
+                              <span className="text-xl font-black leading-tight">{dayNum}</span>
+                              <span className={`text-[10px] font-bold ${isActive ? 'text-violet-200' : 'text-slate-400'}`}>{monthName}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Time slots for selected date */}
+                    <div className="flex-1 overflow-y-auto px-4 pb-4 custom-scrollbar">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2 px-1">Available Times — {activeDateKey}</p>
+                      <div className="flex flex-col gap-2">
+                        {(slotsByDate[activeDateKey || dateKeys[0]] || []).map(slot => {
+                          const timeStr = new Date(slot.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+                          const isSelected = selectedSlotId === slot.id;
+
+                          return (
+                            <button
+                              key={slot.id}
+                              onClick={() => setSelectedSlotId(slot.id)}
+                              className={`w-full p-4 rounded-2xl border text-left transition-all flex items-center justify-between ${
+                                isSelected
+                                  ? 'border-violet-600 bg-violet-50 shadow-sm'
+                                  : 'border-slate-200 bg-white hover:border-slate-300'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isSelected ? 'bg-violet-600' : 'bg-slate-100'}`}>
+                                  <Clock className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-slate-400'}`} />
+                                </div>
+                                <div>
+                                  <p className={`text-sm font-bold ${isSelected ? 'text-violet-700' : 'text-slate-800'}`}>{timeStr}</p>
+                                  <p className="text-[10px] text-slate-400 font-bold">60 min slot</p>
+                                </div>
+                              </div>
+                              {isSelected && (
+                                <div className="w-6 h-6 rounded-full bg-violet-600 flex items-center justify-center">
+                                  <CheckCircle className="w-4 h-4 text-white" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Confirm button */}
+                    <div className="p-4 pt-2 border-t border-slate-100 shrink-0 pb-8">
+                      <button
+                        onClick={handleBookSlot}
+                        disabled={!selectedSlotId || bookingInProgress}
+                        className="w-full bg-violet-600 text-white py-4 rounded-2xl text-sm font-black shadow-lg shadow-violet-500/20 disabled:opacity-40 flex items-center justify-center gap-2"
+                      >
+                        {bookingInProgress ? (
+                          <><span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> Booking Slot...</>
+                        ) : (
+                          <><CalendarIcon className="w-4 h-4" /> Confirm Appointment</>
+                        )}
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Slot selector grid */}
-                  <div className="grid grid-cols-2 gap-3 max-h-52 overflow-y-auto pr-1 my-4">
-                    {availableSlots.map(slot => {
-                      const dateStr = new Date(slot.time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
-                      const timeStr = new Date(slot.time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-                      const isSelected = selectedSlotId === slot.id;
-
-                      return (
-                        <button
-                          key={slot.id}
-                          onClick={() => setSelectedSlotId(slot.id)}
-                          className={`p-3 rounded-xl border text-center transition-all ${
-                            isSelected 
-                              ? 'border-violet-600 bg-violet-50 text-violet-700 font-black' 
-                              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 font-semibold'
-                          }`}
-                        >
-                          <p className="text-xs">{dateStr}</p>
-                          <p className="text-[11px] mt-0.5 text-slate-500">{timeStr}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <button
-                    onClick={handleBookSlot}
-                    disabled={!selectedSlotId || bookingInProgress}
-                    className="w-full bg-violet-600 text-white py-3.5 rounded-2xl text-xs font-black shadow-lg shadow-violet-500/20 disabled:opacity-40"
-                  >
-                    {bookingInProgress ? 'Booking Slot...' : 'Confirm Appointment Slot'}
-                  </button>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
       </div>

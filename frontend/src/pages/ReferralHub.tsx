@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Share2, MessageSquare, Link, AlertCircle, Clock, CheckCircle2, Award, Search, Send, X } from 'lucide-react';
+import { ChevronLeft, MessageSquare, Link, AlertCircle, Clock, CheckCircle2, Award, Search, Send, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -190,9 +190,7 @@ ${nameStr}`;
               <p className="text-xs text-pink-200">Connect with Vel Tech Alumni</p>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white">
-            <Share2 className="w-5 h-5" />
-          </div>
+
         </div>
 
         {/* Stats card inside header */}

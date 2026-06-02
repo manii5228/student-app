@@ -425,10 +425,14 @@ const seedComprehensiveMockDb = () => {
 
   // 7. Placements & Job Openings
   const jobs = [
-    { id: "job_1", company_name: "Google", role_title: "Graduate Engineer Trainee - Software Development", description: "Software Trainee at Google. Expertise in React/Node/PostgreSQL. Min CGPA: 8.0.", package_lpa: 24.5, min_cgpa: 8.0, eligible_departments: "CSE,ECE", eligible_batch_year: 2022, job_type: "placement", is_active: true, last_date_apply: "2026-06-15", drive_date: "2026-06-25" },
-    { id: "job_2", company_name: "Microsoft", role_title: "Cloud Support Engineer - AWS/Azure", description: "Cloud Engineer Trainee. Python & scripting. Min CGPA: 7.5.", package_lpa: 18.0, min_cgpa: 7.5, eligible_departments: "CSE,ECE", eligible_batch_year: 2022, job_type: "placement", is_active: true, last_date_apply: "2026-06-18", drive_date: "2026-06-28" },
-    { id: "job_3", company_name: "Qualcomm", role_title: "Silicon Verification Engineer", description: "Qualcomm chips testing and VLSI. Min CGPA: 8.0.", package_lpa: 22.0, min_cgpa: 8.0, eligible_departments: "ECE", eligible_batch_year: 2022, job_type: "placement", is_active: true, last_date_apply: "2026-06-12", drive_date: "2026-06-22" },
-    { id: "job_4", company_name: "Intel", role_title: "Embedded Systems Intern", description: "Firmware and microcontrollers development. Min CGPA: 7.0.", package_lpa: 8.0, min_cgpa: 7.0, eligible_departments: "ECE,Mech", eligible_batch_year: 2022, job_type: "internship", is_active: true, last_date_apply: "2026-06-10", drive_date: "2026-06-20" }
+    { id: "job_1", company_name: "Google", role_title: "Graduate Engineer Trainee - Software Development", description: "Software Trainee at Google. Expertise in React/Node/PostgreSQL. Strong problem-solving and DSA fundamentals required.", package_lpa: 24.5, salary: "24.5 LPA", min_cgpa: 8.0, eligible_departments: "CSE,IT,ECE", eligible_batch_year: 2026, job_type: "placement", is_active: true, location: "Bangalore", last_date_apply: "2026-06-15", drive_date: "2026-06-25" },
+    { id: "job_2", company_name: "Microsoft", role_title: "Cloud Support Engineer - Azure", description: "Cloud Engineer Trainee. Python & scripting skills, Azure/AWS experience is a plus.", package_lpa: 18.0, salary: "18 LPA", min_cgpa: 7.5, eligible_departments: "CSE,IT,ECE", eligible_batch_year: 2026, job_type: "placement", is_active: true, location: "Hyderabad", last_date_apply: "2026-06-18", drive_date: "2026-06-28" },
+    { id: "job_3", company_name: "Amazon", role_title: "SDE-1 (Software Development Engineer)", description: "Build scalable distributed systems. Strong CS fundamentals, data structures, algorithms required. Work on real Amazon-scale services.", package_lpa: 21.0, salary: "21 LPA", min_cgpa: 8.0, eligible_departments: "CSE,IT", eligible_batch_year: 2026, job_type: "placement", is_active: true, location: "Chennai", last_date_apply: "2026-06-20", drive_date: "2026-07-01" },
+    { id: "job_4", company_name: "TCS", role_title: "Digital Profile - Full Stack Developer", description: "Focuses on full stack development, cloud architectures, and DevOps pipelines. Training provided for fresh graduates.", package_lpa: 7.0, salary: "7 LPA", min_cgpa: 6.5, eligible_departments: "CSE,IT,ECE,EEE,MECH", eligible_batch_year: 2026, job_type: "placement", is_active: true, location: "Pan India", last_date_apply: "2026-06-12", drive_date: "2026-06-22" },
+    { id: "job_5", company_name: "Deloitte", role_title: "Business Technology Analyst", description: "SQL, analytics, and consulting skills desired. Work with Fortune 500 clients on digital transformation projects.", package_lpa: 8.5, salary: "8.5 LPA", min_cgpa: 7.5, eligible_departments: "CSE,IT,ECE,EEE,MECH", eligible_batch_year: 2026, job_type: "placement", is_active: true, location: "Bangalore", last_date_apply: "2026-06-14", drive_date: "2026-06-24" },
+    { id: "job_6", company_name: "Infosys", role_title: "Power Programmer - Specialist Engineer", description: "Infosys Power Programmer role for top-performing engineering graduates. Competitive coding, system design skills required.", package_lpa: 9.5, salary: "9.5 LPA", min_cgpa: 8.0, eligible_departments: "CSE,IT", eligible_batch_year: 2026, job_type: "placement", is_active: true, location: "Mysuru", last_date_apply: "2026-06-16", drive_date: "2026-06-26" },
+    { id: "job_7", company_name: "Qualcomm", role_title: "Silicon Verification Engineer", description: "VLSI design and verification. SystemVerilog, UVM methodologies. Work on cutting-edge mobile SoC chips.", package_lpa: 22.0, salary: "22 LPA", min_cgpa: 8.0, eligible_departments: "ECE,EEE", eligible_batch_year: 2026, job_type: "placement", is_active: true, location: "Hyderabad", last_date_apply: "2026-06-12", drive_date: "2026-06-22" },
+    { id: "job_8", company_name: "Zoho", role_title: "Software Developer - Product Engineering", description: "Build enterprise SaaS products used by millions. Java, JavaScript, problem-solving mindset required. No CGPA cutoff!", package_lpa: 6.5, salary: "6.5 LPA", min_cgpa: 0, eligible_departments: "all", eligible_batch_year: 2026, job_type: "placement", is_active: true, location: "Chennai", last_date_apply: "2026-06-25", drive_date: "2026-07-05" }
   ];
 
   // 8. PYQs
@@ -1857,12 +1861,12 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   // Job & Placement Portal Routes
   // ==========================================
   if (cleanUrl === '/career/jobs' && method === 'get') {
-    return { status: 200, data: db.jobs };
+    return { status: 200, data: { jobs: db.jobs || [] } };
   }
   if (cleanUrl === '/career/jobs/saved' && method === 'get') {
     const saved = db.savedJobs || [];
     const savedList = db.jobs.filter((j: any) => saved.includes(j.id));
-    return { status: 200, data: savedList };
+    return { status: 200, data: { saved_jobs: savedList } };
   }
   if (cleanUrl === '/career/jobs/my-applications' && method === 'get') {
     const apps = db.jobApplications || [];

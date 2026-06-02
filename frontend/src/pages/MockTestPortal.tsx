@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronLeft, Play, Clock, BarChart3, CheckCircle, XCircle, Trophy, AlertTriangle, Plus, Trash2, Edit, Video, Save, X } from 'lucide-react';
+import { ChevronLeft, Play, Clock, BarChart3, CheckCircle, XCircle, Trophy, AlertTriangle, Plus, Trash2, Edit, Video, Save, X, Lock, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -208,6 +208,7 @@ const MockTestPortal = () => {
   const [submitting, setSubmitting] = useState(false);
   const [warnings, setWarnings] = useState(0);
   const [showWarningModal, setShowWarningModal] = useState(false);
+  const [showLockedModal, setShowLockedModal] = useState(false);
 
   // Modals state (Faculty tools)
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -642,6 +643,14 @@ const MockTestPortal = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            {/* Suspension Banner */}
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 flex gap-3 mb-4">
+              <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-bold text-amber-800">Mock Tests Temporarily Suspended</p>
+                <p className="text-[10px] text-amber-700 font-medium mt-0.5 leading-relaxed">Proctored tests are disabled in Version 1.0. Use Revision Flashcards to continue studying.</p>
+              </div>
+            </div>
             {loading ? (
               <div className="flex justify-center py-16">
                 <span className="w-8 h-8 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></span>
@@ -657,7 +666,13 @@ const MockTestPortal = () => {
                 {tests.map(t => {
                   const grad = catColors[t.category] || 'from-slate-500 to-slate-600';
                   return (
-                    <div key={t.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 hover:shadow-md transition-all flex justify-between items-center gap-4">
+                    <div key={t.id} className="bg-white/80 rounded-[24px] p-5 shadow-sm border border-slate-100 transition-all flex justify-between items-center gap-4 relative">
+                      {/* Lock badge */}
+                      <div className="absolute -top-2 -right-2 z-10">
+                        <span className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase shadow-sm flex items-center gap-0.5">
+                          <Lock className="w-2.5 h-2.5" /> Suspended
+                        </span>
+                      </div>
                       <div className="flex items-center gap-4 min-w-0">
                         <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center text-white shrink-0 shadow-sm shadow-indigo-500/5`}>
                           <BarChart3 className="w-5 h-5" />
@@ -685,10 +700,10 @@ const MockTestPortal = () => {
                           </>
                         )}
                         <button 
-                          onClick={() => startTest(t)} 
-                          className="px-4 py-2.5 bg-rose-600 text-white rounded-xl text-xs font-black shadow-lg shadow-rose-500/10 hover:bg-rose-700 active:scale-95 flex items-center gap-1 transition-all"
+                          onClick={() => setShowLockedModal(true)} 
+                          className="px-4 py-2.5 bg-slate-300 text-slate-500 rounded-xl text-xs font-black flex items-center gap-1 cursor-not-allowed opacity-70"
                         >
-                          <Play className="w-3.5 h-3.5" /> Start
+                          <Lock className="w-3.5 h-3.5" /> Locked
                         </button>
                       </div>
                     </div>
@@ -1131,6 +1146,40 @@ const MockTestPortal = () => {
             <div className="flex gap-3 mt-6 pt-4 border-t border-slate-100">
               <button onClick={() => { setShowEditModal(false); setEditingTest(null); }} className="flex-1 py-3.5 text-xs font-black text-slate-500 bg-slate-100 rounded-2xl">Cancel</button>
               <button onClick={handleEditTest} className="flex-1 py-3.5 text-xs font-black text-white bg-rose-600 rounded-2xl shadow-lg shadow-rose-500/10">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MOCK TEST LOCKED MODAL */}
+      {showLockedModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden animate-slide-up">
+            {/* Gradient header */}
+            <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 p-6 pt-8 text-center relative overflow-hidden">
+              <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+              <div className="absolute -left-8 -bottom-8 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3 relative z-10 backdrop-blur-sm border border-white/30">
+                <ShieldAlert className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-lg font-black text-white relative z-10">Mock Tests Suspended</h3>
+              <p className="text-xs text-white/80 font-bold mt-1 relative z-10">Temporarily Unavailable</p>
+            </div>
+
+            <div className="p-6">
+              <p className="text-xs text-slate-600 font-semibold leading-relaxed text-center mb-2">
+                The Mock Test Portal has been temporarily suspended by the college administration for Version 1.0 of the app.
+              </p>
+              <p className="text-[10px] text-slate-400 font-bold leading-relaxed text-center mb-6">
+                Proctored tests, aptitude drills, and coding assessments will be enabled in the next version update. Revision Flashcards remain available for practice.
+              </p>
+
+              <button 
+                onClick={() => setShowLockedModal(false)} 
+                className="w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white py-3.5 rounded-2xl font-bold text-xs shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2"
+              >
+                <Lock className="w-3.5 h-3.5" /> Understood
+              </button>
             </div>
           </div>
         </div>
