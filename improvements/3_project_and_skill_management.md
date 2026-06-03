@@ -9,6 +9,6 @@ portfolio builder ui is fine but change the side by side alignment that is very 
 automatically add skills, projects from the database of the student profile.
 what about the flash cards in company prep and mock test, these need to be added by the respective faculty.
 
-Download button is not working in the portfolio builder, it need to be directly downloded to mobile or system
+Download button is not working in the portfolio builder, it need to be directly downloded to mobile or system(done but it is directly saving into files automatically)
 
 if trying to add new project getting blank screen(done)

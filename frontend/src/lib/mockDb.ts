@@ -658,6 +658,7 @@ const seedComprehensiveMockDb = () => {
 
   const completeDb = {
     is_comprehensive: true,
+    version: 2,
     users,
     timetable,
     results,
@@ -682,13 +683,13 @@ const seedComprehensiveMockDb = () => {
       }
     ],
     hostelPasses: [
-      { id: 'hp_1', reason: 'Going home for weekend', destination: 'Chennai Central', from_date: new Date(Date.now() + 86400000).toISOString(), to_date: new Date(Date.now() + 3*86400000).toISOString(), status: 'approved', mentor_status: 'approved', parent_status: 'approved', student_id: 'std_1', student_name: 'Mani Manjunath', student_reg: '22CSE101', created_at: new Date(Date.now() - 86400000).toISOString() },
-      { id: 'hp_2', reason: 'Medical appointment at hospital', destination: 'Apollo Hospital, Chennai', from_date: new Date(Date.now() + 2*86400000).toISOString(), to_date: new Date(Date.now() + 2*86400000 + 18000000).toISOString(), status: 'pending', mentor_status: 'approved', parent_status: 'pending', student_id: 'std_1', student_name: 'Mani Manjunath', student_reg: '22CSE101', created_at: new Date().toISOString() },
-      { id: 'hp_3', reason: 'Family function - Brother wedding', destination: 'Coimbatore', from_date: new Date(Date.now() + 5*86400000).toISOString(), to_date: new Date(Date.now() + 8*86400000).toISOString(), status: 'pending', mentor_status: 'pending', parent_status: 'pending', student_id: 'std_1', student_name: 'Mani Manjunath', student_reg: '22CSE101', created_at: new Date().toISOString() },
-      { id: 'hp_4', reason: 'Visiting home for Diwali break', destination: 'Madurai', from_date: new Date(Date.now() + 86400000).toISOString(), to_date: new Date(Date.now() + 4*86400000).toISOString(), status: 'pending', mentor_status: 'pending', parent_status: 'pending', student_id: 'std_2', student_name: 'Arjun Reddy', student_reg: '22CSE102', created_at: new Date().toISOString() },
-      { id: 'hp_5', reason: 'Medical emergency - dental surgery', destination: 'MIOT Hospital', from_date: new Date(Date.now()).toISOString(), to_date: new Date(Date.now() + 2*86400000).toISOString(), status: 'pending', mentor_status: 'pending', parent_status: 'pending', student_id: 'std_3', student_name: 'Neha Sharma', student_reg: '22CSE103', created_at: new Date().toISOString() },
-      { id: 'hp_6', reason: 'Sister engagement ceremony', destination: 'Bangalore', from_date: new Date(Date.now() + 3*86400000).toISOString(), to_date: new Date(Date.now() + 6*86400000).toISOString(), status: 'pending', mentor_status: 'pending', parent_status: 'pending', student_id: 'std_4', student_name: 'Aditya Verma', student_reg: '22CSE104', created_at: new Date().toISOString() },
-      { id: 'hp_7', reason: 'Passport collection from regional office', destination: 'Passport Office Chennai', from_date: new Date(Date.now() + 86400000).toISOString(), to_date: new Date(Date.now() + 86400000 + 28800000).toISOString(), status: 'rejected', mentor_status: 'approved', parent_status: 'approved', student_id: 'std_5', student_name: 'Riya Sen', student_reg: '22CSE105', created_at: new Date(Date.now() - 2*86400000).toISOString() }
+      { id: 'hp_1', reason: 'Going home for weekend', destination: 'Chennai Central', from_date: new Date(Date.now() + 86400000).toISOString(), to_date: new Date(Date.now() + 3*86400000).toISOString(), status: 'approved', mentor_status: 'approved', student_id: 'std_1', student_name: 'Mani Manjunath', student_reg: '22CSE101', created_at: new Date(Date.now() - 86400000).toISOString(), qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-hp_1' },
+      { id: 'hp_2', reason: 'Medical appointment at hospital', destination: 'Apollo Hospital, Chennai', from_date: new Date(Date.now() + 2*86400000).toISOString(), to_date: new Date(Date.now() + 2*86400000 + 18000000).toISOString(), status: 'approved', mentor_status: 'approved', student_id: 'std_1', student_name: 'Mani Manjunath', student_reg: '22CSE101', created_at: new Date().toISOString(), qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-hp_2' },
+      { id: 'hp_3', reason: 'Family function - Brother wedding', destination: 'Coimbatore', from_date: new Date(Date.now() + 5*86400000).toISOString(), to_date: new Date(Date.now() + 8*86400000).toISOString(), status: 'pending', mentor_status: 'pending', student_id: 'std_1', student_name: 'Mani Manjunath', student_reg: '22CSE101', created_at: new Date().toISOString() },
+      { id: 'hp_4', reason: 'Visiting home for Diwali break', destination: 'Madurai', from_date: new Date(Date.now() + 86400000).toISOString(), to_date: new Date(Date.now() + 4*86400000).toISOString(), status: 'pending', mentor_status: 'pending', student_id: 'std_2', student_name: 'Arjun Reddy', student_reg: '22CSE102', created_at: new Date().toISOString() },
+      { id: 'hp_5', reason: 'Medical emergency - dental surgery', destination: 'MIOT Hospital', from_date: new Date(Date.now()).toISOString(), to_date: new Date(Date.now() + 2*86400000).toISOString(), status: 'pending', mentor_status: 'pending', student_id: 'std_3', student_name: 'Neha Sharma', student_reg: '22CSE103', created_at: new Date().toISOString() },
+      { id: 'hp_6', reason: 'Sister engagement ceremony', destination: 'Bangalore', from_date: new Date(Date.now() + 3*86400000).toISOString(), to_date: new Date(Date.now() + 6*86400000).toISOString(), status: 'pending', mentor_status: 'pending', student_id: 'std_4', student_name: 'Aditya Verma', student_reg: '22CSE104', created_at: new Date().toISOString() },
+      { id: 'hp_7', reason: 'Passport collection from regional office', destination: 'Passport Office Chennai', from_date: new Date(Date.now() + 86400000).toISOString(), to_date: new Date(Date.now() + 86400000 + 28800000).toISOString(), status: 'rejected', mentor_status: 'rejected', student_id: 'std_5', student_name: 'Riya Sen', student_reg: '22CSE105', created_at: new Date(Date.now() - 2*86400000).toISOString() }
     ],
     canteenOrders: [],
     notifications: [],
@@ -781,7 +782,7 @@ const getMockDb = () => {
   if (data) {
     try {
       const parsedDb = JSON.parse(data);
-      if (parsedDb.is_comprehensive) {
+      if (parsedDb.is_comprehensive && parsedDb.version === 2) {
         return parsedDb;
       }
     } catch { /* fallback */ }
@@ -1510,7 +1511,6 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       to_date: payload.to_date,
       status: 'pending',
       mentor_status: 'pending',
-      parent_status: 'pending',
       student_id: activeUserId,
       student_name: activeUser ? `${activeUser.first_name} ${activeUser.last_name}` : 'Student',
       student_reg: activeUser?.roll_number || 'N/A',
@@ -1542,41 +1542,6 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       const pass = (db.hostelPasses || []).find((p: any) => p.id === id);
       if (pass) {
         pass.mentor_status = status;
-        if (status === 'rejected') {
-          pass.parent_status = 'rejected';
-          pass.status = 'rejected';
-        }
-      }
-    });
-    saveMockDb(db);
-    return { status: 200, data: { success: true } };
-  }
-
-  // Warden single hostel pass status update
-  if (cleanUrl.match(/\/campus\/hostel-pass\/[^/]+\/warden-status/) && method === 'put') {
-    const pid = cleanUrl.split('/')[3];
-    const payload = getPayload(config.data);
-    const status = payload.status;
-    const pass = (db.hostelPasses || []).find((p: any) => p.id === pid);
-    if (pass) {
-      pass.status = status;
-      if (status === 'approved') {
-        pass.qr_code_url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-${pass.id}`;
-      }
-      saveMockDb(db);
-      return { status: 200, data: { success: true, pass } };
-    }
-    return { status: 404, data: { error: 'Pass not found' } };
-  }
-
-  // Warden bulk hostel pass status update
-  if (cleanUrl === '/campus/hostel-pass/warden-bulk-status' && method === 'put') {
-    const payload = getPayload(config.data);
-    const ids: string[] = payload.ids || [];
-    const status = payload.status;
-    ids.forEach((id: string) => {
-      const pass = (db.hostelPasses || []).find((p: any) => p.id === id);
-      if (pass) {
         pass.status = status;
         if (status === 'approved') {
           pass.qr_code_url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-${pass.id}`;
@@ -1585,23 +1550,6 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     });
     saveMockDb(db);
     return { status: 200, data: { success: true } };
-  }
-
-  // Parent approval simulation
-  if (cleanUrl.match(/\/campus\/hostel-pass\/[^/]+\/parent-approve/) && method === 'post') {
-    const pid = cleanUrl.split('/')[3];
-    const pass = (db.hostelPasses || []).find((p: any) => p.id === pid);
-    if (pass) {
-      pass.parent_status = 'approved';
-      saveMockDb(db);
-      return { status: 200, data: { success: true, pass } };
-    }
-    return { status: 404, data: { error: 'Pass not found' } };
-  }
-
-  // Resend parent SMS
-  if (cleanUrl.match(/\/campus\/hostel-pass\/[^/]+\/resend-parent/) && method === 'post') {
-    return { status: 200, data: { success: true, message: 'SMS sent to parent successfully' } };
   }
 
   // Digital Canteen
