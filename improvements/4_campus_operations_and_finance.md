@@ -6,5 +6,3 @@ everything in the indoor map is misaligned and not able to see
 The bus tracking and the indoor map the features are visible but at the places of live it is showing white .
 
 In the library sectiion the filters,search not working.
-
-make the notice board locked .

@@ -1,15 +1,7 @@
+in pdf in credit hub i want make changes in the pdf like adding the university logo,my downloaded style i guess we need ti wait for real data base connection
 
 
+in exam schedhule after clicking exam make the pop up to center instead of buttom
 
-
-in pdf in credit hub i want make changes in the pdf like adding the university logo
-the download of the pdf  Degree audit pdf in the mobile is not working  and make pdf to downloaded smilar to the pdf i will give.direct download to the mobile.
-make the exam schedhule work properly let it upload the pdf and then properly extract the timetable from it and only display the timetable and nothing else when clicked on any subject also.
-
-
----------
-
-3. In the attandance when i try to keep flag for anything the submit button is not visible .
-
-
+In the attandance when i try to keep flag for anything the submit button is not visible .
 

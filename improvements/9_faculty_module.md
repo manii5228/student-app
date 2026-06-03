@@ -1,5 +1,4 @@
-
-the dashboard,acamedic, campus,career is not properly alligned.
+the dashboard,acamedic, campus,career in mobile version are very near to each oter add some spacing
 
 the culb in the faculty login make it locked.
 
@@ -17,3 +16,5 @@ Faculty can able to cancel the class, if the faculty will cancel the class,the s
 
 the attendance entry should let the faculty add the sessions details and then get the data and then the data is not saved anywhere to view the attandence later.
 The scanner is not working  for the dynamic scanning of attandance.
+
+The faculty should get a section regarding projects to perform all its function.The students should be able to select the faculty.in mobile a;; they are every.
