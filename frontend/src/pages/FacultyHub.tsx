@@ -59,6 +59,7 @@ const FacultyHub = () => {
     { name: 'Bulk Attendance', desc: 'One-tap grid marker', icon: <Users className="w-6 h-6"/>, color: 'from-indigo-500 to-indigo-600', path: '/faculty/bulk-attendance' },
     { name: 'QR Attendance', desc: 'Dynamic QR code', icon: <QrCode className="w-6 h-6"/>, color: 'from-emerald-500 to-emerald-600', path: '/faculty/qr' },
     { name: 'Marks Entry', desc: 'Auto-save portal', icon: <PenTool className="w-6 h-6"/>, color: 'from-amber-500 to-amber-600', path: '/faculty/marks' },
+    { name: 'Hostel Passes', desc: 'Approve student out-passes', icon: <CheckSquare className="w-6 h-6"/>, color: 'from-violet-500 to-indigo-600', path: '/faculty/hostel-passes' },
     { name: 'Leave Approval', desc: 'Review student leaves', icon: <CheckSquare className="w-6 h-6"/>, color: 'from-teal-500 to-teal-600', path: '/faculty/leaves' },
     { name: 'Broadcast', desc: 'Notify your class', icon: <Bell className="w-6 h-6"/>, color: 'from-rose-500 to-rose-600', path: '/faculty/broadcast' },
     { name: 'Mentees', desc: 'Your 25-30 students', icon: <UserCheck className="w-6 h-6"/>, color: 'from-violet-500 to-violet-600', path: '/faculty/mentees' },

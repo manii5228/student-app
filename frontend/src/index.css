@@ -67,3 +67,14 @@
   animation: story-progress 5s linear forwards;
 }
 
+/* Fix Leaflet map tile rendering issues with Tailwind preflight */
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+.leaflet-container {
+  z-index: 1;
+}
+
+
