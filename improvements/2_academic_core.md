@@ -1,6 +1,6 @@
 
 
-Crete a bunkometer which would let the stuent know if he can bunk the class by long pressing 5 seconds on the attandance for individual and globally.
+
 
 in pdf in credit hub i want make changes in the pdf like adding the university logo
 the download of the pdf  Degree audit pdf in the mobile is not working  and make pdf to downloaded smilar to the pdf i will give.direct download to the mobile.
