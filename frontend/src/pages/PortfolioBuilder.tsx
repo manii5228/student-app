@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, LayoutTemplate, Palette, Plus, Save, Download, Share2, Globe, Link2, Eye, Edit3, ArrowUp, ArrowDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 const TEMPLATES = [
   { id: 'modern', name: 'Modern', icon: <LayoutTemplate className="w-5 h-5" />, color: 'border-blue-500 text-blue-600 bg-blue-50' },
@@ -16,6 +20,8 @@ const PortfolioBuilder = () => {
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [isSaving, setIsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const portfolioRef = useRef<HTMLDivElement>(null);
 
   const [portfolio, setPortfolio] = useState({
     template: 'modern',
@@ -158,11 +164,98 @@ const PortfolioBuilder = () => {
     updateData('projects', projects);
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
+    setIsDownloading(true);
     setActiveTab('preview');
-    setTimeout(() => {
-      window.print();
-    }, 150);
+
+    // Wait for preview to render
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const element = portfolioRef.current;
+    if (!element) {
+      alert('Could not capture portfolio. Please try again.');
+      setIsDownloading(false);
+      return;
+    }
+
+    try {
+      // Capture the portfolio preview as a canvas
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // First page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add more pages if content is longer than one page
+      while (heightLeft > 0) {
+        position = position - pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const fileName = `${(portfolio.data.name || 'Portfolio').replace(/[^a-zA-Z0-9]/g, '_')}_Portfolio.pdf`;
+
+      if (Capacitor.isNativePlatform()) {
+        // Mobile: Save to device using Capacitor Filesystem
+        const pdfBase64 = pdf.output('datauristring').split(',')[1];
+        
+        try {
+          const result = await Filesystem.writeFile({
+            path: fileName,
+            data: pdfBase64,
+            directory: Directory.Documents,
+          });
+          alert(`Portfolio PDF saved to Documents/${fileName}`);
+          console.log('File saved at:', result.uri);
+        } catch (fsError) {
+          // Fallback: try downloading via blob
+          console.warn('Filesystem save failed, trying blob download:', fsError);
+          const blob = pdf.output('blob');
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
+      } else {
+        // Web: Direct blob download
+        const blob = pdf.output('blob');
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   if (loading) return <div className="h-full flex items-center justify-center bg-slate-50"><span className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></span></div>;
@@ -186,8 +279,8 @@ const PortfolioBuilder = () => {
             <button onClick={handleSave} disabled={isSaving} className="w-10 h-10 bg-indigo-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-indigo-600 transition-colors">
               <Save className="w-4 h-4" />
             </button>
-            <button onClick={handleDownloadPDF} className="w-10 h-10 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-colors">
-              <Download className="w-4 h-4" />
+            <button onClick={handleDownloadPDF} disabled={isDownloading} className="w-10 h-10 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-colors disabled:opacity-50">
+              {isDownloading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> : <Download className="w-4 h-4" />}
             </button>
           </div>
         </div>
@@ -348,7 +441,7 @@ const PortfolioBuilder = () => {
 
           {/* PREVIEW COLUMN */}
           <div className={`w-full flex flex-col items-center justify-start p-4 md:p-6 animate-fade-in print:p-0 print:bg-transparent print:shadow-none print:border-none min-h-[600px] print:min-h-0 ${activeTab === 'preview' ? 'flex' : 'hidden'}`}>
-            <div className="w-full max-w-2xl min-h-[800px] shadow-2xl border border-slate-300 bg-white relative print:shadow-none print:border-none print:min-h-0 overflow-hidden print:overflow-visible rounded-2xl print:rounded-none">
+            <div ref={portfolioRef} className="w-full max-w-2xl min-h-[800px] shadow-2xl border border-slate-300 bg-white relative print:shadow-none print:border-none print:min-h-0 overflow-hidden print:overflow-visible rounded-2xl print:rounded-none">
 
               {portfolio.template === 'modern' && (
                 <div className="h-full bg-slate-50 text-slate-900 font-sans pb-10">
