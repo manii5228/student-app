@@ -852,7 +852,7 @@ def get_mentees_hostel_passes():
 @jwt_required()
 @role_required("admin", "faculty")
 def update_hostel_pass_status(pid):
-    """Update mentor status of a hostel pass (approve/reject)."""
+    """Update status of a hostel pass by mentor/admin (approve/reject)."""
     h_pass = db.session.get(HostelPass, pid)
     if not h_pass:
         return jsonify({"error": "Hostel pass not found"}), 404
@@ -861,18 +861,18 @@ def update_hostel_pass_status(pid):
     status = data.get("status")
     if status in ["approved", "rejected"]:
         h_pass.mentor_status = status
-        if status == "rejected":
-            h_pass.parent_status = "rejected"
-            h_pass.status = "rejected"
+        h_pass.status = status
+        if status == "approved":
+            h_pass.qr_code_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-{h_pass.id}"
         db.session.commit()
-        return jsonify({"message": f"Hostel pass mentor status set to {status}", "pass": h_pass.to_dict()}), 200
+        return jsonify({"message": f"Hostel pass status set to {status}", "pass": h_pass.to_dict()}), 200
     return jsonify({"error": "Invalid status"}), 400
 
 @campus_bp.route("/hostel-pass/bulk-status", methods=["PUT"])
 @jwt_required()
 @role_required("admin", "faculty")
 def bulk_update_hostel_pass_status():
-    """Bulk update mentor status of hostel passes (approve/reject)."""
+    """Bulk update status of hostel passes by mentor/admin (approve/reject)."""
     data = request.get_json()
     pids = data.get("ids", [])
     status = data.get("status")
@@ -882,75 +882,11 @@ def bulk_update_hostel_pass_status():
     passes = HostelPass.query.filter(HostelPass.id.in_(pids)).all()
     for h_pass in passes:
         h_pass.mentor_status = status
-        if status == "rejected":
-            h_pass.parent_status = "rejected"
-            h_pass.status = "rejected"
-            
-    db.session.commit()
-    return jsonify({"message": f"Successfully updated {len(passes)} passes mentor status to {status}"}), 200
-
-@campus_bp.route("/hostel-pass/<pid>/warden-status", methods=["PUT"])
-@jwt_required()
-@role_required("admin", "faculty")
-def update_hostel_pass_warden_status(pid):
-    """Warden updates final status of a hostel pass (approve/reject)."""
-    h_pass = db.session.get(HostelPass, pid)
-    if not h_pass:
-        return jsonify({"error": "Hostel pass not found"}), 404
-    
-    data = request.get_json()
-    status = data.get("status")
-    if status in ["approved", "rejected"]:
-        h_pass.status = status
-        if status == "approved":
-            h_pass.qr_code_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-{h_pass.id}"
-        db.session.commit()
-        return jsonify({"message": f"Hostel pass warden status set to {status}", "pass": h_pass.to_dict()}), 200
-    return jsonify({"error": "Invalid status"}), 400
-
-@campus_bp.route("/hostel-pass/warden-bulk-status", methods=["PUT"])
-@jwt_required()
-@role_required("admin", "faculty")
-def bulk_update_hostel_pass_warden_status():
-    """Bulk update warden status of hostel passes (approve/reject)."""
-    data = request.get_json()
-    pids = data.get("ids", [])
-    status = data.get("status")
-    if status not in ["approved", "rejected"]:
-        return jsonify({"error": "Invalid status"}), 400
-    
-    passes = HostelPass.query.filter(HostelPass.id.in_(pids)).all()
-    for h_pass in passes:
         h_pass.status = status
         if status == "approved":
             h_pass.qr_code_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PASS-{h_pass.id}"
             
     db.session.commit()
-    return jsonify({"message": f"Successfully updated {len(passes)} passes warden status to {status}"}), 200
+    return jsonify({"message": f"Successfully updated {len(passes)} passes status to {status}"}), 200
 
-@campus_bp.route("/hostel-pass/<pid>/parent-approve", methods=["POST"])
-@jwt_required()
-def simulate_parent_approval(pid):
-    """Simulate parent out-pass approval."""
-    h_pass = db.session.get(HostelPass, pid)
-    if not h_pass:
-        return jsonify({"error": "Hostel pass not found"}), 404
-    
-    h_pass.parent_status = 'approved'
-    db.session.commit()
-    return jsonify({"message": "Parent approval simulated successfully", "pass": h_pass.to_dict()}), 200
-
-@campus_bp.route("/hostel-pass/<pid>/resend-parent", methods=["POST"])
-@jwt_required()
-@role_required("student")
-def resend_parent_notification(pid):
-    """Simulate resending SMS/email notification to parent for hostel pass."""
-    h_pass = db.session.get(HostelPass, pid)
-    if not h_pass or h_pass.student_id != get_jwt_identity():
-        return jsonify({"error": "Hostel pass not found"}), 404
-        
-    return jsonify({
-        "message": "Out-pass approval request link resent to parent via SMS",
-        "parent_contact": "+91 ******8932"
-    }), 200
 

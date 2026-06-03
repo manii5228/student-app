@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Clock, CheckCircle, XCircle, MapPin, QrCode, Home, Shield, User } from 'lucide-react';
+import { ChevronLeft, Plus, Clock, CheckCircle, XCircle, QrCode, Home, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -10,7 +10,6 @@ interface Pass {
   from_date: string;
   to_date: string;
   status: 'pending' | 'approved' | 'rejected';
-  parent_status: 'pending' | 'approved' | 'rejected';
   mentor_status: 'pending' | 'approved' | 'rejected';
   qr_code_url: string | null;
   created_at: string;
@@ -33,7 +32,6 @@ const HostelPass = () => {
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null);
   const [qrTimeLeft, setQrTimeLeft] = useState(30);
   const [qrToken, setQrToken] = useState('');
-  const [simulatingPassId, setSimulatingPassId] = useState<string | null>(null);
 
   const fetchPasses = async () => {
     try {
@@ -121,7 +119,7 @@ const HostelPass = () => {
 
   // Check if all approvals are done for QR to show
   const canShowQR = (p: Pass) => {
-    return p.status === 'approved' && p.mentor_status === 'approved' && p.parent_status === 'approved';
+    return p.status === 'approved' && p.mentor_status === 'approved';
   };
 
   return (
@@ -207,73 +205,15 @@ const HostelPass = () => {
                   </div>
                 </div>
 
-                {/* Approval Pipeline  */}
-                <div className="bg-slate-50/50 p-3 rounded-xl border border-slate-100 mb-4">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Approval Pipeline</p>
-                  <div className="flex items-center gap-2">
-                    
-                    {/* Mentor Status */}
-                    <div className="flex-1 flex flex-col items-center gap-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        p.mentor_status === 'approved' ? 'bg-emerald-100 text-emerald-600' :
-                        p.mentor_status === 'rejected' ? 'bg-red-100 text-red-650' :
-                        'bg-amber-100 text-amber-600'
-                      }`}>
-                        <Shield className="w-4 h-4" />
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-500">Mentor</span>
-                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${getStatusColor(p.mentor_status || 'pending')}`}>
-                        {p.mentor_status || 'pending'}
-                      </span>
-                    </div>
-
-                    {/* Arrow */}
-                    <div className="text-slate-300 text-xs">→</div>
-
-                    {/* Parent Status */}
-                    <div className="flex-1 flex flex-col items-center gap-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        p.parent_status === 'approved' ? 'bg-emerald-100 text-emerald-600' :
-                        p.parent_status === 'rejected' ? 'bg-red-100 text-red-650' :
-                        'bg-amber-100 text-amber-600'
-                      }`}>
-                        <User className="w-4 h-4" />
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-500">Parent</span>
-                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${getStatusColor(p.parent_status || 'pending')}`}>
-                        {p.parent_status || 'pending'}
-                      </span>
-                    </div>
-
-                    {/* Arrow */}
-                    <div className="text-slate-300 text-xs">→</div>
-
-                    {/* Warden Status (same as main status) */}
-                    <div className="flex-1 flex flex-col items-center gap-1">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        p.status === 'approved' ? 'bg-emerald-100 text-emerald-600' :
-                        p.status === 'rejected' ? 'bg-red-100 text-red-650' :
-                        'bg-amber-100 text-amber-600'
-                      }`}>
-                        <Home className="w-4 h-4" />
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-500">Warden</span>
-                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full ${getStatusColor(p.status)}`}>
-                        {p.status}
-                      </span>
-                    </div>
+                {/* Approval pipeline status */}
+                <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 mb-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mentor Approval</span>
+                    <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${getStatusColor(p.mentor_status || 'pending')}`}>
+                      {p.mentor_status || 'pending'}
+                    </span>
                   </div>
                 </div>
-
-                {/* Resend SMS / Simulate Parent Approval */}
-                {(!p.parent_status || p.parent_status === 'pending') && (
-                  <button
-                    onClick={() => setSimulatingPassId(p.id)}
-                    className="mb-3 w-full text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2.5 rounded-xl font-bold transition-colors border border-indigo-200 active:scale-95"
-                  >
-                    📱 Resend Parent Approval SMS
-                  </button>
-                )}
 
                 {canShowQR(p) && (
                   <button 
@@ -291,60 +231,7 @@ const HostelPass = () => {
 
       <BottomNav />
 
-      {/* Parent Approval Simulation Modal */}
-      {simulatingPassId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-6" onClick={() => setSimulatingPassId(null)}>
-          <div className="bg-white rounded-[32px] p-6 shadow-2xl animate-scale-in flex flex-col items-center max-w-sm w-full relative" onClick={e => e.stopPropagation()}>
-            <button 
-              onClick={() => setSimulatingPassId(null)} 
-              className="absolute top-4 right-4 w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors text-xs font-bold"
-            >
-              ✕
-            </button>
-            <div className="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mb-4">
-              <User className="w-8 h-8 text-indigo-600 animate-bounce" />
-            </div>
-            <h3 className="text-lg font-black text-slate-900 mb-1">Parent Approval SMS</h3>
-            <p className="text-xs text-slate-500 text-center mb-6 leading-relaxed">
-              You can simulate the parent's action from the SMS out-pass link, or trigger a mockup notification resend.
-            </p>
-            
-            <div className="flex flex-col gap-2.5 w-full">
-              <button
-                onClick={async () => {
-                  try {
-                    await api.post(`/campus/hostel-pass/${simulatingPassId}/parent-approve`);
-                    setSimulatingPassId(null);
-                    fetchPasses();
-                  } catch (e) {
-                    console.error(e);
-                    alert('Simulation failed');
-                  }
-                }}
-                className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-3 rounded-2xl text-xs font-black shadow-md transition-all active:scale-[0.98]"
-              >
-                ✅ Simulate Parent Approval
-              </button>
-              
-              <button
-                onClick={async () => {
-                  try {
-                    await api.post(`/campus/hostel-pass/${simulatingPassId}/resend-parent`);
-                    alert('Mock SMS notification resent to parent successfully!');
-                    setSimulatingPassId(null);
-                  } catch (e) {
-                    console.error(e);
-                    alert('Failed to resend mock SMS');
-                  }
-                }}
-                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-2xl text-xs font-bold transition-all"
-              >
-                💬 Resend Mock SMS
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* Request Modal */}
       {showModal && (
@@ -356,7 +243,7 @@ const HostelPass = () => {
              
              <div className="mb-6">
                 <h3 className="text-2xl font-bold text-slate-900">Request Pass</h3>
-                <p className="text-sm text-slate-500 mt-1">Submit your out-pass request. Requires mentor → parent → warden approval.</p>
+                <p className="text-sm text-slate-500 mt-1">Submit your out-pass request. Requires mentor approval.</p>
              </div>
              
              <form onSubmit={handleSubmit} className="flex flex-col gap-4">

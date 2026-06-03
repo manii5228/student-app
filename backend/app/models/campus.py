@@ -294,7 +294,6 @@ class HostelPass(db.Model):
     from_date = db.Column(db.DateTime, nullable=False)
     to_date = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.String(20), default="pending") # pending, approved, rejected
-    parent_status = db.Column(db.String(20), default="pending") # pending, approved, rejected
     mentor_status = db.Column(db.String(20), default="pending") # pending, approved, rejected
     qr_code_url = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
@@ -307,7 +306,6 @@ class HostelPass(db.Model):
             "from_date": self.from_date.isoformat(), 
             "to_date": self.to_date.isoformat(), 
             "status": self.status, 
-            "parent_status": self.parent_status,
             "mentor_status": self.mentor_status,
             "qr_code_url": self.qr_code_url,
             "created_at": self.created_at.isoformat()

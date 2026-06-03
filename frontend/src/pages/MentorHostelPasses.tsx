@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, CheckCircle, XCircle, Search, Clock, Shield, User, Home } from 'lucide-react';
+import { ChevronLeft, CheckCircle, XCircle, Search, Clock, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -12,7 +12,6 @@ interface Pass {
   from_date: string;
   to_date: string;
   status: 'pending' | 'approved' | 'rejected';
-  parent_status: 'pending' | 'approved' | 'rejected';
   mentor_status: 'pending' | 'approved' | 'rejected';
   created_at: string;
 }
@@ -23,7 +22,6 @@ const MentorHostelPasses = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending'>('pending');
-  const [role, setRole] = useState<'mentor' | 'warden'>('mentor');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -61,9 +59,7 @@ const MentorHostelPasses = () => {
     if (selected.size === 0) return;
     setIsSubmitting(true);
     try {
-      const endpoint = role === 'mentor' 
-        ? '/campus/hostel-pass/bulk-status' 
-        : '/campus/hostel-pass/warden-bulk-status';
+      const endpoint = '/campus/hostel-pass/bulk-status';
       
       await api.put(endpoint, {
         ids: Array.from(selected),
@@ -85,24 +81,15 @@ const MentorHostelPasses = () => {
       return false;
     }
     
-    // 2. Role and status filtering
-    if (role === 'mentor') {
-      if (filter === 'pending') {
-        return p.mentor_status === 'pending';
-      }
-      return true;
-    } else { // warden role
-      if (filter === 'pending') {
-        // Warden only sees passes that are mentor and parent approved, but warden pending
-        return p.mentor_status === 'approved' && p.parent_status === 'approved' && p.status === 'pending';
-      }
-      // Warden 'All' view shows all passes that have passed the first 2 stages
-      return p.mentor_status === 'approved' && p.parent_status === 'approved';
+    // 2. Status filtering
+    if (filter === 'pending') {
+      return p.mentor_status === 'pending';
     }
+    return true;
   });
 
   const getRoleStatus = (p: Pass) => {
-    return role === 'mentor' ? p.mentor_status : p.status;
+    return p.mentor_status;
   };
 
   return (
@@ -123,30 +110,10 @@ const MentorHostelPasses = () => {
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight">Hostel Out-Passes</h1>
               <p className="text-xs text-slate-450 font-medium">
-                {role === 'mentor' ? '🛡️ Mentee Approvals Dashboard' : '🏢 Hostel Warden Dashboard'}
+                🛡️ Mentee Approvals Dashboard
               </p>
             </div>
           </div>
-        </div>
-
-        {/* Dual Role Selector Tab */}
-        <div className="flex bg-white/10 p-1 rounded-2xl mb-4 border border-white/10 relative z-10">
-          <button 
-            onClick={() => { setRole('mentor'); setSelected(new Set()); }} 
-            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${
-              role === 'mentor' ? 'bg-white text-slate-900 shadow-md scale-[1.02]' : 'text-white'
-            }`}
-          >
-            Mentee Approvals (Mentor)
-          </button>
-          <button 
-            onClick={() => { setRole('warden'); setSelected(new Set()); }} 
-            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${
-              role === 'warden' ? 'bg-white text-slate-900 shadow-md scale-[1.02]' : 'text-white'
-            }`}
-          >
-            Hostel Approvals (Warden)
-          </button>
         </div>
 
         {/* Search */}
@@ -263,35 +230,15 @@ const MentorHostelPasses = () => {
                     "{p.reason}"
                   </p>
                   
-                  {/* Detailed Multi-stage Pipeline Status Row */}
+                  {/* Approval Pipeline Status Row */}
                   <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-3.5 text-[9px] text-slate-400 font-black uppercase border-t border-slate-100 pt-3">
                     <span className="flex items-center gap-1">
-                      🛡️ Mentor: 
+                      🛡️ Mentor Approval Status: 
                       <strong className={
                         p.mentor_status === 'approved' ? 'text-emerald-600' : 
                         p.mentor_status === 'rejected' ? 'text-red-500' : 'text-amber-500'
                       }>
                         {p.mentor_status || 'pending'}
-                      </strong>
-                    </span>
-                    <span>·</span>
-                    <span className="flex items-center gap-1">
-                      📱 Parent: 
-                      <strong className={
-                        p.parent_status === 'approved' ? 'text-emerald-600' : 
-                        p.parent_status === 'rejected' ? 'text-red-500' : 'text-amber-500'
-                      }>
-                        {p.parent_status || 'pending'}
-                      </strong>
-                    </span>
-                    <span>·</span>
-                    <span className="flex items-center gap-1">
-                      🏢 Warden: 
-                      <strong className={
-                        p.status === 'approved' ? 'text-emerald-600' : 
-                        p.status === 'rejected' ? 'text-red-500' : 'text-amber-500'
-                      }>
-                        {p.status}
                       </strong>
                     </span>
                   </div>
