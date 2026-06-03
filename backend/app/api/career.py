@@ -11,9 +11,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from ..extensions import db
 from ..middleware.auth_middleware import role_required
 from ..models.career import (
-    JobPosting, JobApplication, InterviewSchedule,
-    CompanyPrepQuestion, AlumniProfile, LeaveRequest, MeetingSlot, Resource,
-    AuditLog, FeeRecord, Flashcard, Badge, SavedJob,
+    JobPosting, JobApplication, InterviewSchedule, CompanyPrepQuestion,
+    AlumniProfile, LeaveRequest, MeetingSlot, Resource, AuditLog, FeeRecord,
+    Flashcard, Project, Milestone, SkillBadge, EarnedBadge, SavedJob,
     Internship, MockTest, MockTestQuestion, MockTestAttempt,
     TeamFinderProfile, TeamSwipe, TeamMatch, TeamMessage,
     Portfolio, TeamReport,

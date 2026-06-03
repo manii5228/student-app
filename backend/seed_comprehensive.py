@@ -179,6 +179,16 @@ def generate_seeds():
             first_name = stud_firsts[s_idx]
             last_name = stud_lasts[s_idx]
             
+            # Department-specific skills
+            dept_skills = {
+                "CSE": ["React", "TypeScript", "Node.js", "Python", "SQL", "Git"],
+                "ECE": ["VHDL", "Verilog", "Embedded C", "MATLAB", "Arduino", "IoT"],
+                "Mech": ["AutoCAD", "SolidWorks", "Ansys", "Thermodynamics", "Fusion 360"],
+                "Biomed": ["Bio-sensors", "Medical Imaging", "LabVIEW", "Bio-signal Processing", "MATLAB"]
+            }
+            skills_list = dept_skills.get(d, ["Git", "Communication"])
+            import json as json_lib
+
             student = User(
                 email=email,
                 role=UserRole.STUDENT,
@@ -192,6 +202,7 @@ def generate_seeds():
                 batch_year=batch,
                 cgpa=round(random.uniform(7.0, 9.8), 2),
                 is_verified=True,
+                skills=json_lib.dumps(skills_list)
             )
             student.set_password("student123!")
             
@@ -513,6 +524,96 @@ def generate_seeds():
                 awarded_by=admin.id,
                 note="Awarded for academic excellence and top results."
             ))
+        db.session.commit()
+
+        # Seed Portfolio for student_list[0] (Mani)
+        import json as json_lib
+        portfolio_data = {
+            "name": student_list[0].full_name,
+            "role": "Fullstack Developer",
+            "bio": "A passionate developer building scalable apps with React and Node.js. Hackathon enthusiast and open-source contributor.",
+            "education": f"B.Tech CSE - Veltech University ({student_list[0].batch_year})",
+            "cgpa": str(student_list[0].cgpa or "8.5"),
+            "skills": ["React", "TypeScript", "Node.js", "Python", "PostgreSQL", "Docker"],
+            "projects": [
+                {"title": "University Super-App", "desc": "A comprehensive campus management system."},
+                {"title": "AI Portfolio Builder", "desc": "Auto-generates CVs from student data."},
+            ],
+            "experience": [
+                {"company": "TechCorp", "role": "Frontend Intern", "duration": "Jun 2025 - Aug 2025"},
+            ],
+            "links": {"github": "https://github.com/mani", "linkedin": "https://linkedin.com/in/mani"},
+        }
+        db.session.add(Portfolio(
+            user_id=student_list[0].id, template="modern",
+            data_json=json_lib.dumps(portfolio_data),
+            public_slug=f"{student_list[0].first_name.lower()}-{student_list[0].last_name.lower()}-{student_list[0].id[:6]}",
+            is_public=True, view_count=12,
+        ))
+        db.session.commit()
+
+        # Seed Projects and Milestones for student_list[0] (Mani)
+        p1 = Project(
+            student_id=student_list[0].id,
+            title="University Super-App",
+            description="A comprehensive campus management system built with React, Flask, and SQLite.",
+            subject_code="CS699",
+            team_members="Mani Manjunath, Arjun Reddy",
+            deadline=date.today() + timedelta(days=15),
+            status="in_progress",
+            progress_pct=50,
+            faculty_id=fac_list[0].id, # CSE faculty
+            faculty_status="approved"
+        )
+        p2 = Project(
+            student_id=student_list[0].id,
+            title="AI Portfolio Builder",
+            description="Auto-generates CVs from student profile data and allows templates rendering.",
+            subject_code="CS503",
+            team_members="Mani Manjunath",
+            deadline=date.today() - timedelta(days=5),
+            status="completed",
+            progress_pct=100,
+            faculty_id=fac_list[0].id, # CSE faculty
+            faculty_status="completed"
+        )
+        db.session.add_all([p1, p2])
+        db.session.flush()
+
+        # Seed Milestones
+        db.session.add(Milestone(
+            project_id=p1.id,
+            title="Database Schema Design",
+            due_date=date.today() - timedelta(days=5),
+            is_completed=True,
+            column="done",
+            assigned_to="Mani Manjunath"
+        ))
+        db.session.add(Milestone(
+            project_id=p1.id,
+            title="Frontend UI Implementation",
+            due_date=date.today() + timedelta(days=2),
+            is_completed=False,
+            column="in_progress",
+            assigned_to="Arjun Reddy"
+        ))
+        db.session.add(Milestone(
+            project_id=p1.id,
+            title="API Endpoints Testing",
+            due_date=date.today() + timedelta(days=10),
+            is_completed=False,
+            column="todo",
+            assigned_to="Mani Manjunath"
+        ))
+        
+        db.session.add(Milestone(
+            project_id=p2.id,
+            title="Create ATS Template Parser",
+            due_date=date.today() - timedelta(days=10),
+            is_completed=True,
+            column="done",
+            assigned_to="Mani Manjunath"
+        ))
         db.session.commit()
 
         # ── 15. COMPANY PREPARATION & MOCK TEST ───────────────────────

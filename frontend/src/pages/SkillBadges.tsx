@@ -312,18 +312,18 @@ const SkillBadges = () => {
               const isEarned = !!e;
               const grad = b?.category ? catColors[b.category] || 'from-slate-500 to-slate-600' : 'from-slate-500 to-slate-600';
               return (
-                <button key={b?.id || Math.random().toString()} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} onClick={() => openBadgeModal(b, e)} className={`text-left rounded-3xl p-4 shadow-sm border flex items-center gap-4 transition-all hover:shadow-md ${isEarned ? 'bg-indigo-50/30 border-indigo-100' : 'bg-white border-slate-100 hover:border-indigo-200'}`}>
-                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center text-white shadow-md shrink-0 transition-transform ${!isEarned ? 'opacity-50 grayscale hover:grayscale-0 hover:scale-105' : 'scale-105 rotate-2'}`}>
+                <button key={b?.id || Math.random().toString()} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} onClick={() => openBadgeModal(b, e)} className={`text-left rounded-3xl p-4 shadow-sm border flex items-start gap-4 transition-all hover:shadow-md ${isEarned ? 'bg-indigo-50/30 border-indigo-100' : 'bg-white border-slate-100 hover:border-indigo-200'}`}>
+                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${grad} flex items-center justify-center text-white shadow-md shrink-0 transition-transform mt-0.5 ${!isEarned ? 'opacity-50 grayscale hover:grayscale-0 hover:scale-105' : 'scale-105 rotate-2'}`}>
                     {iconMap[b.icon] || <Award className="w-6 h-6"/>}
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 flex flex-col justify-start">
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className={`text-sm font-bold truncate ${isEarned ? 'text-indigo-900' : 'text-slate-900'}`}>{b.name}</h3>
                       {isEarned && <span className="text-[8px] font-black px-1.5 py-0.5 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded shadow-sm">EARNED</span>}
                     </div>
-                    {b.description && <p className="text-xs text-slate-500 line-clamp-2 leading-snug mt-3.5">{b.description}</p>}
+                    {b.description && <p className="text-xs text-slate-500 line-clamp-2 leading-snug mt-5">{b.description}</p>}
                   </div>
-                  <div className="text-right shrink-0 flex flex-col items-end justify-center">
+                  <div className="text-right shrink-0 flex flex-col items-end justify-start mt-1">
                     <p className={`text-lg font-black ${isEarned ? 'text-indigo-600' : 'text-slate-400'}`}>{b.points}</p>
                     <p className="text-[9px] font-bold text-slate-400 uppercase">pts</p>
                   </div>
@@ -349,11 +349,10 @@ const SkillBadges = () => {
               <h2 className="text-2xl font-black text-white leading-tight drop-shadow-md">{selectedBadge.badge.name}</h2>
               <p className="text-xs font-bold text-white/80 uppercase tracking-widest mt-2">{selectedBadge.badge.category.replace('_', ' ')} • {selectedBadge.badge.points} PTS</p>
             </div>
-
             <div className="p-6 flex-1 overflow-y-auto">
               <div className="mb-6">
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Info className="w-3.5 h-3.5"/> Description</h4>
-                <p className="text-sm font-medium text-slate-700 leading-relaxed mt-3">{selectedBadge.badge.description}</p>
+                <p className="text-sm font-medium text-slate-700 leading-relaxed mt-5">{selectedBadge.badge.description}</p>
               </div>
 
               {selectedBadge.badge.criteria && (

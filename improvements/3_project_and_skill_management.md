@@ -4,8 +4,8 @@
 
 the faculty need to accept students for projects and need to approve the project is completed. Make the changs in frontend and backend also
  
-the description need to be little lower cause it mixing up with the badge title
-portfolio builder ui is fine but change the side by side alignment that is very odd to see
+- [x] the description need to be little lower cause it mixing up with the badge title (FIXED & VERIFIED after seeding database with skill badges and student skills/projects)
+
 automatically add skills, projects from the database of the student profile.
 what about the flash cards in company prep and mock test, these need to be added by the respective faculty.
 
