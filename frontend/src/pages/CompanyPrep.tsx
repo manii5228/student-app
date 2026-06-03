@@ -216,14 +216,8 @@ const CompanyPrep = () => {
   };
 
   // ── Flashcards State ──
-  const [flashcards, setFlashcards] = useState<FlashCard[]>(() => {
-    const saved = localStorage.getItem('prep_flashcards');
-    return saved ? JSON.parse(saved) : [
-      { id: 'fc_1', front: 'What is the time complexity of Quick Sort in the worst case?', back: 'O(N^2). This happens when the pivot chosen is always the extreme element.', category: 'Algorithms', isMastered: false },
-      { id: 'fc_2', front: 'Explain CAP Theorem in Distributed Databases.', back: 'Consistency, Availability, and Partition Tolerance. A distributed system can only provide 2 of these guarantees simultaneously.', category: 'System Design', isMastered: false },
-      { id: 'fc_3', front: 'What is polymorphism in Object Oriented Programming?', back: 'Polymorphism allows objects of different classes to be treated as objects of a common superclass. Primarily implemented via overriding and overloading.', category: 'OOP Concepts', isMastered: false }
-    ];
-  });
+  const [flashcards, setFlashcards] = useState<FlashCard[]>([]);
+  const [loadingCards, setLoadingCards] = useState(false);
   const [activeFlashcardIdx, setActiveFlashcardIdx] = useState(0);
   const [cardFlipped, setCardFlipped] = useState(false);
   const [showAddCard, setShowAddCard] = useState(false);
@@ -233,30 +227,80 @@ const CompanyPrep = () => {
   const [cardBack, setCardBack] = useState('');
   const [cardCat, setCardCat] = useState('Algorithms');
 
-  useEffect(() => {
-    localStorage.setItem('prep_flashcards', JSON.stringify(flashcards));
-  }, [flashcards]);
-
-  const handleCreateCard = () => {
-    if (!cardFront.trim() || !cardBack.trim()) return;
-    const newCard: FlashCard = {
-      id: 'fc_' + Date.now(),
-      front: cardFront,
-      back: cardBack,
-      category: cardCat,
-      isMastered: false
-    };
-    setFlashcards([...flashcards, newCard]);
-    setCardFront('');
-    setCardBack('');
-    setShowAddCard(false);
+  const loadFlashcards = async () => {
+    setLoadingCards(true);
+    try {
+      const { data } = await api.get('/career/flashcards?type=company_prep');
+      const savedMastered = localStorage.getItem('prep_mastered_flashcards');
+      const masteredIds = savedMastered ? JSON.parse(savedMastered) : [];
+      const cards = (data.flashcards || []).map((fc: any) => ({
+        ...fc,
+        isMastered: masteredIds.includes(fc.id)
+      }));
+      setFlashcards(cards);
+    } catch (err) {
+      const saved = localStorage.getItem('prep_flashcards');
+      if (saved) {
+        setFlashcards(JSON.parse(saved));
+      } else {
+        setFlashcards([
+          { id: 'fc_1', front: 'What is the time complexity of Quick Sort in the worst case?', back: 'O(N^2). This happens when the pivot chosen is always the extreme element.', category: 'Algorithms', isMastered: false },
+          { id: 'fc_2', front: 'Explain CAP Theorem in Distributed Databases.', back: 'Consistency, Availability, and Partition Tolerance. A distributed system can only provide 2 of these guarantees simultaneously.', category: 'System Design', isMastered: false },
+          { id: 'fc_3', front: 'What is polymorphism in Object Oriented Programming?', back: 'Polymorphism allows objects of different classes to be treated as objects of a common superclass. Primarily implemented via overriding and overloading.', category: 'OOP Concepts', isMastered: false }
+        ]);
+      }
+    } finally {
+      setLoadingCards(false);
+    }
   };
 
-  const handleBulkUploadCards = () => {
+  useEffect(() => {
+    if (activeTab === 'flashcards') {
+      loadFlashcards();
+    }
+  }, [activeTab]);
+
+  const handleCreateCard = async () => {
+    if (!cardFront.trim() || !cardBack.trim()) return;
+    try {
+      const { data } = await api.post('/career/flashcards', {
+        front: cardFront.trim(),
+        back: cardBack.trim(),
+        category: cardCat,
+        type: 'company_prep'
+      });
+      const newCard = { ...data.flashcard, isMastered: false };
+      const updated = [...flashcards, newCard];
+      setFlashcards(updated);
+      localStorage.setItem('prep_flashcards', JSON.stringify(updated));
+      setCardFront('');
+      setCardBack('');
+      setShowAddCard(false);
+      alert('Flashcard created successfully!');
+    } catch (err) {
+      // Local/Offline Fallback
+      const newCard: FlashCard = {
+        id: 'fc_' + Date.now(),
+        front: cardFront,
+        back: cardBack,
+        category: cardCat,
+        isMastered: false
+      };
+      const updated = [...flashcards, newCard];
+      setFlashcards(updated);
+      localStorage.setItem('prep_flashcards', JSON.stringify(updated));
+      setCardFront('');
+      setCardBack('');
+      setShowAddCard(false);
+      alert('Flashcard created locally!');
+    }
+  };
+
+  const handleBulkUploadCards = async () => {
     if (!bulkCardText.trim()) return;
     const lines = bulkCardText.split('\n');
-    const newCards: FlashCard[] = [];
-    lines.forEach((line, idx) => {
+    const newCards: any[] = [];
+    lines.forEach((line) => {
       if (!line.trim()) return;
       const parts = line.split('|');
       const front = parts[0]?.trim() || '';
@@ -264,17 +308,36 @@ const CompanyPrep = () => {
       const cat = parts[2]?.trim() || 'Algorithms';
       if (front && back) {
         newCards.push({
-          id: `fc_bulk_${Date.now()}_${idx}`,
           front,
           back,
           category: cat,
-          isMastered: false
+          type: 'company_prep'
         });
       }
     });
+
     if (newCards.length > 0) {
-      setFlashcards([...flashcards, ...newCards]);
-      alert(`Bulk uploaded ${newCards.length} flashcards successfully!`);
+      try {
+        const { data } = await api.post('/career/flashcards', newCards);
+        const addedCards = (data.flashcards || []).map((c: any) => ({ ...c, isMastered: false }));
+        const updated = [...flashcards, ...addedCards];
+        setFlashcards(updated);
+        localStorage.setItem('prep_flashcards', JSON.stringify(updated));
+        alert(`Bulk uploaded ${addedCards.length} flashcards successfully!`);
+      } catch (err) {
+        // Local/Offline Fallback
+        const offlineCards = newCards.map((c, idx) => ({
+          id: `fc_bulk_${Date.now()}_${idx}`,
+          front: c.front,
+          back: c.back,
+          category: c.category,
+          isMastered: false
+        }));
+        const updated = [...flashcards, ...offlineCards];
+        setFlashcards(updated);
+        localStorage.setItem('prep_flashcards', JSON.stringify(updated));
+        alert(`Bulk uploaded ${offlineCards.length} flashcards locally!`);
+      }
       setBulkCardText('');
       setShowBulkCardModal(false);
     } else {
@@ -284,7 +347,11 @@ const CompanyPrep = () => {
 
   const toggleMastered = (cardId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setFlashcards(flashcards.map(c => c.id === cardId ? { ...c, isMastered: !c.isMastered } : c));
+    const updated = flashcards.map(c => c.id === cardId ? { ...c, isMastered: !c.isMastered } : c);
+    setFlashcards(updated);
+    const masteredIds = updated.filter(c => c.isMastered).map(c => c.id);
+    localStorage.setItem('prep_mastered_flashcards', JSON.stringify(masteredIds));
+    localStorage.setItem('prep_flashcards', JSON.stringify(updated));
   };
 
   const filteredCards = flashcards.filter(c => !c.isMastered);
@@ -509,20 +576,22 @@ const CompanyPrep = () => {
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">DSA & System Design Revision</h3>
                 <p className="text-[10px] text-slate-500">Tap cards to flip. Master all {filteredCards.length} cards remaining.</p>
               </div>
-              <div className="flex gap-1.5 shrink-0">
-                <button 
-                  onClick={() => setShowBulkCardModal(true)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black px-3.5 py-2 rounded-xl border border-slate-200 transition-all active:scale-95 flex items-center gap-1"
-                >
-                  <Upload className="w-3.5 h-3.5" /> Bulk Upload
-                </button>
-                <button 
-                  onClick={() => setShowAddCard(true)}
-                  className="bg-blue-600 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md shadow-blue-500/10 flex items-center gap-0.5 transition-all active:scale-95"
-                >
-                  <Plus className="w-4 h-4" /> Card
-                </button>
-              </div>
+              {isFacultyOrAdmin && (
+                <div className="flex gap-1.5 shrink-0">
+                  <button 
+                    onClick={() => setShowBulkCardModal(true)}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black px-3.5 py-2 rounded-xl border border-slate-200 transition-all active:scale-95 flex items-center gap-1"
+                  >
+                    <Upload className="w-3.5 h-3.5" /> Bulk Upload
+                  </button>
+                  <button 
+                    onClick={() => setShowAddCard(true)}
+                    className="bg-blue-600 text-white text-xs font-black px-4 py-2 rounded-xl shadow-md shadow-blue-500/10 flex items-center gap-0.5 transition-all active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" /> Card
+                  </button>
+                </div>
+              )}
             </div>
 
             {filteredCards.length === 0 ? (

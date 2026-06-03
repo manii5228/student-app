@@ -43,51 +43,64 @@ const PortfolioBuilder = () => {
         let currentRole = data.portfolio?.data?.role || '';
         let currentBio = data.portfolio?.data?.bio || '';
 
-        // If skills, projects or basic details are empty, auto-populate from profile and project boards!
-        if (currentSkills.length === 0 || currentProjects.length === 0 || !currentName) {
-          try {
-            const userRes = await api.get('/auth/me');
-            if (userRes.data && userRes.data.user) {
-              const u = userRes.data.user;
-              if (!currentName) currentName = `${u.first_name} ${u.last_name}`;
-              if (!currentRole) currentRole = `${u.department || 'CSE'} Student`;
-              if (!currentBio) currentBio = `B.Tech student at VelTech University, specializing in ${u.department || 'Computer Science'}.`;
-            }
-          } catch (e) {
-            console.warn("Could not fetch user details for portfolio auto-population", e);
-          }
+        let mergedSkills = [...currentSkills];
+        let mergedProjects = [...currentProjects];
 
-          try {
-            const projRes = await api.get('/career/projects');
-            if (projRes.data && projRes.data.projects) {
-              const fetchedProjs = projRes.data.projects;
-              if (currentProjects.length === 0) {
-                currentProjects = fetchedProjs.map((p: any) => ({
+        try {
+          const userRes = await api.get('/auth/me');
+          if (userRes.data && userRes.data.user) {
+            const u = userRes.data.user;
+            if (!currentName) currentName = `${u.first_name} ${u.last_name}`;
+            if (!currentRole) currentRole = `${u.department || 'CSE'} Student`;
+            if (!currentBio) currentBio = `B.Tech student at VelTech University, specializing in ${u.department || 'Computer Science'}.`;
+
+            if (u.skills && Array.isArray(u.skills)) {
+              u.skills.forEach((skObj: any) => {
+                const sName = typeof skObj === 'string' ? skObj : skObj.name;
+                if (sName && !mergedSkills.some(s => s.toLowerCase() === sName.toLowerCase())) {
+                  mergedSkills.push(sName);
+                }
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Could not fetch user details for portfolio auto-population", e);
+        }
+
+        try {
+          const projRes = await api.get('/career/projects');
+          if (projRes.data && projRes.data.projects) {
+            const fetchedProjs = projRes.data.projects;
+            fetchedProjs.forEach((p: any) => {
+              if (p.title && !mergedProjects.some(pr => pr.title.toLowerCase() === p.title.toLowerCase())) {
+                mergedProjects.push({
                   title: p.title,
                   desc: p.description || 'No description available.'
-                }));
-              }
-              if (currentSkills.length === 0) {
-                const uniqueSkills = new Set<string>();
-                fetchedProjs.forEach((p: any) => {
-                  if (p.milestones) {
-                    p.milestones.forEach((m: any) => {
-                      if (m.title.toLowerCase().includes('database') || m.title.toLowerCase().includes('sql')) uniqueSkills.add('SQL');
-                      if (m.title.toLowerCase().includes('react') || m.title.toLowerCase().includes('frontend')) uniqueSkills.add('React');
-                      if (m.title.toLowerCase().includes('python') || m.title.toLowerCase().includes('backend')) uniqueSkills.add('Python');
-                      if (m.title.toLowerCase().includes('api') || m.title.toLowerCase().includes('route')) uniqueSkills.add('REST APIs');
-                    });
-                  }
                 });
-                if (uniqueSkills.size === 0) {
-                  ['React', 'Node.js', 'Python', 'SQL', 'Git', 'TailwindCSS'].forEach(s => uniqueSkills.add(s));
-                }
-                currentSkills = Array.from(uniqueSkills);
               }
+            });
+
+            // If merged skills is still empty, auto-generate from milestones
+            if (mergedSkills.length === 0) {
+              const uniqueSkills = new Set<string>();
+              fetchedProjs.forEach((p: any) => {
+                if (p.milestones) {
+                  p.milestones.forEach((m: any) => {
+                    if (m.title.toLowerCase().includes('database') || m.title.toLowerCase().includes('sql')) uniqueSkills.add('SQL');
+                    if (m.title.toLowerCase().includes('react') || m.title.toLowerCase().includes('frontend')) uniqueSkills.add('React');
+                    if (m.title.toLowerCase().includes('python') || m.title.toLowerCase().includes('backend')) uniqueSkills.add('Python');
+                    if (m.title.toLowerCase().includes('api') || m.title.toLowerCase().includes('route')) uniqueSkills.add('REST APIs');
+                  });
+                }
+              });
+              if (uniqueSkills.size === 0) {
+                ['React', 'Node.js', 'Python', 'SQL', 'Git', 'TailwindCSS'].forEach(s => uniqueSkills.add(s));
+              }
+              mergedSkills = Array.from(uniqueSkills);
             }
-          } catch (e) {
-            console.warn("Could not fetch projects for portfolio auto-population", e);
           }
+        } catch (e) {
+          console.warn("Could not fetch projects for portfolio auto-population", e);
         }
 
         setPortfolio({
@@ -97,8 +110,8 @@ const PortfolioBuilder = () => {
             name: currentName,
             role: currentRole,
             bio: currentBio,
-            skills: currentSkills,
-            projects: currentProjects,
+            skills: mergedSkills,
+            projects: mergedProjects,
             links: data.portfolio?.data?.links || { github: '', linkedin: '' }
           }
         });
@@ -367,7 +380,7 @@ const PortfolioBuilder = () => {
                         <h2 className="text-sm font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                           <span className="w-8 h-px bg-slate-300"></span> Selected Projects <span className="flex-1 h-px bg-slate-300"></span>
                         </h2>
-                        <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-4">
                           {portfolio.data.projects.map((p: any, i: number) => (
                             <div key={i} className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 hover:-translate-y-1 transition-transform border-t-4 border-t-blue-500">
                               <h3 className="font-black text-lg text-slate-900 mb-2">{p.title}</h3>
@@ -391,36 +404,34 @@ const PortfolioBuilder = () => {
                       {portfolio.data.links?.linkedin && <span>IN: {portfolio.data.links.linkedin}</span>}
                     </div>
                   </div>
-                  <div className="grid md:grid-cols-3 gap-10">
-                    <div className="md:col-span-1">
+                  <div className="flex flex-col gap-8">
+                    <div>
                       <p className="text-xl italic text-slate-600 leading-relaxed border-l-4 border-pink-400 pl-4 bg-pink-50/50 p-4 rounded-r-2xl">"{portfolio.data.bio || 'Your short bio here...'}"</p>
-
-                      {portfolio.data.skills?.length > 0 && (
-                        <div className="mt-10">
-                          <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">Expertise</h2>
-                          <div className="flex flex-wrap gap-2 font-sans">
-                            {portfolio.data.skills.map((s: string, i: number) => <span key={i} className="text-xs font-bold text-white bg-pink-500 px-3 py-1.5 rounded-full shadow-sm">{s}</span>)}
-                          </div>
-                        </div>
-                      )}
                     </div>
 
-                    <div className="md:col-span-2">
-                      {portfolio.data.projects?.length > 0 && (
-                        <div>
-                          <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-4">Selected Works <div className="h-px bg-pink-200 flex-1"></div></h2>
-                          <div className="flex flex-col gap-6">
-                            {portfolio.data.projects.map((p: any, i: number) => (
-                              <div key={i} className="bg-white rounded-3xl p-6 shadow-xl shadow-pink-900/5 border border-pink-50 hover:scale-[1.02] transition-transform relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-2 h-full bg-pink-400"></div>
-                                <h3 className="font-black text-xl text-slate-900 mb-2">{p.title}</h3>
-                                <p className="text-sm text-slate-600 font-sans leading-relaxed">{p.desc}</p>
-                              </div>
-                            ))}
-                          </div>
+                    {portfolio.data.skills?.length > 0 && (
+                      <div className="mt-2">
+                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-4">Expertise</h2>
+                        <div className="flex flex-wrap gap-2 font-sans">
+                          {portfolio.data.skills.map((s: string, i: number) => <span key={i} className="text-xs font-bold text-white bg-pink-500 px-3 py-1.5 rounded-full shadow-sm">{s}</span>)}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
+
+                    {portfolio.data.projects?.length > 0 && (
+                      <div className="mt-2">
+                        <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-4">Selected Works <div className="h-px bg-pink-200 flex-1"></div></h2>
+                        <div className="flex flex-col gap-6">
+                          {portfolio.data.projects.map((p: any, i: number) => (
+                            <div key={i} className="bg-white rounded-3xl p-6 shadow-xl shadow-pink-900/5 border border-pink-50 hover:scale-[1.02] transition-transform relative overflow-hidden">
+                              <div className="absolute top-0 left-0 w-2 h-full bg-pink-400"></div>
+                              <h3 className="font-black text-xl text-slate-900 mb-2">{p.title}</h3>
+                              <p className="text-sm text-slate-600 font-sans leading-relaxed">{p.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

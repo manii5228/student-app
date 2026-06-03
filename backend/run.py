@@ -685,6 +685,29 @@ def seed_db():
     db.session.commit()
     print("Portfolio seeded!")
 
+    # Seed default flashcards
+    from app.models.career import Flashcard
+    default_fcs = [
+        # Company Prep
+        {"front": "What is the time complexity of Quick Sort in the worst case?", "back": "O(N^2). This happens when the pivot chosen is always the extreme element.", "cat": "Algorithms", "type": "company_prep"},
+        {"front": "Explain CAP Theorem in Distributed Databases.", "back": "Consistency, Availability, and Partition Tolerance. A distributed system can only provide 2 of these guarantees simultaneously.", "cat": "System Design", "type": "company_prep"},
+        {"front": "What is polymorphism in Object Oriented Programming?", "back": "Polymorphism allows objects of different classes to be treated as objects of a common superclass. Primarily implemented via overriding and overloading.", "cat": "OOP Concepts", "type": "company_prep"},
+        # Mock Test Revision
+        {"front": "What is the primary difference between TCP and UDP?", "back": "TCP is connection-oriented, reliable, and guarantees packet delivery order. UDP is connectionless, faster, but does not guarantee delivery or packet order.", "cat": "Computer Networks", "type": "mock_test"},
+        {"front": "Explain ACID properties of Database Management Systems.", "back": "Atomicity (all or nothing), Consistency (preserves database integrity), Isolation (concurrent transactions don't interfere), and Durability (permanent changes).", "cat": "DBMS", "type": "mock_test"},
+        {"front": "What is dynamic programming?", "back": "An algorithmic technique that solves complex problems by breaking them down into simpler overlapping subproblems, solving each subproblem once, and caching their solutions (memoization).", "cat": "Algorithms", "type": "mock_test"},
+        {"front": "What is a deadlock and what are its four necessary conditions?", "back": "A situation where set of processes are blocked because each holds a resource and waits for another. Conditions: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait.", "cat": "Operating Systems", "type": "mock_test"}
+    ]
+    for fc in default_fcs:
+        db.session.add(Flashcard(
+            front=fc["front"],
+            back=fc["back"],
+            category=fc["cat"],
+            type=fc["type"]
+        ))
+    db.session.commit()
+    print("Flashcards seeded!")
+
     # Seed default ID card templates
     from app.models.user import IDCardTemplate
     db.session.add(IDCardTemplate(

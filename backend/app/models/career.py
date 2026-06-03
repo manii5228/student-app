@@ -539,3 +539,25 @@ class FeeRecord(db.Model):
         return {"id": self.id, "student_id": self.student_id, "fee_type": self.fee_type,
                 "amount": self.amount, "due_date": str(self.due_date) if self.due_date else None,
                 "status": self.status, "transaction_id": self.transaction_id}
+
+
+class Flashcard(db.Model):
+    __tablename__ = "flashcards"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    front = db.Column(db.Text, nullable=False)
+    back = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(100), default="Algorithms")
+    type = db.Column(db.String(50), default="company_prep")  # company_prep or mock_test
+    created_by = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "front": self.front,
+            "back": self.back,
+            "category": self.category,
+            "type": self.type,
+            "created_by": self.created_by,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }

@@ -12,8 +12,8 @@ from ..extensions import db
 from ..middleware.auth_middleware import role_required
 from ..models.career import (
     JobPosting, JobApplication, InterviewSchedule,
-    CompanyPrepQuestion, AlumniProfile,
-    Project, Milestone, SkillBadge, EarnedBadge, SavedJob,
+    CompanyPrepQuestion, AlumniProfile, LeaveRequest, MeetingSlot, Resource,
+    AuditLog, FeeRecord, Flashcard, Badge, SavedJob,
     Internship, MockTest, MockTestQuestion, MockTestAttempt,
     TeamFinderProfile, TeamSwipe, TeamMatch, TeamMessage,
     Portfolio, TeamReport,
@@ -284,6 +284,68 @@ def upvote_question(qid):
     q.upvotes += 1
     db.session.commit()
     return jsonify({"message": "Upvoted", "upvotes": q.upvotes}), 200
+
+
+# ── Flashcards ──────────────────────────────────────────────────────
+
+@career_bp.route("/flashcards", methods=["GET"])
+@jwt_required()
+def get_flashcards():
+    """Get flashcards, optional filtering by type (company_prep or mock_test)."""
+    fc_type = request.args.get("type", "company_prep")
+    cards = Flashcard.query.filter_by(type=fc_type).order_by(Flashcard.created_at.desc()).all()
+    return jsonify({"flashcards": [c.to_dict() for c in cards]}), 200
+
+@career_bp.route("/flashcards", methods=["POST"])
+@jwt_required()
+@role_required("admin", "faculty")
+def create_flashcard():
+    """Create a new flashcard (or bulk creation if an array is passed)."""
+    data = request.get_json()
+    if isinstance(data, list):
+        created_cards = []
+        for item in data:
+            if not item.get("front") or not item.get("back"):
+                continue
+            fc = Flashcard(
+                front=item["front"],
+                back=item["back"],
+                category=item.get("category", "Algorithms"),
+                type=item.get("type", "company_prep"),
+                created_by=get_jwt_identity()
+            )
+            db.session.add(fc)
+            created_cards.append(fc)
+        db.session.commit()
+        return jsonify({
+            "message": f"Successfully created {len(created_cards)} flashcards",
+            "flashcards": [c.to_dict() for c in created_cards]
+        }), 201
+    else:
+        if not data.get("front") or not data.get("back"):
+            return jsonify({"error": "front and back fields are required"}), 400
+        fc = Flashcard(
+            front=data["front"],
+            back=data["back"],
+            category=data.get("category", "Algorithms"),
+            type=data.get("type", "company_prep"),
+            created_by=get_jwt_identity()
+        )
+        db.session.add(fc)
+        db.session.commit()
+        return jsonify({"message": "Flashcard created", "flashcard": fc.to_dict()}), 201
+
+@career_bp.route("/flashcards/<fc_id>", methods=["DELETE"])
+@jwt_required()
+@role_required("admin", "faculty")
+def delete_flashcard(fc_id):
+    fc = db.session.get(Flashcard, fc_id)
+    if not fc:
+        return jsonify({"error": "Flashcard not found"}), 404
+    db.session.delete(fc)
+    db.session.commit()
+    return jsonify({"message": "Flashcard deleted"}), 200
+
 
 
 # ── Alumni / Referral Hub ─────────────────────────────────────────
@@ -1167,7 +1229,7 @@ def get_portfolio():
     return jsonify({"portfolio": p.to_dict() if p else None}), 200
 
 
-@career_bp.route("/portfolio", methods=["PUT"])
+@career_bp.route("/portfolio", methods=["POST", "PUT"])
 @jwt_required()
 def save_portfolio():
     """Save/update portfolio data."""

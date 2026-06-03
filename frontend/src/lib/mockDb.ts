@@ -739,6 +739,36 @@ const seedComprehensiveMockDb = () => {
       { id: 'gdsc', name: 'Developer Student Club', description: 'Cloud, Android, web workshops, and product build sprints.', club_type: 'technical', member_count: 311, faculty_advisor_id: 'fac_1', president_id: null, website_url: 'https://chat.whatsapp.com/mock-gdsc', instagram_url: 'https://instagram.com/veltech_gdsc', is_active: true },
       { id: 'finearts', name: 'Fine Arts Forum', description: 'Poster design, stage props, murals, and event branding.', club_type: 'cultural', member_count: 96, faculty_advisor_id: 'fac_1', president_id: null, website_url: 'https://chat.whatsapp.com/mock-finearts', instagram_url: 'https://instagram.com/veltech_finearts', is_active: true },
       { id: 'radio', name: 'Campus Radio', description: 'Host shows, record interviews, and handle event announcements.', club_type: 'media', member_count: 54, faculty_advisor_id: 'fac_1', president_id: null, website_url: 'https://chat.whatsapp.com/mock-radio', instagram_url: 'https://instagram.com/veltech_radio', is_active: true }
+    ],
+    portfolios: [
+      {
+        id: 'port_std_1',
+        user_id: 'std_1',
+        template: 'modern',
+        is_public: true,
+        public_slug: 'mani-manjunath-std_1',
+        view_count: 12,
+        data: {
+          name: 'Mani Manjunath',
+          role: 'Fullstack Developer',
+          bio: 'B.Tech student at VelTech University, specializing in Computer Science.',
+          skills: ['React', 'Node.js', 'Python', 'SQL', 'Git', 'TailwindCSS'],
+          projects: [
+            { title: 'University Super-App', desc: 'A comprehensive campus management system with React + Flask' },
+            { title: 'AI Portfolio Builder', desc: 'Auto-generates CVs from student data using NLP' }
+          ],
+          links: { github: 'https://github.com/mani', linkedin: 'https://linkedin.com/in/mani' }
+        }
+      }
+    ],
+    flashcards: [
+      { id: 'fc_1', front: 'What is the time complexity of Quick Sort in the worst case?', back: 'O(N^2). This happens when the pivot chosen is always the extreme element.', category: 'Algorithms', type: 'company_prep', created_by: 'fac_1', created_at: new Date().toISOString() },
+      { id: 'fc_2', front: 'Explain CAP Theorem in Distributed Databases.', back: 'Consistency, Availability, and Partition Tolerance. A distributed system can only provide 2 of these guarantees simultaneously.', category: 'System Design', type: 'company_prep', created_by: 'fac_1', created_at: new Date().toISOString() },
+      { id: 'fc_3', front: 'What is polymorphism in Object Oriented Programming?', back: 'Polymorphism allows objects of different classes to be treated as objects of a common superclass. Primarily implemented via overriding and overloading.', category: 'OOP Concepts', type: 'company_prep', created_by: 'fac_1', created_at: new Date().toISOString() },
+      { id: "mc_1", front: "What is the primary difference between TCP and UDP?", back: "TCP is connection-oriented, reliable, and guarantees packet delivery order. UDP is connectionless, faster, but does not guarantee delivery or packet order.", category: "Computer Networks", type: 'mock_test', created_by: 'fac_1', created_at: new Date().toISOString() },
+      { id: "mc_2", front: "Explain ACID properties of Database Management Systems.", back: "Atomicity (all or nothing), Consistency (preserves database integrity), Isolation (concurrent transactions don't interfere), and Durability (permanent changes).", category: "DBMS", type: 'mock_test', created_by: 'fac_1', created_at: new Date().toISOString() },
+      { id: "mc_3", front: "What is dynamic programming?", back: "An algorithmic technique that solves complex problems by breaking them down into simpler overlapping subproblems, solving each subproblem once, and caching their solutions (memoization).", category: "Algorithms", type: 'mock_test', created_by: 'fac_1', created_at: new Date().toISOString() },
+      { id: "mc_4", front: "What is a deadlock and what are its four necessary conditions?", back: "A situation where set of processes are blocked because each holds a resource and waits for another. Conditions: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait.", category: "Operating Systems", type: 'mock_test', created_by: 'fac_1', created_at: new Date().toISOString() }
     ]
   };
 
@@ -2664,6 +2694,99 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   if (cleanUrl === '/academic/question-papers' && method === 'get') {
     const papers = db.questionPapers || [];
     return { status: 200, data: papers };
+  }
+
+  // ==========================================
+  // Flashcards Routes (Mock API)
+  // ==========================================
+  if (cleanUrl === '/career/flashcards' && method === 'get') {
+    const fc_type = urlParams.get('type') || 'company_prep';
+    const cards = (db.flashcards || []).filter((fc: any) => fc.type === fc_type);
+    return { status: 200, data: { flashcards: cards } };
+  }
+
+  if (cleanUrl === '/career/flashcards' && method === 'post') {
+    const payload = getPayload(config.data);
+    if (!db.flashcards) db.flashcards = [];
+    
+    if (Array.isArray(payload)) {
+      const added = [];
+      for (const item of payload) {
+        if (!item.front || !item.back) continue;
+        const newCard = {
+          id: `fc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          front: item.front,
+          back: item.back,
+          category: item.category || 'Algorithms',
+          type: item.type || 'company_prep',
+          created_by: activeUserId,
+          created_at: new Date().toISOString()
+        };
+        db.flashcards.push(newCard);
+        added.push(newCard);
+      }
+      saveMockDb(db);
+      return { status: 201, data: { message: `Successfully created ${added.length} flashcards`, flashcards: added } };
+    } else {
+      if (!payload.front || !payload.back) {
+        return { status: 400, data: { error: "front and back fields are required" } };
+      }
+      const newCard = {
+        id: `fc_${Date.now()}`,
+        front: payload.front,
+        back: payload.back,
+        category: payload.category || 'Algorithms',
+        type: payload.type || 'company_prep',
+        created_by: activeUserId,
+        created_at: new Date().toISOString()
+      };
+      db.flashcards.push(newCard);
+      saveMockDb(db);
+      return { status: 201, data: { message: "Flashcard created", flashcard: newCard } };
+    }
+  }
+
+  if (cleanUrl.startsWith('/career/flashcards/') && method === 'delete') {
+    const fcId = cleanUrl.split('/')[3];
+    if (db.flashcards) {
+      db.flashcards = db.flashcards.filter((fc: any) => fc.id !== fcId);
+      saveMockDb(db);
+    }
+    return { status: 200, data: { message: "Flashcard deleted" } };
+  }
+
+  // ==========================================
+  // Portfolio Routes (Mock API)
+  // ==========================================
+  if (cleanUrl === '/career/portfolio' && method === 'get') {
+    const portfolio = (db.portfolios || []).find((p: any) => p.user_id === activeUserId);
+    return { status: 200, data: { portfolio: portfolio || null } };
+  }
+
+  if (cleanUrl === '/career/portfolio' && (method === 'post' || method === 'put')) {
+    const payload = getPayload(config.data);
+    if (!db.portfolios) db.portfolios = [];
+    let portfolio = db.portfolios.find((p: any) => p.user_id === activeUserId);
+    if (!portfolio) {
+      const activeUser = db.users.find((u: any) => u.id === activeUserId);
+      const slug = activeUser ? `${activeUser.first_name.toLowerCase()}-${activeUser.last_name.toLowerCase()}-${activeUserId.slice(0, 6)}` : activeUserId.slice(0, 12);
+      portfolio = {
+        id: `port_${Date.now()}`,
+        user_id: activeUserId,
+        template: payload.template || 'modern',
+        is_public: payload.is_public || false,
+        public_slug: slug,
+        view_count: 0,
+        data: payload.data || {}
+      };
+      db.portfolios.push(portfolio);
+    } else {
+      if (payload.template !== undefined) portfolio.template = payload.template;
+      if (payload.is_public !== undefined) portfolio.is_public = payload.is_public;
+      if (payload.data !== undefined) portfolio.data = payload.data;
+    }
+    saveMockDb(db);
+    return { status: 200, data: { portfolio } };
   }
 
   // Default fallback for any unmocked GET request

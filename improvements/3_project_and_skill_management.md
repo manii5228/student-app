@@ -1,6 +1,6 @@
 # Improvements: Project & Skill Management
 
-the dropdown need to be styled,complementary toogle button is dismatched in team finder
+
 
 the faculty need to accept students for projects and need to approve the project is completed. Make the changs in frontend and backend also
  

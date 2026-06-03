@@ -44,20 +44,42 @@ const MockTestPortal = () => {
 
   // Flashcards state
   const [subTab, setSubTab] = useState<'tests' | 'flashcards'>('tests');
-  const [flashcards, setFlashcards] = useState<Array<{ id: string; front: string; back: string; category: string; isMastered: boolean }>>(() => {
-    const saved = localStorage.getItem('mock_test_flashcards');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: "mc_1", front: "What is the primary difference between TCP and UDP?", back: "TCP is connection-oriented, reliable, and guarantees packet delivery order. UDP is connectionless, faster, but does not guarantee delivery or packet order.", category: "Computer Networks", isMastered: false },
-      { id: "mc_2", front: "Explain ACID properties of Database Management Systems.", back: "Atomicity (all or nothing), Consistency (preserves database integrity), Isolation (concurrent transactions don't interfere), and Durability (permanent changes).", category: "DBMS", isMastered: false },
-      { id: "mc_3", front: "What is dynamic programming?", back: "An algorithmic technique that solves complex problems by breaking them down into simpler overlapping subproblems, solving each subproblem once, and caching their solutions (memoization).", category: "Algorithms", isMastered: false },
-      { id: "mc_4", front: "What is a deadlock and what are its four necessary conditions?", back: "A situation where set of processes are blocked because each holds a resource and waits for another. Conditions: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait.", category: "Operating Systems", isMastered: false }
-    ];
-  });
-  
+  const [flashcards, setFlashcards] = useState<Array<{ id: string; front: string; back: string; category: string; isMastered: boolean }>>([]);
+  const [loadingCards, setLoadingCards] = useState(false);
+
+  const loadFlashcards = async () => {
+    setLoadingCards(true);
+    try {
+      const { data } = await api.get('/career/flashcards?type=mock_test');
+      const savedMastered = localStorage.getItem('mock_test_mastered_flashcards');
+      const masteredIds = savedMastered ? JSON.parse(savedMastered) : [];
+      const cards = (data.flashcards || []).map((fc: any) => ({
+        ...fc,
+        isMastered: masteredIds.includes(fc.id)
+      }));
+      setFlashcards(cards);
+    } catch (err) {
+      const saved = localStorage.getItem('mock_test_flashcards');
+      if (saved) {
+        setFlashcards(JSON.parse(saved));
+      } else {
+        setFlashcards([
+          { id: "mc_1", front: "What is the primary difference between TCP and UDP?", back: "TCP is connection-oriented, reliable, and guarantees packet delivery order. UDP is connectionless, faster, but does not guarantee delivery or packet order.", category: "Computer Networks", isMastered: false },
+          { id: "mc_2", front: "Explain ACID properties of Database Management Systems.", back: "Atomicity (all or nothing), Consistency (preserves database integrity), Isolation (concurrent transactions don't interfere), and Durability (permanent changes).", category: "DBMS", isMastered: false },
+          { id: "mc_3", front: "What is dynamic programming?", back: "An algorithmic technique that solves complex problems by breaking them down into simpler overlapping subproblems, solving each subproblem once, and caching their solutions (memoization).", category: "Algorithms", isMastered: false },
+          { id: "mc_4", front: "What is a deadlock and what are its four necessary conditions?", back: "A situation where set of processes are blocked because each holds a resource and waits for another. Conditions: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait.", category: "Operating Systems", isMastered: false }
+        ]);
+      }
+    } finally {
+      setLoadingCards(false);
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem('mock_test_flashcards', JSON.stringify(flashcards));
-  }, [flashcards]);
+    if (subTab === 'flashcards') {
+      loadFlashcards();
+    }
+  }, [subTab]);
 
   const [activeCardIdx, setActiveCardIdx] = useState(0);
   const [cardFlipped, setCardFlipped] = useState(false);
@@ -72,21 +94,41 @@ const MockTestPortal = () => {
   const [cardBack, setCardBack] = useState('');
   const [cardCat, setCardCat] = useState('Algorithms');
 
-  const handleCreateCard = () => {
+  const handleCreateCard = async () => {
     if (!cardFront.trim() || !cardBack.trim()) return;
-    const newCard = {
-      id: `mc_${Date.now()}`,
-      front: cardFront.trim(),
-      back: cardBack.trim(),
-      category: cardCat,
-      isMastered: false
-    };
-    setFlashcards([...flashcards, newCard]);
-    setCardFront('');
-    setCardBack('');
-    setShowAddCard(false);
-    setSuccessToast("Revision Flash Card added successfully!");
-    setTimeout(() => setSuccessToast(null), 4000);
+    try {
+      const { data } = await api.post('/career/flashcards', {
+        front: cardFront.trim(),
+        back: cardBack.trim(),
+        category: cardCat,
+        type: 'mock_test'
+      });
+      const newCard = { ...data.flashcard, isMastered: false };
+      const updated = [...flashcards, newCard];
+      setFlashcards(updated);
+      localStorage.setItem('mock_test_flashcards', JSON.stringify(updated));
+      setCardFront('');
+      setCardBack('');
+      setShowAddCard(false);
+      setSuccessToast("Revision Flash Card added successfully!");
+      setTimeout(() => setSuccessToast(null), 4000);
+    } catch (err) {
+      const newCard = {
+        id: `mc_${Date.now()}`,
+        front: cardFront.trim(),
+        back: cardBack.trim(),
+        category: cardCat,
+        isMastered: false
+      };
+      const updated = [...flashcards, newCard];
+      setFlashcards(updated);
+      localStorage.setItem('mock_test_flashcards', JSON.stringify(updated));
+      setCardFront('');
+      setCardBack('');
+      setShowAddCard(false);
+      setSuccessToast("Revision Flash Card added locally!");
+      setTimeout(() => setSuccessToast(null), 4000);
+    }
   };
 
   const handleParseBulk = () => {
@@ -152,22 +194,43 @@ const MockTestPortal = () => {
     setParsedPreview(parsed.map((p, idx) => ({ ...p, id: `bulk_${idx}_${Date.now()}` })));
   };
 
-  const handleImportBulk = () => {
+  const handleImportBulk = async () => {
     if (parsedPreview.length === 0) return;
-    const newCards = parsedPreview.map(p => ({
-      id: p.id,
+    const cardsToPost = parsedPreview.map(p => ({
       front: p.front,
       back: p.back,
       category: p.category,
-      isMastered: false
+      type: 'mock_test'
     }));
 
-    setFlashcards([...flashcards, ...newCards]);
-    setBulkInput('');
-    setParsedPreview([]);
-    setShowBulkUpload(false);
-    setSuccessToast(`Successfully imported ${newCards.length} flashcards!`);
-    setTimeout(() => setSuccessToast(null), 4000);
+    try {
+      const { data } = await api.post('/career/flashcards', cardsToPost);
+      const addedCards = (data.flashcards || []).map((c: any) => ({ ...c, isMastered: false }));
+      const updated = [...flashcards, ...addedCards];
+      setFlashcards(updated);
+      localStorage.setItem('mock_test_flashcards', JSON.stringify(updated));
+      setBulkInput('');
+      setParsedPreview([]);
+      setShowBulkUpload(false);
+      setSuccessToast(`Successfully imported ${addedCards.length} flashcards!`);
+      setTimeout(() => setSuccessToast(null), 4000);
+    } catch (err) {
+      const newCards = parsedPreview.map(p => ({
+        id: p.id,
+        front: p.front,
+        back: p.back,
+        category: p.category,
+        isMastered: false
+      }));
+      const updated = [...flashcards, ...newCards];
+      setFlashcards(updated);
+      localStorage.setItem('mock_test_flashcards', JSON.stringify(updated));
+      setBulkInput('');
+      setParsedPreview([]);
+      setShowBulkUpload(false);
+      setSuccessToast(`Successfully imported ${newCards.length} flashcards locally!`);
+      setTimeout(() => setSuccessToast(null), 4000);
+    }
   };
 
   const handleEditPreviewRow = (id: string, field: 'front' | 'back' | 'category', value: string) => {
@@ -180,7 +243,11 @@ const MockTestPortal = () => {
 
   const toggleMastered = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setFlashcards(flashcards.map(c => c.id === id ? { ...c, isMastered: !c.isMastered } : c));
+    const updated = flashcards.map(c => c.id === id ? { ...c, isMastered: !c.isMastered } : c);
+    setFlashcards(updated);
+    const masteredIds = updated.filter(c => c.isMastered).map(c => c.id);
+    localStorage.setItem('mock_test_mastered_flashcards', JSON.stringify(masteredIds));
+    localStorage.setItem('mock_test_flashcards', JSON.stringify(updated));
   };
 
   const filteredCards = flashcards.filter(c => !c.isMastered);

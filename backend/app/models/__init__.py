@@ -15,7 +15,7 @@ from .campus import (
 from .career import (
     JobPosting, JobApplication, InterviewSchedule, CompanyPrepQuestion,
     AlumniProfile, LeaveRequest, MeetingSlot, Resource,
-    AuditLog, FeeRecord,
+    AuditLog, FeeRecord, Portfolio, Flashcard,
 )
 
 
@@ -31,4 +31,5 @@ __all__ = [
     "JobPosting", "JobApplication", "InterviewSchedule", "CompanyPrepQuestion",
     "AlumniProfile", "LeaveRequest", "MeetingSlot", "Resource",
     "HealthAppointment", "EmergencyAlert", "AuditLog", "FeeRecord",
+    "Portfolio", "Flashcard",
 ]
