@@ -260,5 +260,6 @@ class QuestionPaper(db.Model):
             "semester": self.semester, "year": self.year,
             "exam_type": self.exam_type, "file_url": self.file_url,
             "download_count": self.download_count,
+            "ocr_content": self.ocr_content,
         }
 

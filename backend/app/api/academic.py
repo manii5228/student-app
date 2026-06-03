@@ -464,7 +464,18 @@ def create_exam():
     end_time = datetime.strptime(data["end_time"], "%H:%M").time()
     dept = data["department"]
     sem = int(data["semester"])
+    # Overlap conflict check for the same department, semester, and exam_date
+    conflicting_exam = ExamSchedule.query.filter(
+        ExamSchedule.department == dept,
+        ExamSchedule.semester == sem,
+        ExamSchedule.exam_date == exam_date,
+        ExamSchedule.start_time < end_time,
+        ExamSchedule.end_time > start_time
+    ).first()
     
+    if conflicting_exam:
+        return jsonify({"error": f"Exam conflict detected: overlaps with {conflicting_exam.subject_code} ({conflicting_exam.start_time.strftime('%H:%M')}-{conflicting_exam.end_time.strftime('%H:%M')})"}), 409
+        
     exam = ExamSchedule(
         subject_code=data["subject_code"],
         subject_name=data["subject_name"],
