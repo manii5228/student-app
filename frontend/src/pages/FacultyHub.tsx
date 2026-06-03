@@ -74,6 +74,7 @@ const FacultyHub = () => {
     { name: 'Report Generator', desc: 'Export to PDF/Excel', icon: <BookOpen className="w-5 h-5 text-amber-600"/>, color: 'bg-amber-100', path: '/faculty/reports' },
     { name: 'Student Performance', desc: 'Analytics dashboard', icon: <Target className="w-5 h-5 text-cyan-600"/>, color: 'bg-cyan-100', path: '/faculty/student-performance' },
     { name: 'Attendance Disputes', desc: 'Resolve marked errors', icon: <AlertTriangle className="w-5 h-5 text-rose-600"/>, color: 'bg-rose-100', path: '/faculty/discrepancies' },
+    { name: 'Supervised Projects', desc: 'Accept, decline & complete student projects', icon: <FolderKanban className="w-5 h-5 text-cyan-600"/>, color: 'bg-cyan-100', path: '/faculty/projects' },
   ];
 
   // ── Campus Quick Access ──
@@ -95,7 +96,6 @@ const FacultyHub = () => {
     { name: 'Company Prep', desc: 'Add prep material', icon: <FileText className="w-5 h-5 text-blue-600"/>, color: 'bg-blue-100', path: '/career/prep' },
     { name: 'Internships', desc: 'Track student internships', icon: <PenTool className="w-5 h-5 text-teal-600"/>, color: 'bg-teal-100', path: '/career/internships' },
     { name: 'Skill Badges', desc: 'Create & award skill badges', icon: <Target className="w-5 h-5 text-amber-600"/>, color: 'bg-amber-100', path: '/career/badges' },
-    { name: 'Supervised Projects', desc: 'Accept, decline & complete student projects', icon: <FolderKanban className="w-5 h-5 text-cyan-600"/>, color: 'bg-cyan-100', path: '/faculty/projects' },
   ];
 
   const handleCardClick = (name: string, path: string) => {
