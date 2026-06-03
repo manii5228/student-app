@@ -842,6 +842,12 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   }
   
   const urlParams = new URLSearchParams((rawUrl.split('?')[1] || ''));
+  const getQueryParam = (key: string): string => {
+    if (config.params && config.params[key] !== undefined && config.params[key] !== null) {
+      return String(config.params[key]);
+    }
+    return urlParams.get(key) || '';
+  };
   
   console.log(`[Offline Standalone Mock DB] ${method.toUpperCase()} ${cleanUrl}`, config.data);
 
@@ -1956,8 +1962,8 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   // Library Portal Routes
   // ==========================================
   if (cleanUrl === '/campus/library/books' && method === 'get') {
-    const q = urlParams.get('q')?.toLowerCase() || '';
-    const cat = urlParams.get('category')?.toLowerCase() || '';
+    const q = getQueryParam('q').toLowerCase();
+    const cat = getQueryParam('category').toLowerCase();
     const books = db.libraryBooks || [];
     const filtered = books.filter((b: any) => {
       const matchQ = !q || b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q);
