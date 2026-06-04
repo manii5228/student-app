@@ -340,14 +340,90 @@ const seedComprehensiveMockDb = () => {
   // 6. Library Collections & Renewals
   const libraryBooks: any[] = [];
   const libraryIssues: any[] = [];
-  const lib_types = ["Textbook", "Reference Book", "Journal", "Research Material"];
+  const categories = ['Engineering', 'Science', 'Mathematics', 'Computer Science', 'Literature', 'Reference'];
+  const categoryBooks: Record<string, string[]> = {
+    'Engineering': [
+      'Introduction to Civil Engineering',
+      'Fundamentals of Thermodynamics',
+      'Fluid Mechanics & Machinery',
+      'Structural Analysis and Design',
+      'Engineering Mechanics: Statics',
+      'Principles of Electrical Engineering',
+      'Mechanical Vibrations',
+      'Control Systems Engineering',
+      'Advanced Material Science',
+      'Manufacturing Technology'
+    ],
+    'Science': [
+      'University Chemistry: Principles & Applications',
+      'Introduction to Solid State Physics',
+      'Organic Chemistry: Structure and Function',
+      'Modern Biophysics',
+      'Quantum Mechanics for Scientists',
+      'Electromagnetic Fields and Waves',
+      'Genetics and Molecular Biology',
+      'Environmental Science & Ecology',
+      'Principles of Biochemistry',
+      'Astronomy: A Physical Perspective'
+    ],
+    'Mathematics': [
+      'Advanced Engineering Mathematics',
+      'Linear Algebra and Its Applications',
+      'Calculus: Early Transcendentals',
+      'Probability & Statistics for Engineers',
+      'Discrete Mathematics & Its Foundations',
+      'Differential Equations & Boundary Value Problems',
+      'Numerical Methods for Scientists',
+      'Complex Variables & Applications',
+      'Abstract Algebra: A First Course',
+      'Mathematical Analysis'
+    ],
+    'Computer Science': [
+      'Introduction to Algorithms',
+      'Database System Concepts',
+      'Operating System Concepts',
+      'Computer Networks: A Systems Approach',
+      'Artificial Intelligence: A Modern Approach',
+      'Compilers: Principles, Techniques, and Tools',
+      'Software Engineering: A Practitioner\'s Approach',
+      'Design Patterns: Elements of Reusable Object-Oriented Software',
+      'Computer Graphics: Principles and Practice',
+      'Computer Organization and Architecture'
+    ],
+    'Literature': [
+      'The Great Gatsby',
+      'To Kill a Mockingbird',
+      '1984',
+      'Pride and Prejudice',
+      'Hamlet: Shakespeare Classics',
+      'The Odyssey of Homer',
+      'Crime and Punishment',
+      'One Hundred Years of Solitude',
+      'The Catcher in the Rye',
+      'Moby Dick'
+    ],
+    'Reference': [
+      'Oxford English Dictionary',
+      'Encyclopedia of Science & Technology',
+      'CRC Handbook of Chemistry and Physics',
+      'The Elements of Style',
+      'IEEE Standards Association Handbook',
+      'ACM Computing Classification System Guide',
+      'Manual of Structural Design Standards',
+      'Pocket Guide to Mathematical Formulas',
+      'Medical Dictionary & Clinical Reference Handbook',
+      'Wikipedia Selected Archives Collection'
+    ]
+  };
   let b_counter = 0;
   depts.forEach((d) => {
     for (let i = 1; i <= 15; i++) {
       b_counter++;
-      const category = lib_types[i % lib_types.length];
-      const title = `${d} Core Engineering ${category} - Vol ${i}`;
-      const author = `Prof. ${stud_firsts[i % 40]} ${stud_lasts[i % 40]}`;
+      const category = categories[b_counter % categories.length];
+      const titleList = categoryBooks[category];
+      const titleIndex = (b_counter + i) % titleList.length;
+      const title = `${titleList[titleIndex]} - Edition ${1 + (b_counter % 3)}`;
+      const author = `Prof. ${stud_firsts[b_counter % 40]} ${stud_lasts[b_counter % 40]}`;
       const isbn = `978-3-16-148${1000 + b_counter}`;
       
       libraryBooks.push({
@@ -355,7 +431,7 @@ const seedComprehensiveMockDb = () => {
         title: title,
         author: author,
         isbn: isbn,
-        category: `${d} ${category}`,
+        category: category,
         total_copies: 5,
         available_copies: 4,
         shelf_location: `${d}-Rack ${i}`
@@ -658,7 +734,7 @@ const seedComprehensiveMockDb = () => {
 
   const completeDb = {
     is_comprehensive: true,
-    version: 2,
+    version: 3,
     users,
     timetable,
     results,
@@ -782,7 +858,7 @@ const getMockDb = () => {
   if (data) {
     try {
       const parsedDb = JSON.parse(data);
-      if (parsedDb.is_comprehensive && parsedDb.version === 2) {
+      if (parsedDb.is_comprehensive && parsedDb.version === 3) {
         return parsedDb;
       }
     } catch { /* fallback */ }

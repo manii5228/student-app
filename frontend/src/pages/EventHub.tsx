@@ -30,8 +30,7 @@ import {
   ChevronRight,
   X,
   Plus,
-  FileSpreadsheet,
-  Lock
+  FileSpreadsheet
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
@@ -302,7 +301,7 @@ const EventHub = () => {
   const [storyIndex, setStoryIndex] = useState(0);
   const [editingClubSocialsId, setEditingClubSocialsId] = useState<string | null>(null);
   const [socialForm, setSocialForm] = useState({ whatsapp: '', instagram: '' });
-  const [showClubRestricted, setShowClubRestricted] = useState(false);
+
 
   // Scanner modal state
   const [showScanner, setShowScanner] = useState(false);
@@ -511,16 +510,9 @@ const EventHub = () => {
     try { await api.post(`/campus/events/${eventId}/register`, { role: 'participant' }); } catch (error) { }
   };
 
-  // Club Direct Join Flow — only Lavaza is functional
+  // Club Direct Join Flow
   const handleRequestClubJoin = async (clubId: string) => {
     if (isGuest) { setUpsellOpen(true); return; }
-    
-    // Restrict non-Lavaza clubs
-    const club = clubs.find(c => c.id === clubId);
-    if (club && !isLavazaClub(club.id) && !club.name.toLowerCase().includes('lavaza')) {
-      setShowClubRestricted(true);
-      return;
-    }
     
     if (joinedClubs.includes(clubId)) return;
 
@@ -538,12 +530,6 @@ const EventHub = () => {
   };
 
   const handleJoinClub = (clubId: string) => {
-    // Restrict non-Lavaza clubs from opening their space
-    const club = clubs.find(c => c.id === clubId);
-    if (club && !isLavazaClub(club.id) && !club.name.toLowerCase().includes('lavaza')) {
-      setShowClubRestricted(true);
-      return;
-    }
     setActiveClubFeed(activeClubFeed === clubId ? null : clubId);
   };
 
@@ -754,36 +740,87 @@ const EventHub = () => {
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5">
         {/* Events Tab */}
         {activeView === 'events' && (
-          <div className="flex flex-col gap-4 pb-6 pt-4 items-center text-center">
-            <div className="bg-slate-900 border border-slate-800 text-white rounded-[32px] p-6 shadow-xl relative overflow-hidden w-full max-w-sm mt-4 backdrop-blur-md">
-              <div className="absolute top-[-20%] left-[-20%] w-48 h-48 rounded-full bg-blue-600/10 blur-3xl pointer-events-none" />
-              
-              <div className="relative z-10 flex flex-col items-center">
-                <div className="w-20 h-20 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-lg backdrop-blur-md animate-pulse">
-                  <Lock className="w-8 h-8 text-blue-400" />
-                </div>
-                
-                <h3 className="text-lg font-black bg-gradient-to-r from-blue-400 via-indigo-300 to-cyan-400 bg-clip-text text-transparent mb-2">
-                  Event Feed Locked
-                </h3>
-                
-                <p className="text-xs text-slate-400 leading-relaxed mb-6 max-w-xs">
-                  Discover university fests, seminars, and tech workshops in a premium digital discovery feed. Launching soon in Version 2.0!
-                </p>
-
-                <div className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-left font-bold text-[10px] text-slate-400">
-                  <span className="uppercase text-[9px] tracking-wider text-blue-400 block mb-2 font-black">Releasing in V2.0:</span>
-                  <div className="flex flex-col gap-2">
-                    <p className="flex items-center gap-1.5 text-slate-350"><span className="w-1 h-1 rounded-full bg-blue-400" /> Real-time ticket purchase & entry QR generation</p>
-                    <p className="flex items-center gap-1.5 text-slate-350"><span className="w-1 h-1 rounded-full bg-blue-400" /> Crowd metrics tracking & venue maps</p>
-                  </div>
-                </div>
-              </div>
+          <div className="flex flex-col gap-4 pb-6 pt-4">
+            {/* Event type filter pills */}
+            <div className="flex gap-2 overflow-x-auto py-1 hide-scrollbar">
+              {['all', ...Array.from(new Set(events.map(e => e.event_type)))].map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setActiveType(type)}
+                  className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold capitalize ${
+                    activeType === type ? 'bg-[#0080c7] text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-100'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
             </div>
-            
-            <p className="text-xs text-slate-400 mt-2 font-bold uppercase tracking-wider">
-              ✨ Other tabs GDSC, finearts, volunteers, & highlights are fully functional!
-            </p>
+
+            {events.filter(e => activeType === 'all' || e.event_type === activeType).map((event) => {
+              const isRegistered = registered.includes(event.id);
+              const isFull = event.max_participants ? event.registration_count >= event.max_participants : false;
+              const startDate = new Date(event.start_date);
+              const isPast = startDate < new Date();
+              const isFacOrAdmin = user && (user.role === 'faculty' || user.role === 'admin');
+
+              return (
+                <div key={event.id} className="bg-white rounded-[28px] p-5 shadow-sm border border-slate-100">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-[#0080c7]/10 flex items-center justify-center shrink-0">
+                      <Calendar className="w-6 h-6 text-[#0080c7]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-base font-black text-slate-900 leading-tight">{event.title}</h3>
+                        <span className="text-[9px] font-black px-2 py-0.5 rounded-full uppercase bg-[#0080c7]/10 text-[#0080c7] shrink-0">{event.event_type}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">{event.description}</p>
+                      <div className="flex items-center gap-3 mt-2 text-[11px] font-bold text-slate-400 flex-wrap">
+                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {event.venue}</span>
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {startDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.registration_count}{event.max_participants ? `/${event.max_participants}` : ''}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => handleRegisterEvent(event.id)}
+                      disabled={isRegistered || isFull || isPast}
+                      className={`flex-1 py-3 rounded-2xl text-xs font-black transition-all active:scale-95 shadow-sm ${
+                        isRegistered ? 'bg-emerald-50 text-emerald-600 cursor-default' :
+                        isFull || isPast ? 'bg-slate-100 text-slate-400 cursor-not-allowed' :
+                        'bg-[#0080c7] text-white'
+                      }`}
+                    >
+                      {isRegistered ? '✓ Registered' : isFull ? 'Full' : isPast ? 'Event Ended' : 'Register Now'}
+                    </button>
+                    {isFacOrAdmin && (
+                      <>
+                        <button onClick={() => handleEditEvent(event)} className="px-4 py-3 rounded-2xl text-xs font-black bg-slate-100 text-slate-700 transition-all active:scale-95">Edit</button>
+                        <button onClick={() => handleDeleteEvent(event.id)} className="px-4 py-3 rounded-2xl text-xs font-black bg-red-50 text-red-600 transition-all active:scale-95">Delete</button>
+                      </>
+                    )}
+                  </div>
+                  {isFacOrAdmin && (
+                    <button
+                      onClick={() => handleManageRegistrations(event)}
+                      className="mt-2 w-full py-2.5 rounded-2xl text-[11px] font-bold bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 transition-all"
+                    >
+                      Manage Registrations ({event.registration_count})
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {events.filter(e => activeType === 'all' || e.event_type === activeType).length === 0 && (
+              <div className="text-center py-16 bg-white rounded-[24px] border border-slate-100 shadow-sm p-6">
+                <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+                <h2 className="text-sm font-bold text-slate-800">No Events Found</h2>
+                <p className="text-xs text-slate-400 mt-1">Try a different filter or check back later</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -824,23 +861,17 @@ const EventHub = () => {
               const clubIsLavaza = isLavazaClub(club.id) || club.name.toLowerCase().includes('lavaza');
 
               return (
-                <div key={club.id} className={`bg-white rounded-[28px] p-5 shadow-sm border ${clubIsLavaza ? 'border-slate-100' : 'border-slate-100 relative'}`}>
-                  {/* Archived/Locked Badge for non-Lavaza */}
-                  {!clubIsLavaza && (
-                    <div className="absolute top-4 right-4 flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-wider">
-                      <Lock className="w-2.5 h-2.5" /> Archived
-                    </div>
-                  )}
+                <div key={club.id} className="bg-white rounded-[28px] p-5 shadow-sm border border-slate-100">
                   <div className="flex items-start gap-4">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${clubIsLavaza ? 'bg-[#0080c7]/10 text-[#0080c7]' : 'bg-slate-100 text-slate-400'}`}>
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-[#0080c7]/10 text-[#0080c7]">
                       <Icon className="w-7 h-7" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className={`text-base font-black leading-tight ${clubIsLavaza ? 'text-slate-900' : 'text-slate-500'}`}>{club.name}</h3>
+                        <h3 className="text-base font-black leading-tight text-slate-900">{club.name}</h3>
                         {isJoined && <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />}
                       </div>
-                      <p className={`text-xs leading-relaxed ${clubIsLavaza ? 'text-slate-500' : 'text-slate-400'}`}>{club.description}</p>
+                      <p className="text-xs leading-relaxed text-slate-500">{club.description}</p>
                       
                       <div className="flex items-center gap-3 mt-3 text-[11px] font-bold text-slate-400">
                         <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {club.member_count} members</span>
@@ -851,14 +882,9 @@ const EventHub = () => {
                   {!isJoined && (
                     <button
                       onClick={() => handleRequestClubJoin(club.id)}
-                      className={`mt-4 w-full py-3 rounded-2xl text-xs font-black active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5 ${
-                        clubIsLavaza 
-                          ? 'bg-slate-900 text-white' 
-                          : 'bg-slate-200 text-slate-500 cursor-not-allowed'
-                      }`}
+                      className="mt-4 w-full py-3 rounded-2xl text-xs font-black active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5 bg-slate-900 text-white"
                     >
-                      {!clubIsLavaza && <Lock className="w-3 h-3" />}
-                      {clubIsLavaza ? 'Join Club' : 'Club Suspended'}
+                      Join Club
                     </button>
                   )}
 
@@ -1966,32 +1992,6 @@ const EventHub = () => {
         </div>
       )}
 
-      {/* Club Restricted Modal */}
-      {showClubRestricted && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-md p-6" onClick={() => setShowClubRestricted(false)}>
-          <div className="bg-white w-full max-w-sm rounded-[32px] shadow-2xl p-6 text-center animate-scale-up relative overflow-hidden" onClick={e => e.stopPropagation()}>
-            {/* Decorative glow */}
-            <div className="absolute top-[-30%] left-[-20%] w-40 h-40 rounded-full bg-amber-200/30 blur-3xl pointer-events-none" />
-            <div className="absolute bottom-[-20%] right-[-20%] w-32 h-32 rounded-full bg-amber-300/20 blur-3xl pointer-events-none" />
-            
-            <div className="relative z-10">
-              <div className="w-16 h-16 mx-auto mb-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-center">
-                <Lock className="w-7 h-7 text-amber-600" />
-              </div>
-              <h3 className="text-lg font-black text-slate-900 mb-2">Club Portal Suspended</h3>
-              <p className="text-xs text-slate-500 leading-relaxed mb-6 max-w-xs mx-auto">
-                This club space has been archived by the administrator. Only the central <span className="font-black text-amber-700">Lavaza Cultural Club</span> space remains active for event registrations and club activities.
-              </p>
-              <button
-                onClick={() => setShowClubRestricted(false)}
-                className="w-full py-3.5 bg-slate-900 text-white rounded-2xl text-xs font-black active:scale-95 transition-all shadow-sm"
-              >
-                Got It
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <BottomNav />
       <UpsellModal isOpen={upsellOpen} onClose={() => setUpsellOpen(false)} />

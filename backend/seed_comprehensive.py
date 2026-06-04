@@ -361,19 +361,95 @@ def generate_seeds():
 
         # ── 8. LIBRARY PORTAL DATA ────────────────────────────────────
         print("Seeding library collection & transactions...")
-        lib_types = ["textbook", "reference", "journal", "research_material"]
+        categories = ['Engineering', 'Science', 'Mathematics', 'Computer Science', 'Literature', 'Reference']
+        category_books = {
+            'Engineering': [
+                'Introduction to Civil Engineering',
+                'Fundamentals of Thermodynamics',
+                'Fluid Mechanics & Machinery',
+                'Structural Analysis and Design',
+                'Engineering Mechanics: Statics',
+                'Principles of Electrical Engineering',
+                'Mechanical Vibrations',
+                'Control Systems Engineering',
+                'Advanced Material Science',
+                'Manufacturing Technology'
+            ],
+            'Science': [
+                'University Chemistry: Principles & Applications',
+                'Introduction to Solid State Physics',
+                'Organic Chemistry: Structure and Function',
+                'Modern Biophysics',
+                'Quantum Mechanics for Scientists',
+                'Electromagnetic Fields and Waves',
+                'Genetics and Molecular Biology',
+                'Environmental Science & Ecology',
+                'Principles of Biochemistry',
+                'Astronomy: A Physical Perspective'
+            ],
+            'Mathematics': [
+                'Advanced Engineering Mathematics',
+                'Linear Algebra and Its Applications',
+                'Calculus: Early Transcendentals',
+                'Probability & Statistics for Engineers',
+                'Discrete Mathematics & Its Foundations',
+                'Differential Equations & Boundary Value Problems',
+                'Numerical Methods for Scientists',
+                'Complex Variables & Applications',
+                'Abstract Algebra: A First Course',
+                'Mathematical Analysis'
+            ],
+            'Computer Science': [
+                'Introduction to Algorithms',
+                'Database System Concepts',
+                'Operating System Concepts',
+                'Computer Networks: A Systems Approach',
+                'Artificial Intelligence: A Modern Approach',
+                'Compilers: Principles, Techniques, and Tools',
+                'Software Engineering: A Practitioner\'s Approach',
+                'Design Patterns: Elements of Reusable Object-Oriented Software',
+                'Computer Graphics: Principles and Practice',
+                'Computer Organization and Architecture'
+            ],
+            'Literature': [
+                'The Great Gatsby',
+                'To Kill a Mockingbird',
+                '1984',
+                'Pride and Prejudice',
+                'Hamlet: Shakespeare Classics',
+                'The Odyssey of Homer',
+                'Crime and Punishment',
+                'One Hundred Years of Solitude',
+                'The Catcher in the Rye',
+                'Moby Dick'
+            ],
+            'Reference': [
+                'Oxford English Dictionary',
+                'Encyclopedia of Science & Technology',
+                'CRC Handbook of Chemistry and Physics',
+                'The Elements of Style',
+                'IEEE Standards Association Handbook',
+                'ACM Computing Classification System Guide',
+                'Manual of Structural Design Standards',
+                'Pocket Guide to Mathematical Formulas',
+                'Medical Dictionary & Clinical Reference Handbook',
+                'Wikipedia Selected Archives Collection'
+            ]
+        }
         book_counter = 0
         for d in depts:
             for i in range(1, 15):
                 book_counter += 1
-                btype = lib_types[i % len(lib_types)]
-                title = f"Handbook of {d} Core Concepts - Vol {i}"
-                author = f"Author {stud_firsts[i]} {stud_lasts[i]}"
+                cat_val = categories[book_counter % len(categories)]
+                title_list = category_books[cat_val]
+                title_idx = (book_counter + i) % len(title_list)
+                title = f"{title_list[title_idx]} - Edition {1 + (book_counter % 3)}"
+                author = f"Prof. {stud_firsts[book_counter % len(stud_firsts)]} {stud_lasts[book_counter % len(stud_lasts)]}"
                 isbn = f"978-3-16-14{10000 + book_counter}"
                 
                 book = LibraryBook(
                     title=title, author=author, isbn=isbn,
-                    category=f"{d} {btype.capitalize()}",
+                    category=cat_val,
                     total_copies=5, available_copies=4,
                     shelf_location=f"{d}-Rack {i}"
                 )
