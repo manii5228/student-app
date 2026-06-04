@@ -439,7 +439,8 @@ def get_class_students():
             "roll_number": s.roll_number,
             "department": s.department,
             "semester": s.semester,
-            "section": s.section
+            "section": s.section,
+            "avatar_url": s.avatar_url
         } for s in students
     ]}), 200
 
