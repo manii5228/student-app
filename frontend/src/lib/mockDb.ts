@@ -734,7 +734,7 @@ const seedComprehensiveMockDb = () => {
 
   const completeDb = {
     is_comprehensive: true,
-    version: 3,
+    version: 4,
     users,
     timetable,
     results,
@@ -846,7 +846,8 @@ const seedComprehensiveMockDb = () => {
       { id: "mc_2", front: "Explain ACID properties of Database Management Systems.", back: "Atomicity (all or nothing), Consistency (preserves database integrity), Isolation (concurrent transactions don't interfere), and Durability (permanent changes).", category: "DBMS", type: 'mock_test', created_by: 'fac_1', created_at: new Date().toISOString() },
       { id: "mc_3", front: "What is dynamic programming?", back: "An algorithmic technique that solves complex problems by breaking them down into simpler overlapping subproblems, solving each subproblem once, and caching their solutions (memoization).", category: "Algorithms", type: 'mock_test', created_by: 'fac_1', created_at: new Date().toISOString() },
       { id: "mc_4", front: "What is a deadlock and what are its four necessary conditions?", back: "A situation where set of processes are blocked because each holds a resource and waits for another. Conditions: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait.", category: "Operating Systems", type: 'mock_test', created_by: 'fac_1', created_at: new Date().toISOString() }
-    ]
+    ],
+    scanned_documents: []
   };
 
   localStorage.setItem('mock_db', JSON.stringify(completeDb));
@@ -858,7 +859,7 @@ const getMockDb = () => {
   if (data) {
     try {
       const parsedDb = JSON.parse(data);
-      if (parsedDb.is_comprehensive && parsedDb.version === 3) {
+      if (parsedDb.is_comprehensive && parsedDb.version === 4) {
         return parsedDb;
       }
     } catch { /* fallback */ }
@@ -1660,6 +1661,60 @@ export const handleMockRequest = async (config: any): Promise<any> => {
 
   if (cleanUrl === '/campus/canteen/orders' && method === 'get') {
     return { status: 200, data: db.canteenOrders };
+  }
+
+  // Document Scanner Mock Endpoints
+  if (cleanUrl === '/campus/documents/scan' && method === 'post') {
+    const payload = getPayload(config.data);
+    const previews = payload.images || [];
+    
+    const cutoff = Date.now() - 5 * 60 * 1000;
+    if (!db.scanned_documents) db.scanned_documents = [];
+    db.scanned_documents = db.scanned_documents.filter((d: any) => new Date(d.created_at).getTime() >= cutoff);
+    
+    const newDoc = {
+      id: `doc_${Date.now()}`,
+      name: payload.name || `Scan_${new Date().toLocaleDateString('en-IN').replace(/\//g,'-')}`,
+      download_url: previews.length > 0 ? previews[0] : '',
+      images: previews,
+      created_at: new Date().toISOString()
+    };
+    
+    db.scanned_documents.push(newDoc);
+    saveMockDb(db);
+    
+    return {
+      status: 201,
+      data: {
+        message: "Scanned document created successfully. It will be deleted in 5 minutes.",
+        document: newDoc
+      }
+    };
+  }
+
+  if (cleanUrl === '/campus/documents/scan' && method === 'get') {
+    const cutoff = Date.now() - 5 * 60 * 1000;
+    if (!db.scanned_documents) db.scanned_documents = [];
+    db.scanned_documents = db.scanned_documents.filter((d: any) => new Date(d.created_at).getTime() >= cutoff);
+    saveMockDb(db);
+    
+    return {
+      status: 200,
+      data: {
+        documents: db.scanned_documents
+      }
+    };
+  }
+
+  if (cleanUrl.startsWith('/campus/documents/scan/') && method === 'delete') {
+    const id = cleanUrl.split('/').pop();
+    if (!db.scanned_documents) db.scanned_documents = [];
+    db.scanned_documents = db.scanned_documents.filter((d: any) => d.id !== id);
+    saveMockDb(db);
+    return {
+      status: 200,
+      data: { success: true }
+    };
   }
 
   if (cleanUrl === '/attendance/bunk-o-meter' && method === 'get') {

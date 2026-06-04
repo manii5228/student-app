@@ -13,7 +13,7 @@ from ..middleware.auth_middleware import role_required
 from ..models.campus import (
     CanteenItem, CanteenOrder, Bus, LibraryBook, LibraryIssue,
     Event, EventRegistration, Notice, Club, ClubMembership,
-    Feedback, MarketListing, HostelPass
+    Feedback, MarketListing, HostelPass, ScannedDocument
 )
 
 campus_bp = Blueprint("campus", __name__)
@@ -894,5 +894,175 @@ def bulk_update_hostel_pass_status():
             
     db.session.commit()
     return jsonify({"message": f"Successfully updated {len(passes)} passes status to {status}"}), 200
+
+
+# ── Document Scanner Endpoints ─────────────────────────────────────
+
+def cleanup_expired_documents():
+    """Delete all scanned documents older than 5 minutes from DB and disk."""
+    import os
+    from datetime import datetime, timezone, timedelta
+    from ..models.campus import ScannedDocument
+    from ..extensions import db
+
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+    expired = ScannedDocument.query.filter(ScannedDocument.created_at < cutoff).all()
+    for doc in expired:
+        try:
+            if os.path.exists(doc.file_path):
+                os.remove(doc.file_path)
+            db.session.delete(doc)
+        except Exception as e:
+            print(f"Error cleaning up expired document {doc.id}: {e}")
+    db.session.commit()
+
+
+@campus_bp.route("/documents/scan", methods=["POST"])
+@jwt_required()
+def save_scanned_document():
+    """Compile multiple base64 images into a single PDF, save it, and queue for deletion after 5 mins."""
+    import os
+    import base64
+    import io
+    import uuid
+    from datetime import datetime, timezone
+    from PIL import Image
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.utils import ImageReader
+    from ..models.campus import ScannedDocument
+    from ..extensions import db
+
+    # First clean up any expired documents
+    cleanup_expired_documents()
+
+    data = request.get_json() or {}
+    name = data.get("name")
+    images_b64 = data.get("images", [])
+
+    if not name or not images_b64:
+        return jsonify({"error": "Name and images array are required."}), 400
+
+    # Ensure uploads folder exists
+    uploads_dir = os.path.join(current_app.instance_path, "scanned_documents")
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    filename = f"scan_{uuid.uuid4().hex}.pdf"
+    file_path = os.path.join(uploads_dir, filename)
+
+    try:
+        # Create PDF using ReportLab
+        c = canvas.Canvas(file_path, pagesize=letter)
+        width, height = letter
+
+        for img_b64 in images_b64:
+            if "," in img_b64:
+                img_b64 = img_b64.split(",", 1)[1]
+            img_data = base64.b64decode(img_b64)
+            
+            # Read image via PIL
+            img = Image.open(io.BytesIO(img_data))
+            img_reader = ImageReader(img)
+            
+            # Draw fitting the page layout
+            c.drawImage(img_reader, 0, 0, width, height)
+            c.showPage()
+            
+        c.save()
+
+        # Save record to database
+        doc = ScannedDocument(
+            name=name,
+            file_path=file_path,
+            created_at=datetime.now(timezone.utc)
+        )
+        db.session.add(doc)
+        db.session.commit()
+
+        # Return download URL
+        download_url = f"/api/campus/documents/scan/{doc.id}"
+        return jsonify({
+            "message": "Scanned document created successfully. It will be deleted in 5 minutes.",
+            "document": {
+                "id": doc.id,
+                "name": doc.name,
+                "download_url": download_url,
+                "created_at": doc.created_at.isoformat()
+            }
+        }), 201
+
+    except Exception as e:
+        # Clean up partial file if exists
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except:
+                pass
+        return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
+
+
+@campus_bp.route("/documents/scan/<doc_id>", methods=["GET"])
+def download_scanned_document(doc_id):
+    """Download a scanned document as PDF (if not expired)."""
+    import os
+    from flask import send_from_directory
+    from ..models.campus import ScannedDocument
+
+    # Clean up expired documents
+    cleanup_expired_documents()
+
+    doc = db.session.get(ScannedDocument, doc_id)
+    if not doc:
+        return jsonify({"error": "Document not found or has expired after 5 minutes."}), 404
+
+    directory = os.path.dirname(doc.file_path)
+    filename = os.path.basename(doc.file_path)
+    
+    # Send PDF as an attachment download
+    response = send_from_directory(directory, filename, as_attachment=True)
+    # Set fallback filename
+    response.headers["Content-Disposition"] = f"attachment; filename={doc.name}.pdf"
+    return response
+
+
+@campus_bp.route("/documents/scan/<doc_id>", methods=["DELETE"])
+@jwt_required()
+def delete_scanned_document(doc_id):
+    """Manually delete a scanned document."""
+    import os
+    from ..models.campus import ScannedDocument
+    from ..extensions import db
+
+    doc = db.session.get(ScannedDocument, doc_id)
+    if not doc:
+        return jsonify({"error": "Document not found."}), 404
+
+    try:
+        if os.path.exists(doc.file_path):
+            os.remove(doc.file_path)
+        db.session.delete(doc)
+        db.session.commit()
+        return jsonify({"message": "Document deleted successfully."}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete: {str(e)}"}), 500
+
+
+@campus_bp.route("/documents/scan", methods=["GET"])
+@jwt_required()
+def list_scanned_documents():
+    """List non-expired scanned documents."""
+    from ..models.campus import ScannedDocument
+    cleanup_expired_documents()
+    
+    docs = ScannedDocument.query.order_by(ScannedDocument.created_at.desc()).all()
+    res = []
+    for d in docs:
+        res.append({
+            "id": d.id,
+            "name": d.name,
+            "download_url": f"/api/campus/documents/scan/{d.id}",
+            "created_at": d.created_at.isoformat()
+        })
+    return jsonify({"documents": res}), 200
 
 

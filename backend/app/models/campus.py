@@ -400,3 +400,19 @@ class PollVote(db.Model):
 
     def to_dict(self):
         return {"id": self.id, "poll_id": self.poll_id, "option_index": self.option_index}
+
+
+class ScannedDocument(db.Model):
+    __tablename__ = "scanned_documents"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = db.Column(db.String(250), nullable=False)
+    file_path = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "file_path": self.file_path,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
