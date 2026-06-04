@@ -488,45 +488,19 @@ const EventHub = () => {
   };
 
   const handleClaimVolunteerBadge = async () => {
-    setClaimingBadge(true);
-    try {
-      await api.post('/career/badges/claim-volunteer');
-      setHasClaimedVolunteerBadge(true);
-      alert("🎉 Volunteer Excellence Skill Badge Claimed Successfully! It has been added to your profile.");
-    } catch (e: any) {
-      alert(e.response?.data?.error || "Failed to claim volunteer badge.");
-    } finally {
-      setClaimingBadge(false);
-    }
+    alert("Claiming volunteer badge is currently disabled.");
+    return;
   };
 
   const handleRegisterEvent = async (eventId: string) => {
-    if (isGuest) { setUpsellOpen(true); return; }
-    if (registered.includes(eventId)) return;
-    const newRegistered = [...registered, eventId];
-    setRegistered(newRegistered);
-    localStorage.setItem('registered_events', JSON.stringify(newRegistered));
-    setEvents((prev) => prev.map((e) => e.id === eventId ? { ...e, registration_count: e.registration_count + 1 } : e));
-    try { await api.post(`/campus/events/${eventId}/register`, { role: 'participant' }); } catch (error) { }
+    alert("Registration is currently disabled.");
+    return;
   };
 
   // Club Direct Join Flow
   const handleRequestClubJoin = async (clubId: string) => {
-    if (isGuest) { setUpsellOpen(true); return; }
-    
-    if (joinedClubs.includes(clubId)) return;
-
-    try {
-      await api.post(`/campus/clubs/${clubId}/join`);
-    } catch (e) {
-      console.warn("Backend club join failed, performing offline join");
-    }
-
-    const updatedJoined = [...joinedClubs, clubId];
-    setJoinedClubs(updatedJoined);
-    localStorage.setItem('joined_clubs', JSON.stringify(updatedJoined));
-    setClubs(prev => prev.map(c => c.id === clubId ? { ...c, member_count: (c.member_count || 0) + 1 } : c));
-    alert('🎉 Successfully joined the club! You can now access official channels and the club space.');
+    alert("Club joining is currently disabled.");
+    return;
   };
 
   const handleJoinClub = (clubId: string) => {
@@ -786,14 +760,10 @@ const EventHub = () => {
                   <div className="flex gap-2 mt-4">
                     <button
                       onClick={() => handleRegisterEvent(event.id)}
-                      disabled={isRegistered || isFull || isPast}
-                      className={`flex-1 py-3 rounded-2xl text-xs font-black transition-all active:scale-95 shadow-sm ${
-                        isRegistered ? 'bg-emerald-50 text-emerald-600 cursor-default' :
-                        isFull || isPast ? 'bg-slate-100 text-slate-400 cursor-not-allowed' :
-                        'bg-[#0080c7] text-white'
-                      }`}
+                      disabled={true}
+                      className="flex-1 py-3 rounded-2xl text-xs font-black transition-all bg-slate-105 text-slate-400 cursor-not-allowed shadow-none"
                     >
-                      {isRegistered ? '✓ Registered' : isFull ? 'Full' : isPast ? 'Event Ended' : 'Register Now'}
+                      Registration Disabled
                     </button>
                     {isFacOrAdmin && (
                       <>
@@ -882,9 +852,10 @@ const EventHub = () => {
                   {!isJoined && (
                     <button
                       onClick={() => handleRequestClubJoin(club.id)}
-                      className="mt-4 w-full py-3 rounded-2xl text-xs font-black active:scale-95 transition-all shadow-sm flex items-center justify-center gap-1.5 bg-slate-900 text-white"
+                      disabled={true}
+                      className="mt-4 w-full py-3 rounded-2xl text-xs font-black bg-slate-100 text-slate-400 cursor-not-allowed shadow-none flex items-center justify-center gap-1.5"
                     >
-                      Join Club
+                      Join Club (Disabled)
                     </button>
                   )}
 
@@ -893,11 +864,10 @@ const EventHub = () => {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleJoinClub(club.id)}
-                          className={`flex-1 py-3 rounded-2xl text-xs font-black transition-all ${
-                            isActiveFeed ? 'bg-slate-100 text-slate-700' : 'bg-emerald-50 text-emerald-600'
-                          }`}
+                          disabled={true}
+                          className="flex-1 py-3 rounded-2xl text-xs font-black bg-slate-100 text-slate-400 cursor-not-allowed"
                         >
-                          {isActiveFeed ? 'Close Feed & Portal' : 'Open Club Space'}
+                          Club Space Disabled
                         </button>
                       </div>
 
@@ -977,22 +947,18 @@ const EventHub = () => {
                         ) : (
                           <>
                             <div className="flex gap-2">
-                              <a
-                                href={club.website_url || club.whatsapp_link || 'https://chat.whatsapp.com'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                              <button
+                                disabled={true}
+                                className="flex-1 bg-slate-100 text-slate-400 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed"
                               >
-                                <MessageSquare className="w-3.5 h-3.5" /> WhatsApp Group
-                              </a>
-                              <a
-                                href={club.instagram_url || club.instagram_link || 'https://instagram.com'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 bg-gradient-to-r from-pink-500 to-indigo-500 text-white text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                                <MessageSquare className="w-3.5 h-3.5" /> WhatsApp Group (Disabled)
+                              </button>
+                              <button
+                                disabled={true}
+                                className="flex-1 bg-slate-100 text-slate-400 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed"
                               >
-                                <ImageIcon className="w-3.5 h-3.5" /> Instagram Page
-                              </a>
+                                <ImageIcon className="w-3.5 h-3.5" /> Instagram Page (Disabled)
+                              </button>
                             </div>
                             <p className="text-[10px] text-slate-400 mt-2 leading-tight">
                               Join the WhatsApp group for sync and updates, and follow the Instagram channel to view active photo galleries.
@@ -1025,11 +991,11 @@ const EventHub = () => {
                              </button>
                            </div>
                            <button 
-                             onClick={() => handleScanCheckIn('club', club.id)}
-                             className="text-[10px] bg-[#0080c7] text-white px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 hover:bg-[#006ca8] transition-colors"
-                           >
-                             <QrCode className="w-3 h-3" /> Scan Attendance
-                           </button>
+                              disabled={true}
+                              className="text-[10px] bg-slate-100 text-slate-400 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 cursor-not-allowed"
+                            >
+                              <QrCode className="w-3 h-3" /> Attendance Disabled
+                            </button>
                        </div>
 
                        {clubSubTab === 'feed' ? (
@@ -1041,7 +1007,8 @@ const EventHub = () => {
                                  <input
                                    id={`pres_post_input_${club.id}`}
                                    placeholder="Type official update to members..."
-                                   className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-bold"
+                                   disabled={true}
+                                   className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-bold cursor-not-allowed"
                                    onKeyDown={(e) => {
                                      if (e.key === 'Enter') {
                                        handleCreatePresPost(club.id, (e.target as HTMLInputElement).value);
@@ -1057,7 +1024,8 @@ const EventHub = () => {
                                        input.value = '';
                                      }
                                    }}
-                                   className="bg-slate-900 text-white text-[10px] font-bold px-4 py-2 rounded-lg hover:bg-slate-850 active:scale-95 transition-all"
+                                   disabled={true}
+                                   className="bg-slate-100 text-slate-400 text-[10px] font-bold px-4 py-2 rounded-lg cursor-not-allowed"
                                  >
                                    Post
                                  </button>
@@ -1101,11 +1069,11 @@ const EventHub = () => {
                                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs h-16 resize-none mb-2 outline-none"
                              />
                              <button
-                               onClick={() => handleAddDiscussion(club.id)}
-                               className="bg-slate-900 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg w-full"
-                             >
-                               Post Thread to Forum
-                             </button>
+                                disabled={true}
+                                className="bg-slate-100 text-slate-400 text-[10px] font-bold px-3 py-1.5 rounded-lg w-full cursor-not-allowed"
+                              >
+                                Post Thread (Disabled)
+                              </button>
                            </div>
 
                            {/* Threads List */}
@@ -1117,12 +1085,12 @@ const EventHub = () => {
                                    <h6 className="text-xs font-black text-slate-950 mt-0.5">{d.title}</h6>
                                  </div>
                                  <button
-                                   onClick={() => handleUpvoteDiscussion(d.id)}
-                                   className="bg-white border border-slate-200 rounded-lg px-2 py-1 flex items-center gap-1 hover:bg-slate-100 shrink-0"
-                                 >
-                                   <ThumbsUp className="w-3 h-3 text-[#0080c7]" />
-                                   <span className="text-[10px] font-bold text-slate-600">{d.upvotes}</span>
-                                 </button>
+                                    disabled={true}
+                                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 flex items-center gap-1 shrink-0 cursor-not-allowed"
+                                  >
+                                    <ThumbsUp className="w-3 h-3 text-slate-350" />
+                                    <span className="text-[10px] font-bold text-slate-400">{d.upvotes}</span>
+                                  </button>
                                </div>
                                <p className="text-[11px] text-slate-600 mt-2 leading-normal">{d.content}</p>
 
@@ -1140,16 +1108,15 @@ const EventHub = () => {
                                    <input
                                      type="text"
                                      placeholder="Add a comment..."
+                                     disabled={true}
                                      value={activeCommentText[d.id] || ''}
                                      onChange={(e) => setActiveCommentText({ ...activeCommentText, [d.id]: e.target.value })}
-                                     onKeyDown={(e) => {
-                                       if (e.key === 'Enter') handleAddComment(d.id);
-                                     }}
-                                     className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] outline-none"
+                                     className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] outline-none cursor-not-allowed"
                                    />
                                    <button
                                      onClick={() => handleAddComment(d.id)}
-                                     className="bg-slate-900 text-white text-[10px] px-3 py-1 rounded-lg"
+                                     disabled={true}
+                                     className="bg-slate-100 text-slate-400 text-[10px] px-3 py-1 rounded-lg cursor-not-allowed"
                                    >
                                      Comment
                                    </button>
@@ -1217,10 +1184,10 @@ const EventHub = () => {
                       
                       {/* Excel & Record Exports */}
                       <button
-                        onClick={handleExportCSV}
-                        className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-colors"
+                        disabled={true}
+                        className="mt-2.5 flex items-center gap-1 text-[10px] font-bold text-slate-400 cursor-not-allowed"
                       >
-                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Export Record Sheet (.CSV)
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-slate-350" /> Export Disabled
                       </button>
                     </div>
                   </div>
@@ -1266,15 +1233,10 @@ const EventHub = () => {
                           </div>
                         ) : volunteerHours >= 30 ? (
                           <button
-                            onClick={handleClaimVolunteerBadge}
-                            disabled={claimingBadge}
-                            className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                            disabled={true}
+                            className="w-full py-3 rounded-xl bg-slate-100 text-slate-400 text-xs font-black cursor-not-allowed flex items-center justify-center gap-2"
                           >
-                            {claimingBadge ? (
-                              <span className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></span>
-                            ) : (
-                              'Claim Volunteer Excellence Badge'
-                            )}
+                            Claiming Disabled
                           </button>
                         ) : (
                           <div className="flex flex-col gap-2">
@@ -1326,17 +1288,17 @@ const EventHub = () => {
                             
                             {!isClaimed ? (
                               <button
-                                onClick={() => handleClaimDuty(shift.id, shift.name, shift.hours)}
-                                className="bg-slate-900 text-white text-xs font-black px-4 py-2 rounded-xl transition-transform active:scale-95"
+                                disabled={true}
+                                className="bg-slate-100 text-slate-400 text-xs font-black px-4 py-2 rounded-xl cursor-not-allowed"
                               >
-                                Claim Duty
+                                Claim Disabled
                               </button>
                             ) : isPending ? (
                               <button
-                                onClick={() => handleScanCheckIn('volunteer', shift.id)}
-                                className="bg-[#0080c7] hover:bg-[#006ca8] text-white text-xs font-black px-4 py-2 rounded-xl flex items-center gap-1"
+                                disabled={true}
+                                className="bg-slate-100 text-slate-400 text-xs font-black px-4 py-2 rounded-xl flex items-center gap-1 cursor-not-allowed"
                               >
-                                <QrCode className="w-3.5 h-3.5" /> Scan Check-In
+                                <QrCode className="w-3.5 h-3.5" /> Check-In Disabled
                               </button>
                             ) : (
                               <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 flex items-center gap-1">
@@ -1430,8 +1392,8 @@ const EventHub = () => {
                     />
                   </div>
                 </div>
-                <button type="submit" className="w-full bg-[#0080c7] text-white py-4 rounded-2xl text-sm font-black shadow-lg shadow-blue-500/20">
-                  Apply & Open Volunteer Portal
+                <button type="submit" disabled={true} className="w-full bg-slate-100 text-slate-400 py-4 rounded-2xl text-sm font-black cursor-not-allowed">
+                  Applications Disabled
                 </button>
               </form>
             )}

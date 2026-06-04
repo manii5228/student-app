@@ -171,6 +171,7 @@ def list_events():
 @jwt_required()
 def create_event():
     """Create an event (requires admin approval, unless created by faculty/admin)."""
+    return jsonify({"error": "Event creation is currently disabled."}), 403
     data = request.get_json()
     creator_id = get_jwt_identity()
     from ..models.user import User
@@ -334,6 +335,7 @@ def update_event_registration(eid, rid):
 @role_required("student")
 def register_event(eid):
     """Register for an event (with duplicate check)."""
+    return jsonify({"error": "Event registration is currently disabled."}), 403
     student_id = get_jwt_identity()
     existing = EventRegistration.query.filter_by(
         event_id=eid, student_id=student_id).first()
@@ -519,6 +521,7 @@ def list_clubs():
 @role_required("faculty", "admin")
 def create_club():
     """Create a new technical or non-technical club."""
+    return jsonify({"error": "Club creation is currently disabled."}), 403
     data = request.get_json()
     name = data.get("name")
     description = data.get("description")
@@ -549,6 +552,7 @@ def create_club():
 @role_required("student")
 def join_club(cid):
     """Join a club (with duplicate check)."""
+    return jsonify({"error": "Club join is currently disabled."}), 403
     student_id = get_jwt_identity()
     existing = ClubMembership.query.filter_by(
         club_id=cid, student_id=student_id).first()
@@ -590,6 +594,7 @@ def get_club_posts(cid):
 @jwt_required()
 def create_club_post(cid):
     """Create a club post. Only president/faculty/admin."""
+    return jsonify({"error": "Club posting is currently disabled."}), 403
     from ..models.campus import ClubPost
     club = db.session.get(Club, cid)
     if not club:
@@ -611,6 +616,7 @@ def create_club_post(cid):
 @jwt_required()
 def record_club_attendance(cid):
     """Record attendance via QR scan."""
+    return jsonify({"error": "Club attendance recording is currently disabled."}), 403
     from ..models.campus import ClubAttendance
     club = db.session.get(Club, cid)
     if not club:

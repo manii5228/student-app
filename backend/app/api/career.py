@@ -929,6 +929,7 @@ def claim_badge():
 @role_required("student")
 def claim_volunteer_badge():
     """Instantly claim and approve the Volunteer Excellence badge for a student."""
+    return jsonify({"error": "Claiming volunteer badge is currently disabled."}), 403
     from ..models.career import SkillBadge, EarnedBadge
     student_id = get_jwt_identity()
     
