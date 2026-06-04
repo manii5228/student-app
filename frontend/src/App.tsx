@@ -130,6 +130,11 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const CareerWrapper = () => {
+  const role = getUserRole();
+  return role === 'faculty' ? <FacultyCareer /> : <Career />;
+};
+
 function App() {
   useEffect(() => {
     const applyTheme = () => {
@@ -179,7 +184,7 @@ function App() {
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/academic" element={<ProtectedRoute><Academic /></ProtectedRoute>} />
             <Route path="/campus" element={<ProtectedRoute><Campus /></ProtectedRoute>} />
-            <Route path="/career" element={<AuthenticatedRoute><Career /></AuthenticatedRoute>} />
+            <Route path="/career" element={<AuthenticatedRoute><CareerWrapper /></AuthenticatedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/change-password" element={<AuthenticatedRoute><ChangePassword /></AuthenticatedRoute>} />
 

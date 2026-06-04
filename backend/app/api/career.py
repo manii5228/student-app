@@ -29,6 +29,8 @@ career_bp = Blueprint("career", __name__)
 @jwt_required()
 def list_jobs():
     """Feed of companies visiting for placements."""
+    # Backend trace comment: Frontend router now splits the `/career` route dynamically
+    # based on the user's role (faculty is routed to FacultyCareer; student to Career).
     jtype = request.args.get("type")
     query = JobPosting.query.filter_by(is_active=True)
     if jtype:
