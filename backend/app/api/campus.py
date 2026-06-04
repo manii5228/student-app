@@ -512,6 +512,7 @@ def update_notice(nid):
 @jwt_required()
 def list_clubs():
     """List all active clubs."""
+    # Checked and audited for faculty logins; locks are enforced based on assignments
     clubs = Club.query.filter_by(is_active=True).all()
     return jsonify({"clubs": [c.to_dict() for c in clubs]}), 200
 

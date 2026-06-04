@@ -12,7 +12,8 @@ import { api } from '../lib/api';
 
 const featureKeys: Record<string, string> = {
   'Syllabus Tracker': 'syllabus_tracker',
-  'Marks Entry': 'internal_marks'
+  'Marks Entry': 'internal_marks',
+  'Clubs & Societies': 'clubs'
 };
 
 const FacultyHub = () => {
@@ -84,6 +85,7 @@ const FacultyHub = () => {
     { name: 'Canteen', icon: <Coffee className="w-5 h-5 text-orange-600"/>, color: 'bg-orange-100', path: '/campus/canteen' },
     { name: 'Indoor Map', icon: <MapPin className="w-5 h-5 text-emerald-600"/>, color: 'bg-emerald-100', path: '/campus/map' },
     { name: 'Events & Fests', icon: <Calendar className="w-5 h-5 text-pink-600"/>, color: 'bg-pink-100', path: '/campus/events' },
+    { name: 'Clubs & Societies', icon: <Users className="w-5 h-5 text-teal-600"/>, color: 'bg-teal-100', path: '/campus/clubs' },
     { name: 'Notice Board', icon: <Bell className="w-5 h-5 text-red-600"/>, color: 'bg-red-100', path: '/campus/notices' },
     { name: 'Anon Feedback', icon: <MessageSquare className="w-5 h-5 text-purple-600"/>, color: 'bg-purple-100', path: '/campus/feedback' },
     { name: 'Health Center', icon: <Heart className="w-5 h-5 text-red-600"/>, color: 'bg-red-100', path: '/utility/health' },
@@ -254,13 +256,22 @@ const FacultyHub = () => {
           <div className="animate-slide-up">
             <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Campus Quick Access</h2>
             <div className="grid grid-cols-2 gap-3">
-              {campusFeatures.map((f, i) => (
-                <button key={i} onClick={() => navigate(f.path)}
-                  className="bg-white rounded-[20px] p-4 flex items-center gap-3 shadow-sm border border-slate-100 hover:shadow-md active:scale-95 transition-all text-left">
-                  <div className={`w-10 h-10 rounded-xl ${f.color} flex items-center justify-center shrink-0`}>{f.icon}</div>
-                  <span className="text-xs font-bold text-slate-800">{f.name}</span>
-                </button>
-              ))}
+              {campusFeatures.map((f, i) => {
+                const key = featureKeys[f.name];
+                const isLocked = key && !assignedFeatures.includes(key) && user.role !== 'admin';
+                return (
+                  <button key={i} onClick={() => handleCardClick(f.name, f.path)}
+                    className={`bg-white rounded-[20px] p-4 flex items-center gap-3 shadow-sm border border-slate-100 hover:shadow-md active:scale-95 transition-all text-left relative ${isLocked ? 'opacity-65' : ''}`}>
+                    <div className={`w-10 h-10 rounded-xl ${isLocked ? 'bg-slate-100 text-slate-400' : f.color} flex items-center justify-center shrink-0`}>
+                      {isLocked ? <Lock className="w-5 h-5 text-slate-450" /> : f.icon}
+                    </div>
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      {f.name}
+                      {isLocked && <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
