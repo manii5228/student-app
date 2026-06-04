@@ -175,11 +175,16 @@ const FacultyHub = () => {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 px-4 mt-4 bg-white rounded-2xl mx-4 p-1 shadow-sm border border-slate-100">
+      <div className="flex gap-3 px-3 mt-4 bg-white rounded-2xl mx-4 p-1.5 shadow-sm border border-slate-100 overflow-x-auto hide-scrollbar">
+        <style>{`
+          .hide-scrollbar::-webkit-scrollbar { display: none; }
+          .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        `}</style>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setActiveTab(t.key as any)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[11px] font-bold transition-all ${activeTab === t.key ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
-            {t.icon}{t.label}
+            className={`flex-1 min-w-[85px] flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-[11px] font-bold transition-all shrink-0 ${activeTab === t.key ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
+            {t.icon}
+            <span>{t.label}</span>
           </button>
         ))}
       </div>

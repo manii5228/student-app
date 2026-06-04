@@ -465,6 +465,7 @@ def get_faculty_assignments():
         
     assigned_features = [a.feature_key for a in assignments]
     
+    # Track faculty assignments fetching for dashboard layout alignment and authorization
     # Query clubs advisor matches
     from ..models.campus import Club
     clubs = Club.query.filter_by(faculty_advisor_id=fid).all()
