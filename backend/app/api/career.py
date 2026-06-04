@@ -191,13 +191,18 @@ def get_interview_slots(jid):
     import datetime
     now = datetime.datetime.now()
     slots = []
-    for i in range(1, 4):
-        slot_time = now + datetime.timedelta(days=i, hours=2)
-        slots.append({
-            "id": f"slot-{i}",
-            "time": slot_time.isoformat(),
-            "available": True
-        })
+    hours = [10, 14, 16]
+    slot_id = 1
+    for day in range(1, 5):
+        for h in hours:
+            slot_time = datetime.datetime(now.year, now.month, now.day) + datetime.timedelta(days=day)
+            slot_time = slot_time.replace(hour=h, minute=0, second=0, microsecond=0)
+            slots.append({
+                "id": f"slot-{slot_id}",
+                "time": slot_time.isoformat(),
+                "available": True
+            })
+            slot_id += 1
     return jsonify({"slots": slots}), 200
 
 

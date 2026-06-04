@@ -27,6 +27,7 @@ const InterviewScheduler = () => {
   const [activeJobIdForBooking, setActiveJobIdForBooking] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [bookingInProgress, setBookingInProgress] = useState(false);
   const [activeTab, setActiveTab] = useState<'schedule' | 'book'>('schedule');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -70,17 +71,25 @@ const InterviewScheduler = () => {
       const { data } = await api.get(`/career/jobs/${jobId}/interview-slots`);
       setAvailableSlots(data.slots || []);
       setActiveJobIdForBooking(jobId);
+      setSelectedSlotId(null);
+      setSelectedDateKey(null);
     } catch {
       // Mock slots
       const now = new Date();
-      const mock = Array.from({ length: 5 }, (_, i) => {
-        const t = new Date(now);
-        t.setDate(now.getDate() + i + 1);
-        t.setHours(10 + i, 0, 0, 0);
-        return { id: `slot-${i}`, time: t.toISOString(), available: true };
-      });
+      const mock: Slot[] = [];
+      const hours = [10, 14, 16];
+      let slotId = 1;
+      for (let day = 1; day <= 4; day++) {
+        for (const h of hours) {
+          const t = new Date(now.getFullYear(), now.getMonth(), now.getDate() + day, h, 0, 0, 0);
+          mock.push({ id: `slot-${slotId}`, time: t.toISOString(), available: true });
+          slotId++;
+        }
+      }
       setAvailableSlots(mock);
       setActiveJobIdForBooking(jobId);
+      setSelectedSlotId(null);
+      setSelectedDateKey(null);
     }
   };
 
@@ -98,6 +107,7 @@ const InterviewScheduler = () => {
       setSuccessMessage('Interview slot booked successfully! Added to your schedule.');
       setActiveJobIdForBooking(null);
       setSelectedSlotId(null);
+      setSelectedDateKey(null);
       setActiveTab('schedule');
       fetchInterviews();
     } catch (err) {
@@ -302,12 +312,9 @@ const InterviewScheduler = () => {
                 slotsByDate[dateKey].push(slot);
               });
               const dateKeys = Object.keys(slotsByDate);
-              const activeDateKey = selectedSlotId 
-                ? (() => {
-                    const activeSlot = availableSlots.find(s => s.id === selectedSlotId);
-                    return activeSlot ? new Date(activeSlot.time).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : dateKeys[0];
-                  })()
-                : dateKeys[0];
+              const activeDateKey = (selectedDateKey && dateKeys.includes(selectedDateKey)) 
+                ? selectedDateKey 
+                : (dateKeys.length > 0 ? dateKeys[0] : '');
 
               return (
                 <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm p-0">
@@ -321,7 +328,7 @@ const InterviewScheduler = () => {
                         <p className="text-xs text-slate-500 mt-0.5">Pick a date, then choose a time.</p>
                       </div>
                       <button
-                        onClick={() => { setActiveJobIdForBooking(null); setSelectedSlotId(null); }}
+                        onClick={() => { setActiveJobIdForBooking(null); setSelectedSlotId(null); setSelectedDateKey(null); }}
                         className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 hover:bg-slate-200"
                       >
                         ✕
@@ -344,6 +351,7 @@ const InterviewScheduler = () => {
                             <button
                               key={dateKey}
                               onClick={() => {
+                                setSelectedDateKey(dateKey);
                                 // If not already selecting a slot on this date, clear selection
                                 if (!hasSelected) setSelectedSlotId(null);
                               }}
