@@ -104,6 +104,13 @@ def generate_qr(session_id):
     lat = data.get("latitude")
     lng = data.get("longitude")
 
+    # Fallback to default campus coordinates if GPS coordinates are missing or invalid
+    if lat is None or lng is None:
+        import logging
+        logging.info(f"[QR Attendance] Geolocation not provided or invalid for faculty_id: {faculty_id}. Falling back to default VelTech campus coordinates (13.1818, 80.0401).")
+        lat = 13.1818
+        lng = 80.0401
+
     result, error = attendance_service.generate_qr_token(session_id, faculty_id, lat, lng)
     if error:
         return jsonify({"error": error}), 400

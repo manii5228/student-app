@@ -8,19 +8,26 @@ const FacultyQRAttendance = () => {
   const [timeLeft, setTimeLeft] = useState(60);
   const [qrCodeStr, setQrCodeStr] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [location, setLocation] = useState<{lat: number, lng: number}>({ lat: 13.1818, lng: 80.0401 });
 
   // Live scan counter states
   const [scanCount, setScanCount] = useState(0);
   const [recentScans, setRecentScans] = useState<string[]>([]);
 
-  // Mock GPS fetch
+  // GPS fetch with default fallback
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-        (err) => console.error("GPS error", err)
+        (err) => {
+          console.error("GPS error", err);
+          // Fallback to VelTech campus coordinates if geolocation fails
+          setLocation({ lat: 13.1818, lng: 80.0401 });
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
+    } else {
+      setLocation({ lat: 13.1818, lng: 80.0401 });
     }
   }, []);
 
@@ -50,19 +57,6 @@ const FacultyQRAttendance = () => {
       setQrCodeStr(null);
     }
   }, [timeLeft, qrCodeStr]);
-
-  // Live scanner count simulator
-  useEffect(() => {
-    if (qrCodeStr && scanCount < 48) {
-      const timer = setTimeout(() => {
-        setScanCount(prev => prev + Math.floor(Math.random() * 2) + 1);
-        const firstNames = ['Arun', 'Priya', 'Rohan', 'Sneha', 'Vikram', 'Meera', 'Aditya', 'Divya', 'Karan', 'Neha'];
-        const randomName = firstNames[Math.floor(Math.random() * firstNames.length)] + ' ' + String.fromCharCode(65 + Math.floor(Math.random() * 26)) + '.';
-        setRecentScans(prev => [randomName, ...prev.slice(0, 2)]);
-      }, Math.random() * 3000 + 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [qrCodeStr, scanCount]);
 
   return (
     <div className="min-h-full bg-slate-900 flex flex-col font-sans animate-fade-in relative pb-24 text-white">
@@ -125,7 +119,7 @@ const FacultyQRAttendance = () => {
         <div className="w-full max-w-[280px] flex flex-col gap-2 mt-6">
           <button 
             onClick={generateQR} 
-            disabled={generating || !location || !!qrCodeStr}
+            disabled={generating || !!qrCodeStr}
             className="w-full bg-indigo-500 text-white rounded-2xl py-4 flex items-center justify-center gap-2 font-bold shadow-xl hover:bg-indigo-600 active:scale-95 transition-all disabled:opacity-50"
           >
             {generating ? (
