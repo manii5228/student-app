@@ -868,14 +868,27 @@ def get_class_marks():
     fid = get_jwt_identity()
     user = db.session.get(User, fid)
     
-    # Query students in the faculty's class
+    # Query students with optional class filters
+    dept = request.args.get("department")
+    sem = request.args.get("semester", type=int)
+    sec = request.args.get("section")
+
     students_query = User.query.filter_by(role=UserRole.STUDENT, is_active=True)
-    if user.role.value == "faculty":
+    if dept:
+        students_query = students_query.filter_by(department=dept)
+    if sem:
+        students_query = students_query.filter_by(semester=sem)
+    if sec:
+        students_query = students_query.filter_by(section=sec)
+
+    # Fallback to faculty profile only if no filters are provided
+    if not any([dept, sem, sec]) and user.role.value == "faculty":
         students_query = students_query.filter_by(
             department=user.department,
             semester=user.semester,
             section=user.section
         )
+
     students = students_query.order_by(User.first_name).all()
     student_ids = [s.id for s in students]
     

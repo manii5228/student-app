@@ -12,7 +12,6 @@ import { api } from '../lib/api';
 
 const featureKeys: Record<string, string> = {
   'Syllabus Tracker': 'syllabus_tracker',
-  'Marks Entry': 'internal_marks',
   'Clubs & Societies': 'clubs'
 };
 
