@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, QrCode, MapPin, RefreshCw, AlertCircle, Users, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import { api } from '../lib/api';
 
 const FacultyQRAttendance = () => {
   const navigate = useNavigate();
@@ -42,11 +43,16 @@ const FacultyQRAttendance = () => {
     }, 1000);
   };
 
-  const resetSession = () => {
+  const resetSession = async () => {
     setQrCodeStr(null);
     setTimeLeft(60);
     setScanCount(0);
     setRecentScans([]);
+    try {
+      await api.post('/attendance/session/active/reactivate');
+    } catch (err) {
+      console.warn("Reactivate API failed (expected in offline mock mode):", err);
+    }
   };
 
   useEffect(() => {

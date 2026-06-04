@@ -133,6 +133,17 @@ class AttendanceService:
         session.qr_token = qr_token
         session.qr_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expiry_seconds)
 
+        # Clear existing attendance records for this session upon reactivation/token generation
+        try:
+            deleted_count = AttendanceRecord.query.filter_by(session_id=session_id).delete()
+            session.total_present = 0
+            session.total_absent = session.total_students or 0
+            import logging
+            logging.info(f"[QR Reactivate] Cleared {deleted_count} existing attendance records for session_id: {session_id} on QR reactivation.")
+        except Exception as e:
+            import logging
+            logging.error(f"[QR Reactivate] Failed to clear records for session_id: {session_id}: {str(e)}")
+
         # Store in Redis for fast validation
         try:
             redis_client.setex(

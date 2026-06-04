@@ -267,6 +267,49 @@ def my_sessions():
     return jsonify({"sessions": sessions}), 200
 
 
+# ── Reactivate Active Session (Faculty Only) ───────────────────────
+
+@attendance_bp.route("/session/active/reactivate", methods=["POST"])
+@jwt_required()
+@role_required("faculty", "admin")
+def reactivate_active_session():
+    """
+    Reactivate the latest session for the logged-in faculty.
+    Clears all marked attendance records for this session.
+    """
+    faculty_id = get_jwt_identity()
+    from ..models.attendance import Attendance, AttendanceRecord
+    from ..extensions import db
+
+    # Find the latest session created by this faculty
+    session = Attendance.query.filter_by(faculty_id=faculty_id).order_by(Attendance.created_at.desc()).first()
+    if not session:
+        return jsonify({"error": "No active session found to reactivate"}), 404
+
+    try:
+        # Delete all attendance records for this session
+        AttendanceRecord.query.filter_by(session_id=session.id).delete()
+        session.total_present = 0
+        session.total_absent = session.total_students or 0
+        db.session.commit()
+        
+        # Generate new QR token (with defaults for fallback)
+        result, error = attendance_service.generate_qr_token(session.id, faculty_id, 13.1818, 80.0401)
+        if error:
+            return jsonify({"error": error}), 400
+            
+        return jsonify({
+            "message": "Session reactivated and attendance records cleared",
+            "session": session.to_dict(),
+            "qr_token": result.get("qr_token"),
+            "expires_at": result.get("expires_at"),
+            "validity_seconds": result.get("validity_seconds")
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to reactivate session: {str(e)}"}), 500
+
+
 # ── Get Students for Attendance ────────────────────────────────────
 
 @attendance_bp.route("/students", methods=["GET"])
