@@ -53,7 +53,6 @@ import AIStudyAssistant from './pages/AIStudyAssistant';
 import GPAPredictor from './pages/GPAPredictor';
 import DocumentScanner from './pages/DocumentScanner';
 import UsageAnalytics from './pages/UsageAnalytics';
-import FacultyLeaveApproval from './pages/FacultyLeaveApproval';
 import FacultyBroadcast from './pages/FacultyBroadcast';
 import FacultyDiscrepancies from './pages/FacultyDiscrepancies';
 import FacultyMentees from './pages/FacultyMentees';
@@ -243,7 +242,6 @@ function App() {
             <Route path="/faculty/bulk-attendance" element={<FacultyRoute><FacultyBulkAttendance /></FacultyRoute>} />
             <Route path="/faculty/qr" element={<FacultyRoute><FacultyQRAttendance /></FacultyRoute>} />
             <Route path="/faculty/marks" element={<FacultyRoute><FacultyMarksEntry /></FacultyRoute>} />
-            <Route path="/faculty/leaves" element={<FacultyRoute><FacultyLeaveApproval /></FacultyRoute>} />
             <Route path="/faculty/discrepancies" element={<FacultyRoute><FacultyDiscrepancies /></FacultyRoute>} />
             <Route path="/faculty/broadcast" element={<FacultyRoute><FacultyBroadcast /></FacultyRoute>} />
             <Route path="/faculty/mentees" element={<FacultyRoute><FacultyMentees /></FacultyRoute>} />

@@ -29,13 +29,13 @@ const FacultyHub = () => {
   useEffect(() => {
     const fetchStatsAndAssignments = async () => {
       try {
-        const [menteesRes, leavesRes, assignmentsRes] = await Promise.allSettled([
+        const [menteesRes, passesRes, assignmentsRes] = await Promise.allSettled([
           api.get('/faculty/mentees'),
-          api.get('/faculty/leaves'),
+          api.get('/campus/hostel-pass/mentees'),
           api.get('/faculty/assignments')
         ]);
         const menteeCount = menteesRes.status === 'fulfilled' ? (menteesRes.value.data.total || 0) : 0;
-        const pendingCount = leavesRes.status === 'fulfilled' ? (leavesRes.value.data.leaves?.length || 0) : 0;
+        const pendingCount = passesRes.status === 'fulfilled' ? (passesRes.value.data.passes?.filter((p: any) => p.mentor_status === 'pending').length || 0) : 0;
         const assigned = assignmentsRes.status === 'fulfilled' ? (assignmentsRes.value.data.assigned_features || []) : [];
         
         setStats({ mentees: menteeCount, subjects: 4, pending: pendingCount });
@@ -60,8 +60,7 @@ const FacultyHub = () => {
     { name: 'Bulk Attendance', desc: 'One-tap grid marker', icon: <Users className="w-6 h-6"/>, color: 'from-indigo-500 to-indigo-600', path: '/faculty/bulk-attendance' },
     { name: 'QR Attendance', desc: 'Dynamic QR code', icon: <QrCode className="w-6 h-6"/>, color: 'from-emerald-500 to-emerald-600', path: '/faculty/qr' },
     { name: 'Marks Entry', desc: 'Auto-save portal', icon: <PenTool className="w-6 h-6"/>, color: 'from-amber-500 to-amber-600', path: '/faculty/marks' },
-    { name: 'Hostel Passes', desc: 'Approve student out-passes', icon: <CheckSquare className="w-6 h-6"/>, color: 'from-violet-500 to-indigo-600', path: '/faculty/hostel-passes' },
-    { name: 'Leave Approval', desc: 'Review student leaves', icon: <CheckSquare className="w-6 h-6"/>, color: 'from-teal-500 to-teal-600', path: '/faculty/leaves' },
+    { name: 'Hostel Approval', desc: 'Approve student out-passes', icon: <CheckSquare className="w-6 h-6"/>, color: 'from-violet-500 to-indigo-600', path: '/faculty/hostel-passes' },
     { name: 'Broadcast', desc: 'Notify your class', icon: <Bell className="w-6 h-6"/>, color: 'from-rose-500 to-rose-600', path: '/faculty/broadcast' },
     { name: 'Mentees', desc: 'Your 25-30 students', icon: <UserCheck className="w-6 h-6"/>, color: 'from-violet-500 to-violet-600', path: '/faculty/mentees' },
     { name: 'Office Hours', desc: 'Set meeting slots', icon: <Clock className="w-6 h-6"/>, color: 'from-cyan-500 to-cyan-600', path: '/faculty/meetings' },
@@ -82,7 +81,7 @@ const FacultyHub = () => {
 
   // ── Campus Quick Access ──
   const campusFeatures = [
-    { name: 'Hostel Passes', icon: <CheckSquare className="w-5 h-5 text-indigo-600"/>, color: 'bg-indigo-100', path: '/faculty/hostel-passes' },
+    { name: 'Hostel Approval', icon: <CheckSquare className="w-5 h-5 text-indigo-600"/>, color: 'bg-indigo-100', path: '/faculty/hostel-passes' },
     { name: 'Canteen', icon: <Coffee className="w-5 h-5 text-orange-600"/>, color: 'bg-orange-100', path: '/campus/canteen' },
     { name: 'Indoor Map', icon: <MapPin className="w-5 h-5 text-emerald-600"/>, color: 'bg-emerald-100', path: '/campus/map' },
     { name: 'Events & Fests', icon: <Calendar className="w-5 h-5 text-pink-600"/>, color: 'bg-pink-100', path: '/campus/events' },
@@ -147,8 +146,8 @@ const FacultyHub = () => {
                   </div>
                   <div className="space-y-2">
                     <div className="p-2 bg-slate-50 rounded-xl text-[10px] text-left">
-                      <p className="font-semibold text-slate-805 text-slate-800">New Leave Application</p>
-                      <p className="text-slate-500 mt-0.5">Student Rahul M. applied for medical leave.</p>
+                      <p className="font-semibold text-slate-805 text-slate-800">New Hostel Out-Pass Request</p>
+                      <p className="text-slate-500 mt-0.5">Student Rahul M. applied for hostel pass.</p>
                     </div>
                     <div className="p-2 bg-slate-50 rounded-xl text-[10px] text-left">
                       <p className="font-semibold text-slate-805 text-slate-800">Syllabus Review</p>

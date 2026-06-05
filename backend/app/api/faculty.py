@@ -14,61 +14,61 @@ from ..models.user import User
 faculty_bp = Blueprint("faculty", __name__)
 
 
-# ── Leave Approval System ──────────────────────────────────────────
-
-@faculty_bp.route("/leaves", methods=["GET"])
-@jwt_required()
-@role_required("faculty", "admin")
-def pending_leaves():
-    """Faculty dashboard to review student leave applications."""
-    user_id = get_jwt_identity()
-    user = db.session.get(User, user_id)
-    
-    query = LeaveRequest.query.filter_by(status="pending")
-    
-    if user.role.value == "faculty":
-        query = query.join(User, LeaveRequest.student_id == User.id).filter(
-            User.department == user.department,
-            User.semester == user.semester,
-            User.section == user.section
-        )
-        
-    leaves = query.order_by(LeaveRequest.created_at).all()
-    return jsonify({"leaves": [l.to_dict() for l in leaves]}), 200
-
-
-@faculty_bp.route("/leaves", methods=["POST"])
-@jwt_required()
-@role_required("student")
-def apply_leave():
-    """Student applies for leave."""
-    data = request.get_json()
-    leave = LeaveRequest(
-        student_id=get_jwt_identity(),
-        leave_type=data.get("leave_type", "casual"),
-        from_date=date.fromisoformat(data["from_date"]),
-        to_date=date.fromisoformat(data["to_date"]),
-        reason=data["reason"],
-    )
-    db.session.add(leave)
-    db.session.commit()
-    return jsonify({"message": "Leave applied successfully", "leave": leave.to_dict()}), 201
-
-
-@faculty_bp.route("/leaves/<lid>/approve", methods=["PUT"])
-@jwt_required()
-@role_required("faculty", "admin")
-def approve_leave(lid):
-    """Approve or reject leave application."""
-    leave = db.session.get(LeaveRequest, lid)
-    if not leave:
-        return jsonify({"error": "Leave request not found"}), 404
-    data = request.get_json()
-    leave.status = data.get("status", "approved") # approved or rejected
-    leave.reviewed_by = get_jwt_identity()
-    leave.reviewed_at = datetime.now(timezone.utc)
-    db.session.commit()
-    return jsonify({"message": f"Leave {leave.status}", "leave": leave.to_dict()}), 200
+# ── Leave Approval System (Disabled / Replaced by Hostel Approval) ──
+# 
+# @faculty_bp.route("/leaves", methods=["GET"])
+# @jwt_required()
+# @role_required("faculty", "admin")
+# def pending_leaves():
+#     """Faculty dashboard to review student leave applications."""
+#     user_id = get_jwt_identity()
+#     user = db.session.get(User, user_id)
+#     
+#     query = LeaveRequest.query.filter_by(status="pending")
+#     
+#     if user.role.value == "faculty":
+#         query = query.join(User, LeaveRequest.student_id == User.id).filter(
+#             User.department == user.department,
+#             User.semester == user.semester,
+#             User.section == user.section
+#         )
+#         
+#     leaves = query.order_by(LeaveRequest.created_at).all()
+#     return jsonify({"leaves": [l.to_dict() for l in leaves]}), 200
+# 
+# 
+# @faculty_bp.route("/leaves", methods=["POST"])
+# @jwt_required()
+# @role_required("student")
+# def apply_leave():
+#     """Student applies for leave."""
+#     data = request.get_json()
+#     leave = LeaveRequest(
+#         student_id=get_jwt_identity(),
+#         leave_type=data.get("leave_type", "casual"),
+#         from_date=date.fromisoformat(data["from_date"]),
+#         to_date=date.fromisoformat(data["to_date"]),
+#         reason=data["reason"],
+#     )
+#     db.session.add(leave)
+#     db.session.commit()
+#     return jsonify({"message": "Leave applied successfully", "leave": leave.to_dict()}), 201
+# 
+# 
+# @faculty_bp.route("/leaves/<lid>/approve", methods=["PUT"])
+# @jwt_required()
+# @role_required("faculty", "admin")
+# def approve_leave(lid):
+#     """Approve or reject leave application."""
+#     leave = db.session.get(LeaveRequest, lid)
+#     if not leave:
+#         return jsonify({"error": "Leave request not found"}), 404
+#     data = request.get_json()
+#     leave.status = data.get("status", "approved") # approved or rejected
+#     leave.reviewed_by = get_jwt_identity()
+#     leave.reviewed_at = datetime.now(timezone.utc)
+#     db.session.commit()
+#     return jsonify({"message": f"Leave {leave.status}", "leave": leave.to_dict()}), 200
 
 
 # ── Meeting Scheduler (Office Hours) ───────────────────────────────

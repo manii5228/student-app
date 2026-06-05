@@ -117,9 +117,8 @@ const HostelPass = () => {
     return <Clock className="w-3.5 h-3.5" />;
   };
 
-  // Check if all approvals are done for QR to show
   const canShowQR = (p: Pass) => {
-    return p.status === 'approved' && p.mentor_status === 'approved';
+    return p.status === 'approved';
   };
 
   return (
