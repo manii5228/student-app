@@ -1,14 +1,15 @@
 # Improvements: Project & Skill Management
 
-the dropdown need to be styled,complementary toogle button is dismatched in team finder
 
-the faculty need to accept students for projects and need to approve the project is completed. Make the changs in frontend and backend also
+
+
  
+ SKilled badges need the database for my badges.
+
 the description need to be little lower cause it mixing up with the badge title
-portfolio builder ui is fine but change the side by side alignment that is very odd to see
-automatically add skills, projects from the database of the student profile.
-what about the flash cards in company prep and mock test, these need to be added by the respective faculty.
 
-Download button is not working in the portfolio builder, it need to be directly downloded to mobile or system(done but it is directly saving into files automatically)
+in the project progess section if selected to done it isdirectly going without faculy apporval and in facluty apporval there is only apporval of project completeion but i also want mile stone apporval for both in progress,done (options need to be there in the faculty)
 
-if trying to add new project getting blank screen(done)
+if possible add timeline for the project.
+
+in  the company prep when i am trying to add a question to it i am getting a blank page.
