@@ -86,13 +86,19 @@ interface WidgetConfig {
 }
 
 const DEFAULT_WIDGETS: WidgetConfig[] = [
-  { id: 'quick_actions', title: 'Quick Actions', size: 'medium', visible: true },
-  { id: 'attendance', title: 'Attendance Progress', size: 'small', visible: true },
   { id: 'schedule', title: "Today's Schedule", size: 'medium', visible: true },
-  { id: 'deadlines', title: 'Upcoming Deadlines', size: 'small', visible: true },
-  { id: 'activity', title: 'Activity Chart', size: 'medium', visible: true },
+  { id: 'activity', title: 'Activity & Screen Time', size: 'medium', visible: true },
+  { id: 'attendance', title: 'Attendance Tracker', size: 'small', visible: true },
+  { id: 'deadlines', title: 'Academic Deadlines', size: 'small', visible: true },
   { id: 'notices', title: 'Notice Board', size: 'small', visible: true },
-  { id: 'portfolio', title: 'Portfolio & Achievements', size: 'medium', visible: true },
+  { id: 'portfolio', title: 'Portfolio & Skills', size: 'medium', visible: true },
+  { id: 'placements', title: 'Placements & Jobs', size: 'medium', visible: true },
+  { id: 'projects', title: 'Projects & Team Finder', size: 'medium', visible: true },
+  { id: 'transit', title: 'Bus Timings & Transit', size: 'small', visible: true },
+  { id: 'canteen', title: 'Canteen Menu', size: 'small', visible: true },
+  { id: 'library', title: 'Library Hub', size: 'small', visible: true },
+  { id: 'results', title: 'Semester Results & GPA', size: 'small', visible: true },
+  { id: 'study_assistant', title: 'AI Study Assistant', size: 'medium', visible: true },
 ];
 
 const GUEST_SLIDES = [
@@ -120,7 +126,7 @@ const Dashboard = () => {
     try {
       const stored = localStorage.getItem(`widgets_${activeUserId}`);
       if (stored) {
-        const parsed = JSON.parse(stored);
+        const parsed = JSON.parse(stored).filter((w: any) => w.id !== 'quick_actions');
         const parsedIds = parsed.map((w: any) => w.id);
         const missing = DEFAULT_WIDGETS.filter(w => !parsedIds.includes(w.id));
         return [...parsed, ...missing];
@@ -138,6 +144,72 @@ const Dashboard = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [manageWidgetsOpen, setManageWidgetsOpen] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+
+  // ── New Interactive States ────────────────────────────────────
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(() => {
+    const today = new Date().getDay(); // 0=Sunday, 1=Monday
+    return today === 0 ? 0 : today - 1;
+  });
+  const [weeklyTimetable, setWeeklyTimetable] = useState<Record<string, any[]>>({});
+
+  // AI Study Assistant states
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiResponse, setAiResponse] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // Guest inquiry states
+  const [inquiryName, setInquiryName] = useState('');
+  const [inquiryEmail, setInquiryEmail] = useState('');
+  const [inquiryPhone, setInquiryPhone] = useState('');
+  const [inquiryDept, setInquiryDept] = useState('Computer Science');
+  const [inquirySubmitted, setInquirySubmitted] = useState(false);
+  const [inquirySubmitting, setInquirySubmitting] = useState(false);
+
+  // Fetch student weekly timetable
+  useEffect(() => {
+    if (isGuest) return;
+    (async () => {
+      try {
+        const res = await api.get('/timetable/my-timetable');
+        if (res.data && res.data.grid) {
+          setWeeklyTimetable(res.data.grid);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch weekly timetable", err);
+      }
+    })();
+  }, [isGuest]);
+
+  const handleAskAI = () => {
+    if (!aiQuery.trim()) return;
+    setAiLoading(true);
+    setTimeout(() => {
+      const q = aiQuery.toLowerCase();
+      let res = "To excel in this topic, practice active recall, solve previous years' questions, and explain the concept to a peer!";
+      if (q.includes('recursion')) {
+        res = "Recursion is a process where a function calls itself. Always define a base case to prevent stack overflow!";
+      } else if (q.includes('react') || q.includes('hook')) {
+        res = "React uses hooks like useState and useEffect to manage component state and side-effects reactively.";
+      } else if (q.includes('database') || q.includes('sql') || q.includes('dbms')) {
+        res = "DBMS organizes data efficiently. Focus on normalization (1NF, 2NF, 3NF) and database indexing for speeds.";
+      } else if (q.includes('attendance') || q.includes('bunk')) {
+        res = "Maintain at least 75% attendance to avoid bunk alerts and eligibility issues for exams!";
+      }
+      setAiResponse(res);
+      setAiQuery('');
+      setAiLoading(false);
+    }, 800);
+  };
+
+  const handleInquirySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inquiryName.trim() || !inquiryEmail.trim() || !inquiryPhone.trim()) return;
+    setInquirySubmitting(true);
+    setTimeout(() => {
+      setInquirySubmitting(false);
+      setInquirySubmitted(true);
+    }, 1200);
+  };
 
   useEffect(() => {
     if (!isGuest) return;
@@ -235,6 +307,30 @@ const Dashboard = () => {
             ) : w.id === 'portfolio' ? (
               <button className="dash-see-all" onClick={() => navigate('/career/portfolio')}>
                 Build Portfolio <ChevronRight size={13} />
+              </button>
+            ) : w.id === 'placements' ? (
+              <button className="dash-see-all" onClick={() => navigate('/career/jobs')}>
+                View Jobs <ChevronRight size={13} />
+              </button>
+            ) : w.id === 'projects' ? (
+              <button className="dash-see-all" onClick={() => navigate('/career/portfolio')}>
+                My Projects <ChevronRight size={13} />
+              </button>
+            ) : w.id === 'transit' ? (
+              <button className="dash-see-all" onClick={() => navigate('/campus/bus')}>
+                Bus Timings <ChevronRight size={13} />
+              </button>
+            ) : w.id === 'canteen' ? (
+              <button className="dash-see-all" onClick={() => navigate('/campus/canteen')}>
+                Canteen Menu <ChevronRight size={13} />
+              </button>
+            ) : w.id === 'library' ? (
+              <button className="dash-see-all" onClick={() => navigate('/campus/library')}>
+                Library Hub <ChevronRight size={13} />
+              </button>
+            ) : w.id === 'results' ? (
+              <button className="dash-see-all" onClick={() => navigate('/academic/results')}>
+                Grade Sheets <ChevronRight size={13} />
               </button>
             ) : null
           )}
@@ -480,9 +576,401 @@ const Dashboard = () => {
   };
 
   // ── Activity bar chart (like reference) ────────────────────
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const classData = feed.weekly_activity || [3, 4, 2, 4, 3, 1];
+  // ── Weekly Activity Chart Calculations ─────────────────────
+  const FALLBACK_WEEKLY_TIMETABLE: Record<string, any[]> = {
+    monday: [
+      { start_time: '09:00', end_time: '10:00', subject_name: 'Data Structures', room: 'A301', faculty_name: 'Dr. Kumar' },
+      { start_time: '10:15', end_time: '11:15', subject_name: 'Operating Systems', room: 'B202', faculty_name: 'Dr. Priya' },
+      { start_time: '11:30', end_time: '12:30', subject_name: 'Computer Networks', room: 'A105', faculty_name: 'Dr. Raj' },
+    ],
+    tuesday: [
+      { start_time: '09:00', end_time: '10:00', subject_name: 'Database Systems', room: 'B303', faculty_name: 'Dr. Anita' },
+      { start_time: '10:15', end_time: '12:15', subject_name: 'DBMS Lab', room: 'Lab 4', faculty_name: 'Dr. Meena' },
+      { start_time: '14:00', end_time: '15:00', subject_name: 'Theory of Computation', room: 'A201', faculty_name: 'Dr. Verma' },
+    ],
+    wednesday: [
+      { start_time: '09:00', end_time: '10:00', subject_name: 'Software Engineering', room: 'A204', faculty_name: 'Dr. Shalini' },
+      { start_time: '10:15', end_time: '11:15', subject_name: 'Operating Systems', room: 'B202', faculty_name: 'Dr. Priya' },
+      { start_time: '14:00', end_time: '16:00', subject_name: 'OS Lab', room: 'Lab 2', faculty_name: 'Dr. Priya' },
+    ],
+    thursday: [
+      { start_time: '09:00', end_time: '10:00', subject_name: 'Computer Networks', room: 'A105', faculty_name: 'Dr. Raj' },
+      { start_time: '10:15', end_time: '11:15', subject_name: 'Data Structures', room: 'A301', faculty_name: 'Dr. Kumar' },
+      { start_time: '11:30', end_time: '12:30', subject_name: 'Mathematics IV', room: 'A102', faculty_name: 'Dr. Shobha' },
+      { start_time: '14:00', end_time: '15:00', subject_name: 'Biology for Engineers', room: 'B101', faculty_name: 'Dr. Suresh' },
+    ],
+    friday: [
+      { start_time: '09:00', end_time: '10:00', subject_name: 'Theory of Computation', room: 'A201', faculty_name: 'Dr. Verma' },
+      { start_time: '10:15', end_time: '11:15', subject_name: 'Database Systems', room: 'B303', faculty_name: 'Dr. Anita' },
+      { start_time: '11:30', end_time: '12:30', subject_name: 'Software Engineering', room: 'A204', faculty_name: 'Dr. Shalini' },
+    ],
+    saturday: [
+      { start_time: '09:00', end_time: '10:00', subject_name: 'Technical Seminar', room: 'Seminar Hall', faculty_name: 'Dr. Kumar' },
+    ]
+  };
+
+  const currentWeeklyTimetable = Object.keys(weeklyTimetable).length > 0 ? weeklyTimetable : FALLBACK_WEEKLY_TIMETABLE;
+  const daysKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  
+  const classData = daysKeys.map(k => (currentWeeklyTimetable[k] || []).length);
   const maxBar = Math.max(...classData, 1);
+
+  const selectedDayKey = daysKeys[selectedDayIndex];
+  const selectedDayClasses = currentWeeklyTimetable[selectedDayKey] || [];
+
+  // ── RENDER ─────────────────────────────────────────────────
+  if (isGuest) {
+    return (
+      <div className="dash-root guest-dashboard">
+        {/* Guest Header */}
+        <div className="dash-top">
+          <div className="dash-top-row">
+            <div>
+              <p className="dash-date">{todayDate}</p>
+              <h1 className="dash-greeting">Welcome to<br/>Veltech Multitech</h1>
+            </div>
+            <div className="dash-top-actions">
+              <button className="guest-login-badge-btn" onClick={() => navigate('/login')} style={{ fontSize: '11px', fontWeight: 'bold', background: C.blue, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '12px', cursor: 'pointer' }}>
+                Sign In
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="dash-scroll" style={{ paddingBottom: '32px' }}>
+          {/* Hero Branding card */}
+          <div className="guest-hero-card">
+            <h2 className="guest-hero-title">Empowering Next-Gen Innovators</h2>
+            <p className="guest-hero-desc">
+              Veltech Multitech is a premier Tier-1 accredited institution offering world-class infrastructure, industry-integrated learning, and stellar placements. Take a glance at our campus life.
+            </p>
+          </div>
+
+          {/* LAVAZA Highlights Carousel */}
+          <div style={{ padding: '0 20px', marginTop: '20px' }}>
+            <p className="guest-section-tag">VIBRANT CAMPUS LIFE</p>
+            <h3 className="guest-section-title">LAVAZA '26 Fest Highlights</h3>
+          </div>
+          <div className="guest-slider-container" style={{ margin: '10px 20px 24px' }}>
+            <div className="guest-slider-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+              {GUEST_SLIDES.map((slide, idx) => (
+                <div key={idx} className="guest-slide">
+                  <img src={slide.url} alt={slide.title} className="guest-slide-image" />
+                  <div className="guest-slide-overlay" />
+                  <div className="guest-slide-content">
+                    <span className="guest-slide-tag">LAVAZA '26 Event Highlight</span>
+                    <h3 className="guest-slide-title">{slide.title}</h3>
+                    <p className="guest-slide-desc">{slide.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="guest-slider-dots">
+              {GUEST_SLIDES.map((_, idx) => (
+                <button
+                  key={idx}
+                  className={`guest-slider-dot ${idx === currentSlide ? 'active' : ''}`}
+                  onClick={() => setCurrentSlide(idx)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Explore Public Actions */}
+          <div style={{ padding: '0 20px' }}>
+            <p className="guest-section-tag">EXPLORE PORTAL</p>
+            <h3 className="guest-section-title">Campus Hub & Quick Links</h3>
+            <div className="guest-explore-grid" style={{ marginTop: '12px', marginBottom: '24px' }}>
+              <button className="guest-explore-item" onClick={() => navigate('/campus/map')}>
+                <div className="guest-explore-circle" style={{ background: '#0080c714', color: '#0080c7' }}>
+                  <MapPin size={22} />
+                </div>
+                <span className="guest-explore-label">Campus Map</span>
+              </button>
+              <button className="guest-explore-item" onClick={() => navigate('/campus/bus')}>
+                <div className="guest-explore-circle" style={{ background: '#22346c14', color: '#22346c' }}>
+                  <Bus size={22} />
+                </div>
+                <span className="guest-explore-label">Bus Timings</span>
+              </button>
+              <button className="guest-explore-item" onClick={() => navigate('/campus/canteen')}>
+                <div className="guest-explore-circle" style={{ background: '#c9503d14', color: '#c9503d' }}>
+                  <Coffee size={22} />
+                </div>
+                <span className="guest-explore-label">Canteen Menu</span>
+              </button>
+              <button className="guest-explore-item" onClick={() => navigate('/campus/notices')}>
+                <div className="guest-explore-circle" style={{ background: '#27bcd114', color: '#27bcd1' }}>
+                  <Bell size={22} />
+                </div>
+                <span className="guest-explore-label">Public Notices</span>
+              </button>
+              <button className="guest-explore-item" onClick={() => navigate('/campus/events')}>
+                <div className="guest-explore-circle" style={{ background: '#a91f2314', color: '#a91f23' }}>
+                  <Calendar size={22} />
+                </div>
+                <span className="guest-explore-label">Events & Fests</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Marketing Statistics Grid */}
+          <div style={{ padding: '0 20px' }}>
+            <p className="guest-section-tag">OUR ACHIEVEMENTS</p>
+            <h3 className="guest-section-title">VTU Multitech At A Glance</h3>
+            <div className="guest-stats-grid" style={{ marginTop: '12px', marginBottom: '24px' }}>
+              <div className="guest-stat-card">
+                <div className="guest-stat-header">
+                  <Briefcase size={16} color="#0080c7" />
+                  <span className="guest-stat-num">98%</span>
+                </div>
+                <h4 className="guest-stat-title">Placements</h4>
+                <p className="guest-stat-desc">Top MNC recruiters like Google, Amazon, Deloitte visit annually.</p>
+              </div>
+              <div className="guest-stat-card">
+                <div className="guest-stat-header">
+                  <Award size={16} color="#27bcd1" />
+                  <span className="guest-stat-num">A++</span>
+                </div>
+                <h4 className="guest-stat-title">NAAC Grade</h4>
+                <p className="guest-stat-desc">Accredited with highest tier rating for education quality.</p>
+              </div>
+              <div className="guest-stat-card">
+                <div className="guest-stat-header">
+                  <Users size={16} color="#c9503d" />
+                  <span className="guest-stat-num">150+</span>
+                </div>
+                <h4 className="guest-stat-title">Recruiters</h4>
+                <p className="guest-stat-desc">Strong global partnership networks for technical hiring.</p>
+              </div>
+              <div className="guest-stat-card">
+                <div className="guest-stat-header">
+                  <Zap size={16} color="#a91f23" />
+                  <span className="guest-stat-num">20+</span>
+                </div>
+                <h4 className="guest-stat-title">Research Centers</h4>
+                <p className="guest-stat-desc">State of the art labs for AI, Robotics & Cloud Computing.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Apply Online / Admission CTA Form */}
+          <div style={{ padding: '0 20px' }}>
+            <div className="guest-cta-box">
+              {inquirySubmitted ? (
+                <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#d1e7dd', color: '#0f5132', display: 'flex', alignItems: 'center', justifySelf: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+                    <CheckCircle size={24} />
+                  </div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: C.textPrimary, margin: '0 0 4px 0' }}>Inquiry Submitted!</h3>
+                  <p style={{ fontSize: '11px', color: C.textSecondary, margin: 0 }}>Thank you for your interest. Our admissions counselor will contact you shortly.</p>
+                  <button onClick={() => setInquirySubmitted(false)} style={{ marginTop: '16px', border: 'none', background: C.blue, color: '#fff', fontSize: '11px', fontWeight: 'bold', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}>
+                    Submit Another Inquiry
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleInquirySubmit}>
+                  <p className="guest-section-tag" style={{ color: C.blue }}>APPLY ONLINE</p>
+                  <h3 className="guest-cta-title" style={{ color: C.textPrimary }}>Admission Inquiry</h3>
+                  <p style={{ fontSize: '11px', color: C.textSecondary, margin: '4px 0 16px 0' }}>Get free counseling & admission details instantly.</p>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                    <input
+                      type="text"
+                      placeholder="Full Name"
+                      required
+                      value={inquiryName}
+                      onChange={e => setInquiryName(e.target.value)}
+                      className="guest-form-input"
+                    />
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      required
+                      value={inquiryEmail}
+                      onChange={e => setInquiryEmail(e.target.value)}
+                      className="guest-form-input"
+                    />
+                    <input
+                      type="tel"
+                      placeholder="Phone Number"
+                      required
+                      value={inquiryPhone}
+                      onChange={e => setInquiryPhone(e.target.value)}
+                      className="guest-form-input"
+                    />
+                    <select
+                      value={inquiryDept}
+                      onChange={e => setInquiryDept(e.target.value)}
+                      className="guest-form-input"
+                    >
+                      <option value="Computer Science">Computer Science (CSE)</option>
+                      <option value="Information Technology">Information Technology (IT)</option>
+                      <option value="Electronics & Communication">Electronics (ECE)</option>
+                      <option value="Mechanical Engineering">Mechanical Engineering</option>
+                      <option value="Biotechnology">Biotechnology</option>
+                    </select>
+                  </div>
+                  
+                  <button
+                    type="submit"
+                    disabled={inquirySubmitting}
+                    className="guest-cta-btn"
+                    style={{ background: C.blue, width: '100%', border: 'none', color: '#fff', fontWeight: 'bold', fontSize: '12px', padding: '12px', borderRadius: '12px', cursor: 'pointer', transition: 'opacity 0.2s' }}
+                  >
+                    {inquirySubmitting ? 'Submitting Inquiry...' : 'Submit Inquiry'}
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <BottomNav />
+        <style>{`
+          .guest-hero-card {
+            background: linear-gradient(135deg, #22346c 0%, #0080c7 100%);
+            border-radius: 24px;
+            padding: 24px;
+            margin: 16px 20px;
+            color: #fff;
+            box-shadow: 0 8px 24px rgba(34,52,108,0.15);
+            text-align: left;
+          }
+          .guest-hero-title {
+            font-size: 20px;
+            font-weight: 800;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.5px;
+          }
+          .guest-hero-desc {
+            font-size: 11px;
+            line-height: 1.5;
+            margin: 0;
+            opacity: 0.9;
+          }
+          .guest-section-tag {
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            color: #adb5bd;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+          }
+          .guest-section-title {
+            font-size: 16px;
+            font-weight: 800;
+            color: #22346c;
+            margin: 0;
+            letter-spacing: -0.3px;
+          }
+          .guest-explore-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            padding: 0;
+          }
+          .guest-explore-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+          }
+          .guest-explore-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s;
+          }
+          .guest-explore-item:active .guest-explore-circle {
+            transform: scale(0.9);
+          }
+          .guest-explore-label {
+            font-size: 9px;
+            font-weight: 700;
+            color: #495057;
+            text-align: center;
+            line-height: 1.2;
+          }
+          .guest-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+          }
+          .guest-stat-card {
+            background: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 16px;
+            padding: 14px;
+            text-align: left;
+            transition: transform 0.15s, box-shadow 0.15s;
+          }
+          .guest-stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(34,52,108,0.04);
+          }
+          .guest-stat-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+          }
+          .guest-stat-num {
+            font-size: 18px;
+            font-weight: 800;
+            color: #22346c;
+          }
+          .guest-stat-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #495057;
+            margin: 0 0 2px 0;
+          }
+          .guest-stat-desc {
+            font-size: 9px;
+            color: #868e96;
+            margin: 0;
+            line-height: 1.3;
+          }
+          .guest-cta-box {
+            background: #ffffff;
+            border: 1px solid #e9ecef;
+            border-radius: 24px;
+            padding: 20px;
+            box-shadow: 0 4px 16px rgba(34,52,108,0.03);
+            text-align: left;
+          }
+          .guest-cta-title {
+            font-size: 16px;
+            font-weight: 800;
+            margin: 0;
+          }
+          .guest-form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid #dee2e6;
+            font-size: 11px;
+            font-weight: 500;
+            outline: none;
+            background: #f8f9fa;
+            color: #22346c;
+            transition: border-color 0.15s;
+          }
+          .guest-form-input:focus {
+            border-color: #0080c7;
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   // ── RENDER ─────────────────────────────────────────────────
   return (
@@ -699,24 +1187,209 @@ const Dashboard = () => {
                         <span className="dash-ring-text" style={{ fontSize: '10px' }}>{feed.attendance.percentage}%</span>
                       </div>
                     </div>
-                    <div className="dash-bar-chart" style={{ height: '70px' }}>
-                      {days.map((d, i) => (
-                        <div key={d} className="dash-bar-col">
-                          <div className="dash-bar-track">
-                            <div
-                              className="dash-bar-fill"
-                              style={{
-                                height: `${(classData[i] / maxBar) * 100}%`,
-                                background: i === 3 ? '#27bcd1' : '#495057',
-                              }}
-                            >
-                              {i === 3 && <span className="dash-bar-tip" style={{ fontSize: '9px', padding: '1px 5px', top: '-18px' }}>{classData[i]}</span>}
+                    <div className="dash-bar-chart" style={{ height: '70px', marginBottom: '12px' }}>
+                      {daysKeys.map((k, i) => {
+                        const dayLabel = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i];
+                        const isSel = selectedDayIndex === i;
+                        return (
+                          <div key={k} className={`dash-bar-col ${isSel ? 'selected' : ''}`} onClick={() => setSelectedDayIndex(i)} style={{ cursor: 'pointer' }}>
+                            <div className="dash-bar-track">
+                              <div
+                                className="dash-bar-fill"
+                                style={{
+                                  height: `${(classData[i] / maxBar) * 100}%`,
+                                  background: isSel ? 'var(--dash-accent)' : '#495057',
+                                  boxShadow: isSel ? '0 0 10px rgba(39, 188, 209, 0.6)' : 'none',
+                                  transition: 'all 0.25s ease',
+                                }}
+                              >
+                                {isSel && <span className="dash-bar-tip" style={{ fontSize: '9px', padding: '1px 5px', top: '-18px' }}>{classData[i]}</span>}
+                              </div>
                             </div>
+                            <span className="dash-bar-day" style={{ fontWeight: isSel ? 'bold' : 'normal', color: isSel ? 'var(--dash-text-primary)' : 'var(--dash-text-secondary)' }}>{dayLabel}</span>
                           </div>
-                          <span className="dash-bar-day">{d}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
+                    <div className="activity-day-breakdown" style={{ marginTop: '12px', borderTop: '1px solid var(--dash-divider)', paddingTop: '10px' }}>
+                      <h4 style={{ fontSize: '11px', fontWeight: 'bold', color: C.textPrimary, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={12} color="var(--dash-accent)" />
+                        Schedule for {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][selectedDayIndex]} ({selectedDayClasses.length} {selectedDayClasses.length === 1 ? 'Class' : 'Classes'})
+                      </h4>
+                      {selectedDayClasses.length === 0 ? (
+                        <p style={{ fontSize: '10px', color: C.textSecondary, fontStyle: 'italic', padding: '4px 0', margin: 0 }}>No classes scheduled. Rest day! 😴</p>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {selectedDayClasses.map((cls, index) => (
+                            <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderRadius: '10px', background: C.bg, border: `1px solid ${C.border}` }}>
+                              <div style={{ minWidth: 0, flex: 1, paddingRight: '8px' }}>
+                                <p style={{ fontSize: '11px', fontWeight: '600', color: C.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cls.subject_name}</p>
+                                <p style={{ fontSize: '9px', color: C.textSecondary, margin: '2px 0 0 0' }}>{cls.faculty_name} · {cls.room || 'TBD'}</p>
+                              </div>
+                              <span style={{ fontSize: '9px', fontWeight: 'bold', color: 'var(--dash-accent)', whiteSpace: 'nowrap' }}>{cls.start_time} - {cls.end_time}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {w.id === 'placements' && (
+                  <div className="widget-placements-content" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '12px', background: C.bg, border: `1px solid ${C.border}` }}>
+                        <Briefcase size={16} color="var(--dash-accent)" />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: '11px', fontWeight: 'bold', color: C.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Software Dev Engineer</p>
+                          <p style={{ fontSize: '9px', color: C.textSecondary, margin: '2px 0 0 0' }}>Amazon · ₹32 LPA · Apply by Jun 15</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px', borderRadius: '12px', background: C.bg, border: `1px solid ${C.border}` }}>
+                        <Briefcase size={16} color="#c9503d" />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: '11px', fontWeight: 'bold', color: C.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Product Management Intern</p>
+                          <p style={{ fontSize: '9px', color: C.textSecondary, margin: '2px 0 0 0' }}>Razorpay · ₹45k/mo · Apply by Jun 10</p>
+                        </div>
+                      </div>
+                      <button onClick={() => navigate('/career/jobs')} className="w-full py-2 border rounded-xl text-[10px] font-bold text-center transition-all hover:bg-slate-50" style={{ borderColor: C.border, color: C.textPrimary, background: 'transparent' }}>
+                        View Job Portal
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {w.id === 'projects' && (
+                  <div className="widget-projects-content" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ padding: '10px', borderRadius: '12px', background: C.bg, border: `1px solid ${C.border}` }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: C.textPrimary }}>Smart Campus App</span>
+                          <span style={{ fontSize: '9px', fontWeight: 'bold', color: '#27bcd1' }}>85% Done</span>
+                        </div>
+                        <div style={{ height: '4px', width: '100%', background: '#e9ecef', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: '85%', background: '#27bcd1' }} />
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 10px', borderRadius: '12px', background: '#e4f6f9', border: '1px solid #cceef3' }}>
+                        <Users size={12} color="#27bcd1" />
+                        <span style={{ fontSize: '9px', fontWeight: 'bold', color: '#22346c' }}>Looking for members: Web Dev Hackathon</span>
+                      </div>
+                      <button onClick={() => navigate('/career/portfolio')} className="w-full py-2 border rounded-xl text-[10px] font-bold text-center transition-all hover:bg-slate-50" style={{ borderColor: C.border, color: C.textPrimary, background: 'transparent' }}>
+                        Collaborate & Build
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {w.id === 'transit' && (
+                  <div className="widget-transit-content" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Bus size={14} color="var(--dash-accent)" />
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: C.textPrimary }}>Route 4 (Central)</span>
+                        </div>
+                        <span style={{ fontSize: '10px', fontWeight: 'black', color: '#a91f23', background: '#a91f2314', padding: '2px 6px', borderRadius: '6px' }}>10 mins left</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Bus size={14} color={C.textSecondary} />
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: C.textPrimary }}>Route 12 (North)</span>
+                        </div>
+                        <span style={{ fontSize: '10px', fontWeight: 'bold', color: C.textSecondary }}>25 mins left</span>
+                      </div>
+                      <button onClick={() => navigate('/campus/bus')} className="w-full py-2 border rounded-xl text-[10px] font-bold text-center transition-all hover:bg-slate-50" style={{ borderColor: C.border, color: C.textPrimary, background: 'transparent' }}>
+                        Live Tracking
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {w.id === 'canteen' && (
+                  <div className="widget-canteen-content" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: C.textPrimary }}>Cafeteria Rush Level</span>
+                        <span style={{ fontSize: '9px', fontWeight: 'black', color: '#27bcd1', background: '#27bcd114', padding: '2px 6px', borderRadius: '6px' }}>Moderate</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', borderRadius: '8px', background: C.bg }}>
+                        <Coffee size={12} color="#c9503d" />
+                        <span style={{ fontSize: '9px', fontWeight: 'bold', color: C.textSecondary }}>Today's: Paneer Roll & Tea</span>
+                      </div>
+                      <button onClick={() => navigate('/campus/canteen')} className="w-full py-2 border rounded-xl text-[10px] font-bold text-center transition-all hover:bg-slate-50" style={{ borderColor: C.border, color: C.textPrimary, background: 'transparent' }}>
+                        Order Online
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {w.id === 'library' && (
+                  <div className="widget-library-content" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <BookOpen size={14} color="var(--dash-accent)" />
+                        <span style={{ fontSize: '11px', fontWeight: 'bold', color: C.textPrimary }}>2 Books Borrowed</span>
+                      </div>
+                      <p style={{ fontSize: '9px', color: '#c9503d', margin: 0, fontWeight: 'bold' }}>Introduction to Algorithms (Due in 3d)</p>
+                      <button onClick={() => navigate('/campus/library')} className="w-full py-2 border rounded-xl text-[10px] font-bold text-center transition-all hover:bg-slate-50" style={{ borderColor: C.border, color: C.textPrimary, background: 'transparent' }}>
+                        Search Books
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {w.id === 'results' && (
+                  <div className="widget-results-content" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <p style={{ fontSize: '18px', fontWeight: '800', color: C.textPrimary, margin: 0 }}>8.92</p>
+                          <p style={{ fontSize: '9px', color: C.textSecondary, margin: 0 }}>Current CGPA</p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ fontSize: '18px', fontWeight: '800', color: '#27bcd1', margin: 0 }}>9.10</p>
+                          <p style={{ fontSize: '9px', color: C.textSecondary, margin: 0 }}>Last SGPA</p>
+                        </div>
+                      </div>
+                      <button onClick={() => navigate('/academic/results')} className="w-full py-2 border rounded-xl text-[10px] font-bold text-center transition-all hover:bg-slate-50" style={{ borderColor: C.border, color: C.textPrimary, background: 'transparent' }}>
+                        View Grade Sheets
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {w.id === 'study_assistant' && (
+                  <div className="widget-study-assistant-content" style={{ width: '100%' }}>
+                    <p style={{ fontSize: '10px', color: C.textSecondary, margin: '0 0 8px 0', fontStyle: 'italic' }}>
+                      Ask AI any study concept or query:
+                    </p>
+                    {aiResponse ? (
+                      <div style={{ padding: '8px 10px', borderRadius: '12px', background: '#e4f6f9', border: '1px solid #cceef3', marginBottom: '8px' }}>
+                        <p style={{ fontSize: '9px', fontWeight: 'bold', color: C.textPrimary, margin: '0 0 4px 0' }}>💡 AI Response:</p>
+                        <p style={{ fontSize: '10px', color: C.textPrimary, margin: 0, lineHeight: 1.4 }}>{aiResponse}</p>
+                        <button onClick={() => setAiResponse('')} style={{ background: 'none', border: 'none', color: 'var(--dash-accent)', fontSize: '8px', fontWeight: 'bold', padding: 0, marginTop: '6px', cursor: 'pointer' }}>
+                          Ask another question
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <input
+                          type="text"
+                          placeholder="e.g. explain recursion..."
+                          value={aiQuery}
+                          onChange={(e) => setAiQuery(e.target.value)}
+                          style={{ flex: 1, minWidth: 0, padding: '8px 10px', borderRadius: '10px', border: `1px solid ${C.border}`, fontSize: '10px', outline: 'none', background: C.bg, color: C.textPrimary }}
+                        />
+                        <button
+                          onClick={handleAskAI}
+                          disabled={aiLoading}
+                          style={{ padding: '8px 12px', borderRadius: '10px', background: 'var(--dash-accent)', color: '#fff', border: 'none', fontSize: '10px', fontWeight: 'bold', cursor: 'pointer', opacity: aiLoading ? 0.7 : 1 }}
+                        >
+                          {aiLoading ? '...' : 'Ask'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1662,6 +2335,17 @@ const Dashboard = () => {
         .guest-slider-dot.active {
           background: #fff;
           transform: scale(1.3);
+        }
+
+        /* ── Activity Chart Selected State ───────── */
+        .dash-bar-col {
+          transition: opacity 0.2s ease;
+        }
+        .dash-bar-col:not(.selected) {
+          opacity: 0.65;
+        }
+        .dash-bar-col.selected {
+          opacity: 1;
         }
       `}</style>
     </div>
