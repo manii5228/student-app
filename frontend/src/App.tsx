@@ -74,6 +74,7 @@ import AdminModeration from './pages/AdminModeration';
 import AdminFacultyRoles from './pages/AdminFacultyRoles';
 import AdminIdTemplates from './pages/AdminIdTemplates';
 import AdminPlacementAnalytics from './pages/AdminPlacementAnalytics';
+import AdminIndoorMap from './pages/AdminIndoorMap';
 
 
 import GuestLockedFeature from './components/GuestLockedFeature';
@@ -270,6 +271,7 @@ function App() {
             <Route path="/admin/placements" element={<AdminRoute><AdminPlacementAnalytics /></AdminRoute>} />
             <Route path="/admin/faculty-roles" element={<AdminRoute><AdminFacultyRoles /></AdminRoute>} />
             <Route path="/admin/id-templates" element={<AdminRoute><AdminIdTemplates /></AdminRoute>} />
+            <Route path="/admin/indoor-map" element={<AdminRoute><AdminIndoorMap /></AdminRoute>} />
 
 
             {/* Catch-all */}

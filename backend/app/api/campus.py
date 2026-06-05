@@ -13,7 +13,7 @@ from ..middleware.auth_middleware import role_required
 from ..models.campus import (
     CanteenItem, CanteenOrder, Bus, LibraryBook, LibraryIssue,
     Event, EventRegistration, Notice, Club, ClubMembership,
-    Feedback, MarketListing, HostelPass, ScannedDocument
+    Feedback, MarketListing, HostelPass, ScannedDocument, IndoorPOI
 )
 
 campus_bp = Blueprint("campus", __name__)
@@ -1065,5 +1065,88 @@ def list_scanned_documents():
             "created_at": d.created_at.isoformat()
         })
     return jsonify({"documents": res}), 200
+
+
+# ── Indoor Map POI Management ─────────────────────────────────────
+
+@campus_bp.route("/indoor-pois", methods=["GET"])
+@jwt_required()
+def list_indoor_pois():
+    """List all indoor map points of interest (practical rooms, labs, etc.)."""
+    pois = IndoorPOI.query.all()
+    return jsonify({"pois": [p.to_dict() for p in pois]}), 200
+
+
+@campus_bp.route("/indoor-pois", methods=["POST"])
+@jwt_required()
+@role_required("admin")
+def create_indoor_poi():
+    """Admin adds a new indoor map POI with description and step-by-step directions."""
+    data = request.get_json() or {}
+    name = data.get("name")
+    poi_type = data.get("type", "academic")
+    
+    if not name:
+        return jsonify({"error": "POI name is required."}), 400
+        
+    coords = data.get("coords", [13.1818, 80.0401])
+    directions = data.get("directions", {})
+    
+    poi = IndoorPOI(
+        name=name,
+        poi_type=poi_type,
+        building=data.get("building"),
+        floor=data.get("floor"),
+        description=data.get("desc"),
+        coords_json=json.dumps(coords),
+        directions_json=json.dumps(directions)
+    )
+    db.session.add(poi)
+    db.session.commit()
+    return jsonify({"message": "POI created successfully", "poi": poi.to_dict()}), 201
+
+
+@campus_bp.route("/indoor-pois/<poi_id>", methods=["PUT"])
+@jwt_required()
+@role_required("admin")
+def update_indoor_poi(poi_id):
+    """Admin updates an indoor map POI details and directions."""
+    poi = db.session.get(IndoorPOI, poi_id)
+    if not poi:
+        return jsonify({"error": "POI not found."}), 404
+        
+    data = request.get_json() or {}
+    if "name" in data:
+        poi.name = data["name"]
+    if "type" in data:
+        poi.poi_type = data["type"]
+    if "building" in data:
+        poi.building = data["building"]
+    if "floor" in data:
+        poi.floor = data["floor"]
+    if "desc" in data:
+        poi.description = data["desc"]
+    if "coords" in data:
+        poi.coords_json = json.dumps(data["coords"])
+    if "directions" in data:
+        poi.directions_json = json.dumps(data["directions"])
+        
+    db.session.commit()
+    return jsonify({"message": "POI updated successfully", "poi": poi.to_dict()}), 200
+
+
+@campus_bp.route("/indoor-pois/<poi_id>", methods=["DELETE"])
+@jwt_required()
+@role_required("admin")
+def delete_indoor_poi(poi_id):
+    """Admin deletes an indoor map POI."""
+    poi = db.session.get(IndoorPOI, poi_id)
+    if not poi:
+        return jsonify({"error": "POI not found."}), 404
+        
+    db.session.delete(poi)
+    db.session.commit()
+    return jsonify({"message": "POI deleted successfully."}), 200
+
 
 

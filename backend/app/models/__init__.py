@@ -11,7 +11,7 @@ from .campus import (
     CanteenItem, CanteenOrder, Bus, LibraryBook, LibraryIssue,
     Event, EventRegistration, Notice, Club, ClubMembership,
     Feedback, MarketListing, HealthAppointment, EmergencyAlert,
-    ScannedDocument,
+    ScannedDocument, IndoorPOI,
 )
 from .career import (
     JobPosting, JobApplication, InterviewSchedule, CompanyPrepQuestion,
@@ -32,5 +32,5 @@ __all__ = [
     "JobPosting", "JobApplication", "InterviewSchedule", "CompanyPrepQuestion",
     "AlumniProfile", "LeaveRequest", "MeetingSlot", "Resource",
     "HealthAppointment", "EmergencyAlert", "AuditLog", "FeeRecord",
-    "Portfolio", "Flashcard", "ScannedDocument",
+    "Portfolio", "Flashcard", "ScannedDocument", "IndoorPOI",
 ]

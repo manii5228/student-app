@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, Calendar as CalendarIcon, Bell, Activity, DollarSign,
   Lock, Download, Flag, TrendingUp, ShieldAlert, CheckCircle,
-  Database, Server
+  Database, Server, MapPin
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -47,6 +47,7 @@ const AdminHub = () => {
     { name: 'ID Card Templates', desc: 'Manage student & faculty template looks', icon: <Database className="w-5 h-5 text-indigo-600"/>, color: 'bg-indigo-100', path: '/admin/id-templates' },
     { name: 'Club Moderation', desc: 'Approve student clubs & events', icon: <Flag className="w-5 h-5 text-emerald-600"/>, color: 'bg-emerald-100', path: '/admin/moderation' },
     { name: 'Data Export Engine', desc: 'NAAC/NBA accreditation reports', icon: <Download className="w-5 h-5 text-indigo-600"/>, color: 'bg-indigo-100', path: '/admin/export' },
+    { name: 'Indoor Map Admin', desc: 'Manage campus rooms & directions', icon: <MapPin className="w-5 h-5 text-indigo-600"/>, color: 'bg-indigo-100', path: '/admin/indoor-map' },
   ];
 
   // Analytics & Infrastructure

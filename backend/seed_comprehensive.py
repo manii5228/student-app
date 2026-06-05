@@ -20,7 +20,7 @@ from app.extensions import db
 from app.models.user import User, UserRole, IDCardTemplate
 from app.models.academic import Assignment, AssignmentSubmission, Result, Syllabus, ExamSchedule, CreditProgress, InternalMark, QuestionPaper
 from app.models.career import TeamFinderProfile, SkillBadge, EarnedBadge, Project, Milestone, Portfolio, MockTest, MockTestQuestion, MockTestAttempt, JobPosting, JobApplication, SavedJob, InterviewSchedule, CompanyPrepQuestion, AlumniProfile, Internship
-from app.models.campus import CanteenItem, CanteenOrder, Bus, LibraryBook, LibraryIssue, Event, EventRegistration, Notice, NoticeRead, Club, ClubMembership, ClubPost, ClubAttendance, Feedback, MarketListing, HostelPass, HealthAppointment, EmergencyAlert, Poll, PollVote
+from app.models.campus import CanteenItem, CanteenOrder, Bus, LibraryBook, LibraryIssue, Event, EventRegistration, Notice, NoticeRead, Club, ClubMembership, ClubPost, ClubAttendance, Feedback, MarketListing, HostelPass, HealthAppointment, EmergencyAlert, Poll, PollVote, IndoorPOI
 from app.models.timetable import Timetable, TimetableSlot
 
 def generate_seeds():
@@ -940,6 +940,181 @@ def generate_seeds():
             )
             db.session.add(notice)
         db.session.commit()
+
+        # Seed Indoor POIs
+        print("Seeding Indoor POIs...")
+        pois_data = [
+            {
+                "name": "Administrative Block (Block 10)",
+                "type": "academic",
+                "building": "Block 10",
+                "floor": "Ground",
+                "desc": "Registrar, Admission Office & Finance Dept",
+                "coords": [13.1818, 80.0401],
+                "directions": {
+                    "maingate": [
+                        "Start at the Main Security Gate.",
+                        "Walk along the central roadway path toward the administration building.",
+                        "Walk past the garden fountain plaza.",
+                        "Enter the Admin Block entrance doors.",
+                        "The main reception lobby is directly ahead."
+                    ]
+                }
+            },
+            {
+                "name": "Block 24 (CSE & IT Dept)",
+                "type": "academic",
+                "building": "Block 24",
+                "floor": "Ground",
+                "desc": "Computer Science HOD Room & Dept Offices",
+                "coords": [13.1825, 80.0385],
+                "directions": {
+                    "maingate": [
+                        "Start at the Main Security Gate.",
+                        "Walk left onto the department connector road.",
+                        "Proceed past the electrical block.",
+                        "Block 24 (CSE & IT) is the red building on the right.",
+                        "Enter through the main front glass doors."
+                    ]
+                }
+            },
+            {
+                "name": "Block 1 (ECE Dept)",
+                "type": "academic",
+                "building": "Block 1",
+                "floor": "Ground",
+                "desc": "Electronics Dept & Faculty Rooms",
+                "coords": [13.1805, 80.0410],
+                "directions": {}
+            },
+            {
+                "name": "Block 2 (Mechanical Dept)",
+                "type": "academic",
+                "building": "Block 2",
+                "floor": "Ground",
+                "desc": "Mechanical Workshops & Labs",
+                "coords": [13.1835, 80.0415],
+                "directions": {}
+            },
+            {
+                "name": "CSE Advanced Research Lab",
+                "type": "lab",
+                "building": "Block 24",
+                "floor": "1st Floor",
+                "desc": "Block 24, Floor 1 - AI & Cloud Lab",
+                "coords": [13.1827, 80.0383],
+                "directions": {
+                    "block24lobby": [
+                        "Start at the Block 24 ground floor lobby.",
+                        "Turn left and walk down the main corridor past the elevator.",
+                        "Pass the CSE Department notices board on your right.",
+                        "The CSE Advanced Research Lab (AI & Cloud) is on the left (Room 104)."
+                    ]
+                }
+            },
+            {
+                "name": "CSE Programming Lab 3",
+                "type": "lab",
+                "building": "Block 24",
+                "floor": "2nd Floor",
+                "desc": "Block 24, Floor 2 - Java & Web Coding",
+                "coords": [13.1823, 80.0387],
+                "directions": {
+                    "block24lobby": [
+                        "Start at the Block 24 ground floor lobby.",
+                        "Take the staircase on the right up to the 2nd Floor.",
+                        "Turn right exiting the staircase corridor.",
+                        "Walk past the faculty cabins to the end of the hall.",
+                        "The CSE Programming Lab 3 is on the left (Room 212)."
+                    ]
+                }
+            },
+            {
+                "name": "Engineering Physics Lab",
+                "type": "lab",
+                "building": "Block 2",
+                "floor": "1st Floor",
+                "desc": "Block 2, Floor 1 - Optics & Lasers",
+                "coords": [13.1833, 80.0417],
+                "directions": {}
+            },
+            {
+                "name": "Central Library",
+                "type": "library",
+                "building": "Library Block",
+                "floor": "Ground",
+                "desc": "Study Hub, e-Resources & Archives",
+                "coords": [13.1815, 80.0410],
+                "directions": {}
+            },
+            {
+                "name": "Main Food Court (Canteen)",
+                "type": "food",
+                "building": "Food Court",
+                "floor": "Ground",
+                "desc": "South/North Indian Meals & Fast Food",
+                "coords": [13.1825, 80.0405],
+                "directions": {
+                    "maingate": [
+                        "Start at the Main Security Gate.",
+                        "Walk down the central path and bear left towards the canteens corridor.",
+                        "The Main Food Court is on the left side of the courtyard."
+                    ]
+                }
+            },
+            {
+                "name": "Block 24 Nescafe Station",
+                "type": "food",
+                "building": "Block 24",
+                "floor": "Ground",
+                "desc": "Coffee, snacks, & quick bites",
+                "coords": [13.1824, 80.0386],
+                "directions": {
+                    "block24lobby": [
+                        "Start at the Block 24 ground floor lobby.",
+                        "Walk out through the side glass exit door on the east.",
+                        "The Nescafe Coffee Station is directly in front under the canopy."
+                    ]
+                }
+            },
+            {
+                "name": "Block 24 Restrooms (Floor 1)",
+                "type": "restroom",
+                "building": "Block 24",
+                "floor": "1st Floor",
+                "desc": "Gents & Ladies Restrooms",
+                "coords": [13.1826, 80.0384],
+                "directions": {
+                    "block24lobby": [
+                        "Start at the Block 24 ground floor lobby.",
+                        "Walk straight ahead past the registration desk.",
+                        "Turn left next to the water station.",
+                        "The Restrooms are at the end of the short corridor."
+                    ]
+                }
+            },
+            {
+                "name": "Admin Block Restrooms (Lobby)",
+                "type": "restroom",
+                "building": "Block 10",
+                "floor": "Ground",
+                "desc": "Main floor restrooms",
+                "coords": [13.1819, 80.0400],
+                "directions": {}
+            }
+        ]
+        for p_data in pois_data:
+            db.session.add(IndoorPOI(
+                name=p_data["name"],
+                poi_type=p_data["type"],
+                building=p_data["building"],
+                floor=p_data["floor"],
+                description=p_data["desc"],
+                coords_json=json.dumps(p_data["coords"]),
+                directions_json=json.dumps(p_data["directions"])
+            ))
+        db.session.commit()
+        print("Indoor POIs seeded!")
 
         # Seed default flashcards
         from app.models.career import Flashcard

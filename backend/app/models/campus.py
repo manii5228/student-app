@@ -416,3 +416,37 @@ class ScannedDocument(db.Model):
             "file_path": self.file_path,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
+
+
+class IndoorPOI(db.Model):
+    __tablename__ = "indoor_pois"
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = db.Column(db.String(200), nullable=False)
+    poi_type = db.Column(db.String(50), default="academic")  # academic, lab, library, food, restroom
+    building = db.Column(db.String(100), nullable=True)
+    floor = db.Column(db.String(20), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    coords_json = db.Column(db.String(100), default="[13.1818, 80.0401]")
+    directions_json = db.Column(db.Text, default="{}")
+
+    def to_dict(self):
+        import json
+        try:
+            coords = json.loads(self.coords_json) if self.coords_json else [13.1818, 80.0401]
+        except:
+            coords = [13.1818, 80.0401]
+        try:
+            directions = json.loads(self.directions_json) if self.directions_json else {}
+        except:
+            directions = {}
+        return {
+            "id": self.id,
+            "name": self.name,
+            "type": self.poi_type,
+            "building": self.building,
+            "floor": self.floor,
+            "desc": self.description,
+            "coords": coords,
+            "directions": directions
+        }
+

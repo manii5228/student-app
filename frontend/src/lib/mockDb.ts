@@ -652,6 +652,180 @@ const seedComprehensiveMockDb = () => {
     { id: "pq_4", company_name: "Amazon", question_text: "Explain the process of designing a URL Shortener system with horizontal database scaling. Detail memory caching strategies.", category: "technical", year: 2025, upvotes: 110 }
   ];
 
+  // 12b. Indoor POIs
+  const indoorPois = [
+    {
+      id: "admin",
+      name: "Administrative Block (Block 10)",
+      type: "academic",
+      building: "Block 10",
+      floor: "Ground",
+      desc: "Registrar, Admission Office & Finance Dept",
+      coords: [13.1818, 80.0401],
+      directions: {
+        maingate: [
+          "Start at the Main Security Gate.",
+          "Walk along the central roadway path toward the administration building.",
+          "Walk past the garden fountain plaza.",
+          "Enter the Admin Block entrance doors.",
+          "The main reception lobby is directly ahead."
+        ]
+      }
+    },
+    {
+      id: "block24",
+      name: "Block 24 (CSE & IT Dept)",
+      type: "academic",
+      building: "Block 24",
+      floor: "Ground",
+      desc: "Computer Science HOD Room & Dept Offices",
+      coords: [13.1825, 80.0385],
+      directions: {
+        maingate: [
+          "Start at the Main Security Gate.",
+          "Walk left onto the department connector road.",
+          "Proceed past the electrical block.",
+          "Block 24 (CSE & IT) is the red building on the right.",
+          "Enter through the main front glass doors."
+        ]
+      }
+    },
+    {
+      id: "block1",
+      name: "Block 1 (ECE Dept)",
+      type: "academic",
+      building: "Block 1",
+      floor: "Ground",
+      desc: "Electronics Dept & Faculty Rooms",
+      coords: [13.1805, 80.0410],
+      directions: {}
+    },
+    {
+      id: "block2",
+      name: "Block 2 (Mechanical Dept)",
+      type: "academic",
+      building: "Block 2",
+      floor: "Ground",
+      desc: "Mechanical Workshops & Labs",
+      coords: [13.1835, 80.0415],
+      directions: {}
+    },
+    {
+      id: "cselab1",
+      name: "CSE Advanced Research Lab",
+      type: "lab",
+      building: "Block 24",
+      floor: "1st Floor",
+      desc: "Block 24, Floor 1 - AI & Cloud Lab",
+      coords: [13.1827, 80.0383],
+      directions: {
+        block24lobby: [
+          "Start at the Block 24 ground floor lobby.",
+          "Turn left and walk down the main corridor past the elevator.",
+          "Pass the CSE Department notices board on your right.",
+          "The CSE Advanced Research Lab (AI & Cloud) is on the left (Room 104)."
+        ]
+      }
+    },
+    {
+      id: "cselab2",
+      name: "CSE Programming Lab 3",
+      type: "lab",
+      building: "Block 24",
+      floor: "2nd Floor",
+      desc: "Block 24, Floor 2 - Java & Web Coding",
+      coords: [13.1823, 80.0387],
+      directions: {
+        block24lobby: [
+          "Start at the Block 24 ground floor lobby.",
+          "Take the staircase on the right up to the 2nd Floor.",
+          "Turn right exiting the staircase corridor.",
+          "Walk past the faculty cabins to the end of the hall.",
+          "The CSE Programming Lab 3 is on the left (Room 212)."
+        ]
+      }
+    },
+    {
+      id: "physlab",
+      name: "Engineering Physics Lab",
+      type: "lab",
+      building: "Block 2",
+      floor: "1st Floor",
+      desc: "Block 2, Floor 1 - Optics & Lasers",
+      coords: [13.1833, 80.0417],
+      directions: {}
+    },
+    {
+      id: "lib",
+      name: "Central Library",
+      type: "library",
+      building: "Library Block",
+      floor: "Ground",
+      desc: "Study Hub, e-Resources & Archives",
+      coords: [13.1815, 80.0410],
+      directions: {}
+    },
+    {
+      id: "canteen1",
+      name: "Main Food Court (Canteen)",
+      type: "food",
+      building: "Food Court",
+      floor: "Ground",
+      desc: "South/North Indian Meals & Fast Food",
+      coords: [13.1825, 80.0405],
+      directions: {
+        maingate: [
+          "Start at the Main Security Gate.",
+          "Walk down the central path and bear left towards the canteens corridor.",
+          "The Main Food Court is on the left side of the courtyard."
+        ]
+      }
+    },
+    {
+      id: "canteen2",
+      name: "Block 24 Nescafe Station",
+      type: "food",
+      building: "Block 24",
+      floor: "Ground",
+      desc: "Coffee, snacks, & quick bites",
+      coords: [13.1824, 80.0386],
+      directions: {
+        block24lobby: [
+          "Start at the Block 24 ground floor lobby.",
+          "Walk out through the side glass exit door on the east.",
+          "The Nescafe Coffee Station is directly in front under the canopy."
+        ]
+      }
+    },
+    {
+      id: "rest1",
+      name: "Block 24 Restrooms (Floor 1)",
+      type: "restroom",
+      building: "Block 24",
+      floor: "1st Floor",
+      desc: "Gents & Ladies Restrooms",
+      coords: [13.1826, 80.0384],
+      directions: {
+        block24lobby: [
+          "Start at the Block 24 ground floor lobby.",
+          "Walk straight ahead past the registration desk.",
+          "Turn left next to the water station.",
+          "The Restrooms are at the end of the short corridor."
+        ]
+      }
+    },
+    {
+      id: "rest2",
+      name: "Admin Block Restrooms (Lobby)",
+      type: "restroom",
+      building: "Block 10",
+      floor: "Ground",
+      desc: "Main floor restrooms",
+      coords: [13.1819, 80.0400],
+      directions: {}
+    }
+  ];
+
   // 13. Mock Test Platform
   const mockTests = [
     {
@@ -814,6 +988,7 @@ const seedComprehensiveMockDb = () => {
     matches: [],
     messages: [],
     companyPrep,
+    indoorPois,
     mockTests,
     mockTestQuestions,
     mockTestAttempts,
@@ -888,6 +1063,17 @@ const getMockDb = () => {
       if (parsedDb.is_comprehensive && parsedDb.version === 4) {
         if (!parsedDb.attendanceSessions) {
           parsedDb.attendanceSessions = [];
+        }
+        if (!parsedDb.indoorPois) {
+          parsedDb.indoorPois = [
+            { id: "admin", name: "Administrative Block (Block 10)", type: "academic", building: "Block 10", floor: "Ground", desc: "Registrar, Admission Office & Finance Dept", coords: [13.1818, 80.0401], directions: { maingate: ["Start at the Main Security Gate.", "Walk along the central roadway path toward the administration building.", "Walk past the garden fountain plaza.", "Enter the Admin Block entrance doors.", "The main reception lobby is directly ahead."] } },
+            { id: "block24", name: "Block 24 (CSE & IT Dept)", type: "academic", building: "Block 24", floor: "Ground", desc: "Computer Science HOD Room & Dept Offices", coords: [13.1825, 80.0385], directions: { maingate: ["Start at the Main Security Gate.", "Walk left onto the department connector road.", "Proceed past the electrical block.", "Block 24 (CSE & IT) is the red building on the right.", "Enter through the main front glass doors."] } },
+            { id: "cselab1", name: "CSE Advanced Research Lab", type: "lab", building: "Block 24", floor: "1st Floor", desc: "Block 24, Floor 1 - AI & Cloud Lab", coords: [13.1827, 80.0383], directions: { block24lobby: ["Start at the Block 24 ground floor lobby.", "Turn left and walk down the main corridor past the elevator.", "Pass the CSE Department notices board on your right.", "The CSE Advanced Research Lab (AI & Cloud) is on the left (Room 104)."] } },
+            { id: "cselab2", name: "CSE Programming Lab 3", type: "lab", building: "Block 24", floor: "2nd Floor", desc: "Block 24, Floor 2 - Java & Web Coding", coords: [13.1823, 80.0387], directions: { block24lobby: ["Start at the Block 24 ground floor lobby.", "Take the staircase on the right up to the 2nd Floor.", "Turn right exiting the staircase corridor.", "Walk past the faculty cabins to the end of the hall.", "The CSE Programming Lab 3 is on the left (Room 212)."] } },
+            { id: "canteen1", name: "Main Food Court (Canteen)", type: "food", building: "Food Court", floor: "Ground", desc: "South/North Indian Meals & Fast Food", coords: [13.1825, 80.0405], directions: { maingate: ["Start at the Main Security Gate.", "Walk down the central path and bear left towards the canteens corridor.", "The Main Food Court is on the left side of the courtyard."] } },
+            { id: "canteen2", name: "Block 24 Nescafe Station", type: "food", building: "Block 24", floor: "Ground", desc: "Coffee, snacks, & quick bites", coords: [13.1824, 80.0386], directions: { block24lobby: ["Start at the Block 24 ground floor lobby.", "Walk out through the side glass exit door on the east.", "The Nescafe Coffee Station is directly in front under the canopy."] } }
+          ];
+          localStorage.setItem('mock_db', JSON.stringify(parsedDb));
         }
         if (!parsedDb.assignmentSubmissions) {
           parsedDb.assignmentSubmissions = [
@@ -2395,6 +2581,47 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       saveMockDb(db);
       return { status: 200, data: q };
     }
+  }
+
+  // Indoor POIs Routes
+  if (cleanUrl.startsWith('/indoor-pois') && method === 'get') {
+    return { status: 200, data: { pois: db.indoorPois || [] } };
+  }
+  if (cleanUrl.startsWith('/indoor-pois') && method === 'post') {
+    const payload = getPayload(config.data);
+    const newPoi = {
+      id: `poi_${Date.now()}`,
+      name: payload.name,
+      type: payload.type || 'academic',
+      building: payload.building || '',
+      floor: payload.floor || '',
+      desc: payload.desc || '',
+      coords: payload.coords || [13.1818, 80.0401],
+      directions: payload.directions || {}
+    };
+    if (!db.indoorPois) db.indoorPois = [];
+    db.indoorPois.push(newPoi);
+    saveMockDb(db);
+    return { status: 201, data: { poi: newPoi } };
+  }
+  if (cleanUrl.startsWith('/indoor-pois/') && method === 'put') {
+    const poiId = cleanUrl.split('/').pop();
+    const payload = getPayload(config.data);
+    if (!db.indoorPois) db.indoorPois = [];
+    const idx = db.indoorPois.findIndex((p: any) => p.id === poiId);
+    if (idx !== -1) {
+      db.indoorPois[idx] = { ...db.indoorPois[idx], ...payload };
+      saveMockDb(db);
+      return { status: 200, data: { poi: db.indoorPois[idx] } };
+    }
+    return { status: 404, data: { error: 'POI not found' } };
+  }
+  if (cleanUrl.startsWith('/indoor-pois/') && method === 'delete') {
+    const poiId = cleanUrl.split('/').pop();
+    if (!db.indoorPois) db.indoorPois = [];
+    db.indoorPois = db.indoorPois.filter((p: any) => p.id !== poiId);
+    saveMockDb(db);
+    return { status: 200, data: { success: true } };
   }
 
   // ==========================================
