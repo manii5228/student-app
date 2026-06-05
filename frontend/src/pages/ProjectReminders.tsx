@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 
-interface MilestoneT { id: string; title: string; due_date: string | null; is_completed: boolean; column: string; assigned_to: string | null; }
+interface MilestoneT { id: string; title: string; due_date: string | null; is_completed: boolean; column: string; assigned_to: string | null; proposed_column?: string | null; }
 interface ProjectT { id: string; title: string; description: string|null; team_members: string|null; deadline: string|null; status: string; progress_pct: number; milestones: MilestoneT[]; last_modified_by: string|null; last_modified_at: string|null; faculty_id?: string|null; faculty_status?: string|null; }
 
 const COLUMNS = [
@@ -122,18 +122,12 @@ const ProjectReminders = () => {
       return;
     }
     let nextCol = 'todo';
-    if (ms.column === 'todo') {
+    const currentActiveCol = ms.proposed_column || ms.column;
+    if (currentActiveCol === 'todo') {
       nextCol = 'in_progress';
-    } else if (ms.column === 'in_progress') {
-      // Done status supervisor approval prompt
-      const supervisorName = prompt("This task 'Done' status requires supervisor approval. Please enter the name of the Project Supervisor / Faculty to sign off:");
-      if (!supervisorName || !supervisorName.trim()) {
-        alert("Supervisor approval is required to mark this task as Done!");
-        return;
-      }
+    } else if (currentActiveCol === 'in_progress') {
       nextCol = 'done';
-      alert(`Task signed off and approved by Prof. ${supervisorName.trim()}!`);
-    } else if (ms.column === 'done') {
+    } else if (currentActiveCol === 'done') {
       nextCol = 'todo';
     }
     
@@ -179,9 +173,16 @@ const ProjectReminders = () => {
       const {data} = await api.put(`/career/milestones/${mid}`, { column: newColumn });
       if (data && data.project) {
         setProjects(p => p.map(x => x.id === data.project.id ? data.project : x));
+        const updatedMs = data.project.milestones?.find((m: any) => m.id === mid);
+        if (updatedMs && updatedMs.proposed_column) {
+          alert(`Move to '${updatedMs.proposed_column === 'in_progress' ? 'In Progress' : 'Done'}' requested. Faculty advisor approval required!`);
+        }
       } else if (data && data.milestone && data.project) {
         // Correct Python structure
         setProjects(p => p.map(x => x.id === data.project.id ? data.project : x));
+        if (data.milestone.proposed_column) {
+          alert(`Move to '${data.milestone.proposed_column === 'in_progress' ? 'In Progress' : 'Done'}' requested. Faculty advisor approval required!`);
+        }
       } else if (data && data.id) {
         // Mock raw milestone response
         setProjects(p => p.map(proj => {
@@ -411,13 +412,26 @@ const ProjectReminders = () => {
                               className="mt-0.5 shrink-0 text-slate-400 hover:text-cyan-600 transition-colors"
                               title="Cycle Status"
                             >
-                              {ms.column === 'todo' && <Circle className="w-4.5 h-4.5 text-slate-400" />}
-                              {ms.column === 'in_progress' && <Clock className="w-4.5 h-4.5 text-amber-500 animate-pulse" />}
-                              {ms.column === 'done' && <CheckCircle className="w-4.5 h-4.5 text-emerald-500" />}
+                              {ms.proposed_column ? (
+                                <Clock className="w-4.5 h-4.5 text-amber-500 animate-pulse" />
+                              ) : (
+                                <>
+                                  {ms.column === 'todo' && <Circle className="w-4.5 h-4.5 text-slate-400" />}
+                                  {ms.column === 'in_progress' && <Clock className="w-4.5 h-4.5 text-amber-500" />}
+                                  {ms.column === 'done' && <CheckCircle className="w-4.5 h-4.5 text-emerald-500" />}
+                                </>
+                              )}
                             </button>
                             <GripVertical className="w-3.5 h-3.5 text-slate-300 mt-0.5 shrink-0"/>
                             <div className="flex-1 min-w-0">
                               <p className={`text-xs font-bold leading-tight ${ms.is_completed ? 'line-through text-slate-400' : 'text-slate-800'}`}>{ms.title}</p>
+                              {ms.proposed_column && (
+                                <div className="mt-1">
+                                  <span className="inline-flex items-center text-[9px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md animate-pulse">
+                                    Pending Move to: {ms.proposed_column === 'in_progress' ? 'In Progress' : 'Done'}
+                                  </span>
+                                </div>
+                              )}
                               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                 {ms.due_date && (
                                   <span className="text-[9px] font-bold text-slate-400 flex items-center gap-0.5">

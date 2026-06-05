@@ -51,6 +51,7 @@ class Milestone(db.Model):
     is_completed = db.Column(db.Boolean, default=False)
     completed_at = db.Column(db.DateTime, nullable=True)
     column = db.Column(db.String(20), default="todo")  # todo, in_progress, done
+    proposed_column = db.Column(db.String(20), nullable=True)  # proposed column waiting for approval
     assigned_to = db.Column(db.String(200), nullable=True)  # team member name
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
@@ -61,6 +62,7 @@ class Milestone(db.Model):
             "is_completed": self.is_completed,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "column": self.column, "assigned_to": self.assigned_to,
+            "proposed_column": self.proposed_column,
         }
 
 

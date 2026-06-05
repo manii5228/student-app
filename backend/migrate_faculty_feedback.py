@@ -33,6 +33,13 @@ if os.path.exists(db_path):
     except sqlite3.OperationalError as e:
         print("Column 'status' already exists or failed:", e)
 
+    # 4. Add proposed_column to milestones table
+    try:
+        cursor.execute("ALTER TABLE milestones ADD COLUMN proposed_column VARCHAR(20)")
+        print("Column 'proposed_column' added to milestones.")
+    except sqlite3.OperationalError as e:
+        print("Column 'proposed_column' already exists or failed:", e)
+
     conn.commit()
     conn.close()
     print("Migration completed.")

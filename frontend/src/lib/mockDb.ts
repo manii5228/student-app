@@ -2870,16 +2870,32 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     const mid = cleanUrl.split('/').pop();
     const payload = getPayload(config.data);
     let updatedProject: any = null;
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    const isStudent = activeUser?.role === 'student';
     
     (db.projects || []).forEach((proj: any) => {
       const ms = (proj.milestones || []).find((m: any) => m.id === mid);
       if (ms) {
         if (payload.column !== undefined) {
-          ms.column = payload.column;
-          ms.is_completed = payload.column === 'done';
+          if (payload.column === 'todo') {
+            ms.column = 'todo';
+            ms.is_completed = false;
+            ms.proposed_column = null;
+          } else {
+            if (isStudent) {
+              ms.proposed_column = payload.column;
+            } else {
+              ms.column = payload.column;
+              ms.is_completed = payload.column === 'done';
+              ms.proposed_column = null;
+            }
+          }
         }
         if (payload.assigned_to !== undefined) {
           ms.assigned_to = payload.assigned_to;
+        }
+        if (payload.title !== undefined) {
+          ms.title = payload.title;
         }
         const doneCount = proj.milestones.filter((m: any) => m.column === 'done').length;
         proj.progress_pct = Math.round((doneCount / proj.milestones.length) * 100);
@@ -2891,6 +2907,39 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       saveMockDb(db);
       return { status: 200, data: { project: updatedProject } };
     }
+  }
+
+  if (cleanUrl.startsWith('/career/milestones/') && cleanUrl.endsWith('/approve') && method === 'post') {
+    const mid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    const action = payload.action;
+    let updatedProject: any = null;
+    let targetMs: any = null;
+    
+    (db.projects || []).forEach((proj: any) => {
+      const ms = (proj.milestones || []).find((m: any) => m.id === mid);
+      if (ms) {
+        targetMs = ms;
+        if (action === 'approve') {
+          if (ms.proposed_column) {
+            ms.column = ms.proposed_column;
+            ms.is_completed = ms.proposed_column === 'done';
+          }
+          ms.proposed_column = null;
+        } else if (action === 'reject') {
+          ms.proposed_column = null;
+        }
+        const doneCount = proj.milestones.filter((m: any) => m.column === 'done').length;
+        proj.progress_pct = Math.round((doneCount / proj.milestones.length) * 100);
+        updatedProject = proj;
+      }
+    });
+    
+    if (updatedProject) {
+      saveMockDb(db);
+      return { status: 200, data: { message: `Milestone change ${action}d successfully`, milestone: targetMs, project: updatedProject } };
+    }
+    return { status: 404, data: { error: "Milestone not found" } };
   }
 
   if (cleanUrl.startsWith('/career/projects/') && cleanUrl.endsWith('/accept') && method === 'post') {

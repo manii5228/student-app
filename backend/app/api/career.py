@@ -692,10 +692,28 @@ def update_milestone(mid):
     if not ms:
         return jsonify({"error": "Not found"}), 404
     data = request.get_json()
+    
+    # Check if logged in user is student
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    is_student = user.role == "student" if user else True
+
     if "column" in data:
-        ms.column = data["column"]
-        ms.is_completed = data["column"] == "done"
-        ms.completed_at = datetime.now(timezone.utc) if ms.is_completed else None
+        new_col = data["column"]
+        if new_col == "todo":
+            ms.column = "todo"
+            ms.is_completed = False
+            ms.completed_at = None
+            ms.proposed_column = None
+        else:
+            if is_student:
+                ms.proposed_column = new_col
+            else:
+                ms.column = new_col
+                ms.is_completed = new_col == "done"
+                ms.completed_at = datetime.now(timezone.utc) if ms.is_completed else None
+                ms.proposed_column = None
+
     if "assigned_to" in data:
         ms.assigned_to = data["assigned_to"]
     if "title" in data:
@@ -706,6 +724,36 @@ def update_milestone(mid):
     db.session.commit()
     _update_project_progress(ms.project)
     return jsonify({"milestone": ms.to_dict(), "project": ms.project.to_dict()}), 200
+
+
+@career_bp.route("/milestones/<mid>/approve", methods=["POST"])
+@jwt_required()
+@role_required("faculty", "admin")
+def approve_milestone_change(mid):
+    """Approve or reject a proposed milestone column change."""
+    ms = db.session.get(Milestone, mid)
+    if not ms:
+        return jsonify({"error": "Milestone not found"}), 404
+        
+    data = request.get_json() or {}
+    action = data.get("action")  # "approve" or "reject"
+    
+    if not ms.proposed_column:
+        return jsonify({"error": "No proposed changes for this milestone"}), 400
+        
+    if action == "approve":
+        ms.column = ms.proposed_column
+        ms.is_completed = ms.proposed_column == "done"
+        ms.completed_at = datetime.now(timezone.utc) if ms.is_completed else None
+        ms.proposed_column = None
+    elif action == "reject":
+        ms.proposed_column = None
+    else:
+        return jsonify({"error": "Invalid action, must be approve or reject"}), 400
+        
+    db.session.commit()
+    _update_project_progress(ms.project)
+    return jsonify({"message": f"Milestone change {action}d successfully", "milestone": ms.to_dict(), "project": ms.project.to_dict()}), 200
 
 
 def _update_project_progress(project):

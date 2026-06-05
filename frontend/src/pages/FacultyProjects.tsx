@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 
-interface MilestoneT { id: string; title: string; column: string; is_completed: boolean; }
+interface MilestoneT { id: string; title: string; column: string; is_completed: boolean; proposed_column?: string | null; assigned_to?: string | null; }
 interface ProjectT { id: string; title: string; description: string|null; team_members: string|null; deadline: string|null; status: string; progress_pct: number; faculty_id: string|null; faculty_status: string|null; student_id: string; milestones: MilestoneT[]; }
 
 const FacultyProjects = () => {
@@ -60,6 +60,20 @@ const FacultyProjects = () => {
       setProjects(prev => prev.map(p => p.id === pid ? data.project : p));
     } catch {
       alert("Failed to complete project.");
+    }
+  };
+
+  const handleApproveMilestone = async (pid: string, mid: string, action: 'approve' | 'reject') => {
+    try {
+      const { data } = await api.post(`/career/milestones/${mid}/approve`, { action });
+      alert(`Milestone change ${action}d successfully!`);
+      if (data && data.project) {
+        setProjects(prev => prev.map(p => p.id === pid ? data.project : p));
+      } else {
+        fetchData();
+      }
+    } catch {
+      alert(`Failed to ${action} milestone change.`);
     }
   };
 
@@ -176,6 +190,52 @@ const FacultyProjects = () => {
                       Milestones: {doneMilestones}/{totalMilestones} done
                     </span>
                   </div>
+
+                  {/* Pending Milestone Approvals */}
+                  {(() => {
+                    const pendingMilestones = p.milestones?.filter(m => m.proposed_column) || [];
+                    if (pendingMilestones.length === 0) return null;
+                    return (
+                      <div className="mt-3 pt-3 border-t border-slate-100 flex flex-col gap-2">
+                        <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-amber-500 animate-pulse" />
+                          Pending Milestone Approvals ({pendingMilestones.length})
+                        </h4>
+                        <div className="flex flex-col gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-150">
+                          {pendingMilestones.map(m => (
+                            <div key={m.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-slate-200/60 shadow-sm">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-slate-800 leading-tight">{m.title}</p>
+                                <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                                  Current: <span className="bg-slate-100 text-slate-700 px-1 rounded uppercase font-bold text-[9px]">{m.column.replace('_', ' ')}</span>
+                                  {' '}→ Proposed:{' '}
+                                  <span className={`px-1 rounded uppercase font-black text-[9px] ${
+                                    m.proposed_column === 'done' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {m.proposed_column?.replace('_', ' ')}
+                                  </span>
+                                </p>
+                              </div>
+                              <div className="flex gap-1.5 shrink-0 self-end sm:self-auto">
+                                <button
+                                  onClick={() => handleApproveMilestone(p.id, m.id, 'reject')}
+                                  className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 text-[10px] font-extrabold rounded-lg border border-red-200 transition-colors flex items-center gap-0.5"
+                                >
+                                  <X className="w-3 h-3" /> Reject
+                                </button>
+                                <button
+                                  onClick={() => handleApproveMilestone(p.id, m.id, 'approve')}
+                                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-extrabold rounded-lg transition-colors flex items-center gap-0.5"
+                                >
+                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-200" /> Approve
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Action buttons */}
                   {p.faculty_status === 'pending' && (
