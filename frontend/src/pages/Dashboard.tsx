@@ -5,7 +5,7 @@ import {
   CalendarDays, QrCode, Bus, MapPin, Briefcase, GraduationCap,
   Activity, TrendingUp, CheckCircle, AlertTriangle, DollarSign,
   Calendar, Users, Coffee, Zap, Command, Award, Trophy, Star,
-  ThumbsUp, Plus
+  ThumbsUp, Plus, GripVertical, Sliders, Settings, Eye, EyeOff
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import UpsellModal from '../components/UpsellModal';
@@ -78,6 +78,30 @@ const FALLBACK_FEED: FeedData = {
   stats: { classes_today: 4, pending_assignments: 2, unread_notices: 3, attendance_pct: 85.0 },
 };
 
+interface WidgetConfig {
+  id: string;
+  title: string;
+  size: 'small' | 'medium' | 'large';
+  visible: boolean;
+}
+
+const DEFAULT_WIDGETS: WidgetConfig[] = [
+  { id: 'quick_actions', title: 'Quick Actions', size: 'medium', visible: true },
+  { id: 'attendance', title: 'Attendance Progress', size: 'small', visible: true },
+  { id: 'schedule', title: "Today's Schedule", size: 'medium', visible: true },
+  { id: 'deadlines', title: 'Upcoming Deadlines', size: 'small', visible: true },
+  { id: 'activity', title: 'Activity Chart', size: 'medium', visible: true },
+  { id: 'notices', title: 'Notice Board', size: 'small', visible: true },
+  { id: 'portfolio', title: 'Portfolio & Achievements', size: 'medium', visible: true },
+];
+
+const GUEST_SLIDES = [
+  { url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800&q=80', title: "Opening Concert: DJ Axwell", desc: "LAVAZA '26: Rocking the Veltech Amphitheatre" },
+  { url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80', title: "Battle of the Beats", desc: "Inter-collegiate Choreography Finals" },
+  { url: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=800&q=80', title: "Rock Showdown", desc: "Top bands battle for the ₹1,00,000 grand prize" },
+  { url: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=800&q=80', title: "Panel & Tech Talks", desc: "Leading industry speakers share insights" },
+];
+
 // ── Dashboard Component ──────────────────────────────────────────
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -90,6 +114,134 @@ const Dashboard = () => {
   const [upsellOpen, setUpsellOpen] = useState(false);
   const [feed, setFeed] = useState<FeedData>(FALLBACK_FEED);
   const [loading, setLoading] = useState(true);
+
+  const activeUserId = user?.id || 'guest';
+  const [widgets, setWidgets] = useState<WidgetConfig[]>(() => {
+    try {
+      const stored = localStorage.getItem(`widgets_${activeUserId}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        const parsedIds = parsed.map((w: any) => w.id);
+        const missing = DEFAULT_WIDGETS.filter(w => !parsedIds.includes(w.id));
+        return [...parsed, ...missing];
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_WIDGETS;
+  });
+
+  const saveWidgetsConfig = (newWidgets: WidgetConfig[]) => {
+    localStorage.setItem(`widgets_${activeUserId}`, JSON.stringify(newWidgets));
+  };
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [manageWidgetsOpen, setManageWidgetsOpen] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  useEffect(() => {
+    if (!isGuest) return;
+    const interval = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % GUEST_SLIDES.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isGuest]);
+
+  const handleResizeWidget = (id: string, size: 'small' | 'medium' | 'large') => {
+    const updated = widgets.map(w => w.id === id ? { ...w, size } : w);
+    setWidgets(updated);
+    saveWidgetsConfig(updated);
+  };
+
+  const handleToggleWidgetVisibility = (id: string) => {
+    const updated = widgets.map(w => w.id === id ? { ...w, visible: !w.visible } : w);
+    setWidgets(updated);
+    saveWidgetsConfig(updated);
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    const sourceIndexStr = e.dataTransfer.getData('text/plain');
+    if (!sourceIndexStr) return;
+    const sourceIndex = parseInt(sourceIndexStr, 10);
+    if (sourceIndex === targetIndex) return;
+
+    const newWidgets = [...widgets];
+    const [draggedItem] = newWidgets.splice(sourceIndex, 1);
+    newWidgets.splice(targetIndex, 0, draggedItem);
+    setWidgets(newWidgets);
+    saveWidgetsConfig(newWidgets);
+  };
+
+  const handleNotifClick = async (n: Notification) => {
+    if (!n.read) {
+      try {
+        await api.post(`/home/notifications/${n.id}/read`);
+        setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (err) {
+        console.error("Failed to mark notification as read", err);
+      }
+    }
+    setNotifOpen(false);
+    navigate(n.path);
+  };
+
+  const renderWidgetHeader = (w: WidgetConfig) => {
+    return (
+      <div className="widget-header">
+        <span className="widget-title">{w.title}</span>
+        <div className="widget-header-controls">
+          {isEditMode ? (
+            <>
+              <select
+                value={w.size}
+                onChange={(e) => handleResizeWidget(w.id, e.target.value as any)}
+                className="widget-size-select"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="small">S</option>
+                <option value="medium">M</option>
+                <option value="large">L</option>
+              </select>
+              <button className="widget-action-btn" onClick={(e) => { e.stopPropagation(); handleToggleWidgetVisibility(w.id); }} title="Hide">
+                <EyeOff size={14} />
+              </button>
+              <div className="widget-drag-handle" title="Drag to reorder">
+                <GripVertical size={14} />
+              </div>
+            </>
+          ) : (
+            w.id === 'schedule' ? (
+              <button className="dash-see-all" onClick={() => navigate('/academic/timetable')}>
+                View all <ChevronRight size={13} />
+              </button>
+            ) : w.id === 'deadlines' ? (
+              <button className="dash-see-all" onClick={() => { isGuest ? setUpsellOpen(true) : navigate('/academic/assignments'); }}>
+                View all <ChevronRight size={13} />
+              </button>
+            ) : w.id === 'notices' ? (
+              <button className="dash-see-all" onClick={() => navigate('/campus/notices')}>
+                View all <ChevronRight size={13} />
+              </button>
+            ) : w.id === 'portfolio' ? (
+              <button className="dash-see-all" onClick={() => navigate('/career/portfolio')}>
+                Build Portfolio <ChevronRight size={13} />
+              </button>
+            ) : null
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // ── Theme / Accent variables ───────────────────────────────────
   const [accentColor, setAccentColor] = useState(() => localStorage.getItem('accent_color') || '#0080c7');
@@ -329,9 +481,7 @@ const Dashboard = () => {
 
   // ── Activity bar chart (like reference) ────────────────────
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const classData = feed.today_classes.length > 0
-    ? [3, 4, 2, feed.stats.classes_today, 3, 1]
-    : [2, 3, 1, 0, 2, 1];
+  const classData = feed.weekly_activity || [3, 4, 2, 4, 3, 1];
   const maxBar = Math.max(...classData, 1);
 
   // ── RENDER ─────────────────────────────────────────────────
@@ -381,256 +531,286 @@ const Dashboard = () => {
       {/* ═══ SCROLLABLE CONTENT ═══ */}
       <div className="dash-scroll">
 
-        {/* ── Quick Actions (circular icons like badges) ──────── */}
-        <div className="dash-section">
-          <div className="dash-section-header">
-            <h2 className="dash-section-title">Quick Actions</h2>
+        {/* Guest Events Slider */}
+        {isGuest && (
+          <div className="guest-slider-container">
+            <div className="guest-slider-track" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+              {GUEST_SLIDES.map((slide, idx) => (
+                <div key={idx} className="guest-slide">
+                  <img src={slide.url} alt={slide.title} className="guest-slide-image" />
+                  <div className="guest-slide-overlay" />
+                  <div className="guest-slide-content">
+                    <span className="guest-slide-tag">LAVAZA '26 Event Highlight</span>
+                    <h3 className="guest-slide-title">{slide.title}</h3>
+                    <p className="guest-slide-desc">{slide.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="guest-slider-dots">
+              {GUEST_SLIDES.map((_, idx) => (
+                <button
+                  key={idx}
+                  className={`guest-slider-dot ${idx === currentSlide ? 'active' : ''}`}
+                  onClick={() => setCurrentSlide(idx)}
+                />
+              ))}
+            </div>
           </div>
-          <div className="dash-actions-grid">
-            {QUICK_ACTIONS.map(a => (
-              <button
-                key={a.name}
-                className="dash-action-item"
-                onClick={() => {
-                  if (isGuest && ['Assignments', 'Jobs', 'Library'].includes(a.name)) setUpsellOpen(true);
-                  else navigate(a.path);
-                }}
+        )}
+
+        {/* Widget Customization Controls */}
+        <div className="dash-controls-row">
+          <button
+            className={`dash-control-btn ${isEditMode ? 'active' : ''}`}
+            onClick={() => setIsEditMode(!isEditMode)}
+          >
+            <Sliders size={14} />
+            <span>{isEditMode ? 'Exit Edit' : 'Edit Layout'}</span>
+          </button>
+          <button
+            className="dash-control-btn"
+            onClick={() => setManageWidgetsOpen(true)}
+          >
+            <Settings size={14} />
+            <span>Manage Widgets</span>
+          </button>
+        </div>
+
+        {/* Widgets Grid */}
+        <div className="widgets-grid">
+          {widgets
+            .filter(w => w.visible)
+            .map((w, index) => (
+              <div
+                key={w.id}
+                draggable={isEditMode}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, index)}
+                className={`widget-wrapper widget-span-${w.size} ${isEditMode ? 'edit-mode' : ''}`}
               >
-                <div className="dash-action-circle" style={{ background: a.accent + '14', color: a.accent }}>
-                  <a.icon size={20} />
-                </div>
-                <span className="dash-action-label">{a.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Today's Schedule ────────────────────────────────── */}
-        <div className="dash-section">
-          <div className="dash-section-header">
-            <h2 className="dash-section-title">Today's Schedule</h2>
-            <button className="dash-see-all" onClick={() => navigate('/academic/timetable')}>
-              View all <ChevronRight size={13} />
-            </button>
-          </div>
-
-          {feed.today_classes.length === 0 ? (
-            <div className="dash-empty">No classes today 🎉</div>
-          ) : (
-            <div className="dash-schedule-list">
-              {feed.today_classes.map((cls, i) => (
-                <button key={cls.id || i} className="dash-schedule-item" onClick={() => navigate('/academic/timetable')}>
-                  <div className="dash-schedule-time">
-                    <span className="dash-time-text">{cls.start_time}</span>
-                    <span className="dash-time-dot" />
-                    <span className="dash-time-sub">{cls.end_time}</span>
-                  </div>
-                  <div className="dash-schedule-info">
-                    <h3 className="dash-schedule-name">{cls.subject_name}</h3>
-                    <p className="dash-schedule-meta">{cls.faculty_name} · {cls.room || 'TBD'}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── Upcoming Deadlines ──────────────────────────────── */}
-        {feed.upcoming_assignments.length > 0 && (
-          <div className="dash-section">
-            <div className="dash-section-header">
-              <h2 className="dash-section-title">Deadlines</h2>
-              <button className="dash-see-all" onClick={() => { isGuest ? setUpsellOpen(true) : navigate('/academic/assignments'); }}>
-                View all <ChevronRight size={13} />
-              </button>
-            </div>
-            <div className="dash-deadline-list">
-              {feed.upcoming_assignments.map((a, i) => {
-                const dl = getDaysLeft(a.due_date);
-                const urgent = dl === 'Due today';
-                return (
-                  <button key={a.id || i} className="dash-deadline-item" onClick={() => isGuest ? setUpsellOpen(true) : navigate('/academic/assignments')}>
-                    <div className="dash-deadline-icon" style={{ background: urgent ? '#a91f2314' : '#0080c714' }}>
-                      <FileText size={16} color={urgent ? '#a91f23' : '#0080c7'} />
-                    </div>
-                    <div className="dash-deadline-info">
-                      <h3>{a.title}</h3>
-                      <p>{a.subject || 'Assignment'}</p>
-                    </div>
-                    <span className="dash-deadline-badge" style={{ background: urgent ? '#a91f2314' : '#e9ecef', color: urgent ? '#a91f23' : '#495057' }}>
-                      {dl}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ── Activity Card (dark, like reference) ────────────── */}
-        <div className="dash-section">
-          <div className="dash-activity-card">
-            <div className="dash-activity-header">
-              <div>
-                <p className="dash-activity-label">Your activity</p>
-                <p className="dash-activity-value">
-                  {feed.attendance.present}<span className="dash-activity-unit"> classes attended</span>
-                </p>
-              </div>
-              <div className="dash-activity-ring">
-                <DonutChart pct={feed.attendance.percentage} color="#27bcd1" size={44} />
-                <span className="dash-ring-text">{feed.attendance.percentage}%</span>
-              </div>
-            </div>
-            <div className="dash-bar-chart">
-              {days.map((d, i) => (
-                <div key={d} className="dash-bar-col">
-                  <div className="dash-bar-track">
-                    <div
-                      className="dash-bar-fill"
-                      style={{
-                        height: `${(classData[i] / maxBar) * 100}%`,
-                        background: i === 3 ? '#27bcd1' : '#495057',
-                      }}
-                    >
-                      {i === 3 && <span className="dash-bar-tip">{classData[i]}</span>}
-                    </div>
-                  </div>
-                  <span className="dash-bar-day">{d}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Recent Notices ──────────────────────────────────── */}
-        {feed.recent_notices.length > 0 && (
-          <div className="dash-section" style={{ marginBottom: 24 }}>
-            <div className="dash-section-header">
-              <h2 className="dash-section-title">Notices</h2>
-              <button className="dash-see-all" onClick={() => navigate('/campus/notices')}>
-                View all <ChevronRight size={13} />
-              </button>
-            </div>
-            <div className="dash-deadline-list">
-              {feed.recent_notices.map((n, i) => (
-                <button key={n.id || i} className="dash-deadline-item" onClick={() => navigate('/campus/notices')}>
-                  <div className="dash-deadline-icon" style={{ background: n.priority === 'high' ? '#a91f2314' : '#0080c714' }}>
-                    {n.priority === 'high' ? <AlertTriangle size={16} color="#a91f23" /> : <Bell size={16} color="#0080c7" />}
-                  </div>
-                  <div className="dash-deadline-info">
-                    <h3>{n.title}</h3>
-                    <p>{n.content}</p>
-                  </div>
-                  {n.priority === 'high' && <span className="dash-urgency-dot" />}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── My Portfolio & Achievements (Moved from Profile) ── */}
-        {!isGuest && (
-          <div className="dash-section" style={{ marginBottom: 24 }}>
-            <div className="dash-section-header">
-              <h2 className="dash-section-title">My Portfolio & Achievements</h2>
-              <button className="dash-see-all" onClick={() => navigate('/career/portfolio')}>
-                Build Portfolio <ChevronRight size={13} />
-              </button>
-            </div>
-
-            {/* Achievements Sub-section */}
-            <div className="mb-5">
-              <div className="flex items-center justify-between mb-3.5">
-                <h3 className="text-xs font-bold flex items-center gap-1.5" style={{ color: C.textPrimary }}>
-                  <Trophy className="w-4 h-4" style={{ color: C.terra }} /> Verified Achievements
-                </h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: C.border, color: C.textSecondary }}>
-                  {achievements.length}
-                </span>
-              </div>
-              
-              {achievements.length === 0 ? (
-                <div className="text-center py-6 border border-dashed rounded-2xl" style={{ borderColor: C.border }}>
-                  <p className="text-xs" style={{ color: C.textSecondary }}>No verified achievements yet.</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {achievements.map((a, i) => (
-                    <div key={a.id || i} className="rounded-xl p-3 flex items-center gap-3 border" style={{ background: C.card, borderColor: C.border }}>
-                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-sm shrink-0 bg-slate-50 dark:bg-slate-800">
-                        {a.icon || '🏆'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-bold truncate" style={{ color: C.textPrimary }}>{a.title}</h4>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full capitalize" style={{ background: C.blue + '14', color: C.blue }}>
-                            {a.type}
-                          </span>
-                          <span className="text-[9px]" style={{ color: C.textSecondary }}>
-                            {a.date ? new Date(a.date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'Verified'}
-                          </span>
-                        </div>
-                      </div>
-                      <CheckCircle className="w-4 h-4 shrink-0 text-emerald-500" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Skill Endorsements Sub-section */}
-            <div className="mb-5">
-              <div className="flex items-center justify-between mb-3.5">
-                <h3 className="text-xs font-bold flex items-center gap-1.5" style={{ color: C.textPrimary }}>
-                  <Star className="w-4 h-4" style={{ color: C.blue }} /> Skill Endorsements
-                </h3>
-              </div>
-              
-              {skills.length === 0 ? (
-                <div className="text-center py-6 border border-dashed rounded-2xl" style={{ borderColor: C.border }}>
-                  <p className="text-xs" style={{ color: C.textSecondary }}>No skills added. Add them under Profile.</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {skills.map(skill => (
-                    <div key={skill.name} className="rounded-xl p-3 flex items-center gap-3 border" style={{ background: C.card, borderColor: C.border }}>
-                      <div className="flex-1">
-                        <h4 className="text-xs font-bold" style={{ color: C.textPrimary }}>{skill.name}</h4>
-                        <div className="flex items-center gap-1 mt-1">
-                          <Users className="w-3 h-3 text-slate-400" />
-                          <span className="text-[9px]" style={{ color: C.textSecondary }}>{skill.endorsements} endorsements</span>
-                        </div>
-                      </div>
+                {renderWidgetHeader(w)}
+                
+                {w.id === 'quick_actions' && (
+                  <div className="dash-actions-grid" style={{ width: '100%' }}>
+                    {QUICK_ACTIONS.map(a => (
                       <button
-                        onClick={() => endorseSkill(skill.name)}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border"
-                        style={{
-                          background: skill.endorsed ? C.blue + '14' : 'transparent',
-                          color: skill.endorsed ? C.blue : C.textSecondary,
-                          borderColor: skill.endorsed ? C.blue + '30' : C.border,
+                        key={a.name}
+                        className="dash-action-item"
+                        onClick={() => {
+                          if (isGuest && ['Assignments', 'Jobs', 'Library'].includes(a.name)) setUpsellOpen(true);
+                          else navigate(a.path);
                         }}
                       >
-                        <ThumbsUp className={`w-3 h-3 ${skill.endorsed ? 'fill-current' : ''}`} />
-                        {skill.endorsed ? 'Endorsed' : 'Endorse'}
+                        <div className="dash-action-circle" style={{ background: a.accent + '14', color: a.accent }}>
+                          <a.icon size={20} />
+                        </div>
+                        <span className="dash-action-label">{a.name}</span>
                       </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
 
-            {/* Certification verification trigger */}
-            <button
-              onClick={() => setShowAddCertModal(true)}
-              className="w-full border-2 border-dashed rounded-2xl p-4 flex items-center justify-center gap-2 text-xs font-bold transition-all"
-              style={{ borderColor: C.border, color: C.textSecondary, background: 'transparent' }}
-            >
-              <Plus className="w-4 h-4" />
-              Verify Certification (Coursera/NPTEL)
-            </button>
-          </div>
-        )}
+                {w.id === 'attendance' && (
+                  <div className="widget-attendance-content" onClick={() => navigate('/academic/attendance')} style={{ cursor: 'pointer', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <div>
+                        <div className="dash-stat-value" style={{ fontSize: '28px' }}>
+                          {feed.stats.attendance_pct}<span className="dash-stat-unit">%</span>
+                        </div>
+                        <p className="text-[11px]" style={{ color: C.textSecondary, margin: '4px 0 0 0' }}>
+                          {feed.attendance.present} / {feed.attendance.total_classes} classes
+                        </p>
+                      </div>
+                      <div style={{ position: 'relative' }}>
+                        <DonutChart pct={feed.stats.attendance_pct} color={C.cyan} size={50} />
+                        <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: C.cyan }}>
+                          {feed.stats.attendance_pct}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {w.id === 'schedule' && (
+                  <div className="widget-schedule-content" style={{ width: '100%' }}>
+                    {feed.today_classes.length === 0 ? (
+                      <div className="dash-empty">No classes today 🎉</div>
+                    ) : (
+                      <div className="dash-schedule-list">
+                        {feed.today_classes.map((cls, i) => (
+                          <button key={cls.id || i} className="dash-schedule-item" onClick={() => navigate('/academic/timetable')} style={{ width: '100%' }}>
+                            <div className="dash-schedule-time">
+                              <span className="dash-time-text">{cls.start_time}</span>
+                              <span className="dash-time-dot" />
+                              <span className="dash-time-sub">{cls.end_time}</span>
+                            </div>
+                            <div className="dash-schedule-info">
+                              <h3 className="dash-schedule-name">{cls.subject_name}</h3>
+                              <p className="dash-schedule-meta">{cls.faculty_name} · {cls.room || 'TBD'}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {w.id === 'deadlines' && (
+                  <div className="widget-deadlines-content" style={{ width: '100%' }}>
+                    {feed.upcoming_assignments.length === 0 ? (
+                      <div className="dash-empty">No upcoming deadlines 🎉</div>
+                    ) : (
+                      <div className="dash-deadline-list">
+                        {feed.upcoming_assignments.map((a, i) => {
+                          const dl = getDaysLeft(a.due_date);
+                          const urgent = dl === 'Due today';
+                          return (
+                            <button key={a.id || i} className="dash-deadline-item" onClick={() => isGuest ? setUpsellOpen(true) : navigate('/academic/assignments')} style={{ width: '100%' }}>
+                              <div className="dash-deadline-icon" style={{ background: urgent ? '#a91f2314' : '#0080c714' }}>
+                                <FileText size={16} color={urgent ? '#a91f23' : '#0080c7'} />
+                              </div>
+                              <div className="dash-deadline-info">
+                                <h3>{a.title}</h3>
+                                <p>{a.subject || 'Assignment'}</p>
+                              </div>
+                              <span className="dash-deadline-badge" style={{ background: urgent ? '#a91f2314' : '#e9ecef', color: urgent ? '#a91f23' : '#495057' }}>
+                                {dl}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {w.id === 'activity' && (
+                  <div className="widget-activity-content" style={{ width: '100%' }}>
+                    <div className="dash-activity-header" style={{ marginBottom: '12px' }}>
+                      <div>
+                        <p className="dash-activity-value" style={{ fontSize: '18px' }}>
+                          {feed.attendance.present}<span className="dash-activity-unit"> classes attended</span>
+                        </p>
+                      </div>
+                      <div className="dash-activity-ring">
+                        <DonutChart pct={feed.attendance.percentage} color="#27bcd1" size={40} />
+                        <span className="dash-ring-text" style={{ fontSize: '10px' }}>{feed.attendance.percentage}%</span>
+                      </div>
+                    </div>
+                    <div className="dash-bar-chart" style={{ height: '70px' }}>
+                      {days.map((d, i) => (
+                        <div key={d} className="dash-bar-col">
+                          <div className="dash-bar-track">
+                            <div
+                              className="dash-bar-fill"
+                              style={{
+                                height: `${(classData[i] / maxBar) * 100}%`,
+                                background: i === 3 ? '#27bcd1' : '#495057',
+                              }}
+                            >
+                              {i === 3 && <span className="dash-bar-tip" style={{ fontSize: '9px', padding: '1px 5px', top: '-18px' }}>{classData[i]}</span>}
+                            </div>
+                          </div>
+                          <span className="dash-bar-day">{d}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {w.id === 'notices' && (
+                  <div className="widget-notices-content" style={{ width: '100%' }}>
+                    {feed.recent_notices.length === 0 ? (
+                      <div className="dash-empty">No recent notices 🎉</div>
+                    ) : (
+                      <div className="dash-deadline-list">
+                        {feed.recent_notices.map((n, i) => (
+                          <button key={n.id || i} className="dash-deadline-item" onClick={() => navigate('/campus/notices')} style={{ width: '100%' }}>
+                            <div className="dash-deadline-icon" style={{ background: n.priority === 'high' ? '#a91f2314' : '#0080c714' }}>
+                              {n.priority === 'high' ? <AlertTriangle size={16} color="#a91f23" /> : <Bell size={16} color="#0080c7" />}
+                            </div>
+                            <div className="dash-deadline-info">
+                              <h3>{n.title}</h3>
+                              <p>{n.content}</p>
+                            </div>
+                            {n.priority === 'high' && <span className="dash-urgency-dot" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {w.id === 'portfolio' && (
+                  <div className="widget-portfolio-content" style={{ width: '100%' }}>
+                    {isGuest ? (
+                      <div className="dash-empty">Portfolio building is available for registered students.</div>
+                    ) : (
+                      <>
+                        {/* Achievements */}
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-[11px] font-bold flex items-center gap-1.5" style={{ color: C.textPrimary }}>
+                              <Trophy className="w-3.5 h-3.5" style={{ color: C.terra }} /> Verified Achievements
+                            </h4>
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: C.border, color: C.textSecondary }}>
+                              {achievements.length}
+                            </span>
+                          </div>
+                          {achievements.length === 0 ? (
+                            <p className="text-[10px] text-center py-2" style={{ color: C.textSecondary }}>No verified achievements.</p>
+                          ) : (
+                            <div className="flex flex-col gap-1.5">
+                              {achievements.slice(0, 2).map((a, i) => (
+                                <div key={a.id || i} className="rounded-lg p-2.5 flex items-center gap-2.5 border" style={{ background: C.card, borderColor: C.border }}>
+                                  <span className="text-sm shrink-0">{a.icon || '🏆'}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <h5 className="text-[10px] font-bold truncate" style={{ color: C.textPrimary }}>{a.title}</h5>
+                                  </div>
+                                  <CheckCircle className="w-3.5 h-3.5 shrink-0 text-emerald-500" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {/* Skills */}
+                        <div className="mb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="text-[11px] font-bold flex items-center gap-1.5" style={{ color: C.textPrimary }}>
+                              <Star className="w-3.5 h-3.5" style={{ color: C.blue }} /> Skills
+                            </h4>
+                          </div>
+                          {skills.length === 0 ? (
+                            <p className="text-[10px] text-center py-2" style={{ color: C.textSecondary }}>No skills added.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              {skills.slice(0, 3).map(skill => (
+                                <span key={skill.name} className="text-[9px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1"
+                                  style={{ background: skill.endorsed ? C.blue + '14' : 'transparent', color: skill.endorsed ? C.blue : C.textSecondary, borderColor: skill.endorsed ? C.blue + '30' : C.border }}>
+                                  {skill.name} ({skill.endorsements})
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => setShowAddCertModal(true)}
+                          className="w-full border-2 border-dashed rounded-2xl p-2.5 flex items-center justify-center gap-2 text-[10px] font-bold transition-all"
+                          style={{ borderColor: C.border, color: C.textSecondary, background: 'transparent' }}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Verify Certification
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+              </div>
+            ))}
+        </div>
       </div>
 
       {/* ═══ COMMAND PALETTE ═══ */}
@@ -733,7 +913,7 @@ const Dashboard = () => {
               ) : (
                 filteredNotifs.map(n => (
                   <button key={n.id} className={`dash-notif-item ${n.read ? 'read' : ''}`}
-                    onClick={() => { setNotifOpen(false); navigate(n.path); }}>
+                    onClick={() => handleNotifClick(n)}>
                     <div className="dash-notif-icon" data-cat={n.category}>
                       {getNotifIcon(n.category)}
                     </div>
@@ -749,6 +929,52 @@ const Dashboard = () => {
                 ))
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Widgets Modal */}
+      {manageWidgetsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm animate-fade-in p-6" style={{ background: 'rgba(15,23,42,0.6)' }}>
+          <div className="rounded-[24px] p-6 shadow-2xl max-w-sm w-full animate-fade-in" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold" style={{ color: C.textPrimary }}>Manage Widgets</h3>
+              <button className="dash-palette-close" onClick={() => setManageWidgetsOpen(false)}>
+                <X size={14} />
+              </button>
+            </div>
+            <p className="text-xs mb-4" style={{ color: C.textSecondary }}>Choose which widgets appear on your dashboard and select their display size.</p>
+            <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto mb-6 pr-1">
+              {widgets.map(w => (
+                <div key={w.id} className="flex items-center justify-between p-2.5 rounded-xl border" style={{ borderColor: C.border, background: C.bg }}>
+                  <div className="flex items-center gap-2.5 flex-1">
+                    <input
+                      type="checkbox"
+                      checked={w.visible}
+                      onChange={() => handleToggleWidgetVisibility(w.id)}
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 mr-2"
+                    />
+                    <span className="text-xs font-semibold" style={{ color: C.textPrimary }}>{w.title}</span>
+                  </div>
+                  <select
+                    value={w.size}
+                    onChange={(e) => handleResizeWidget(w.id, e.target.value as any)}
+                    className="widget-size-select"
+                  >
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                    <option value="large">Large</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setManageWidgetsOpen(false)}
+              className="w-full py-3 rounded-[14px] font-semibold text-sm text-white"
+              style={{ background: C.blue }}
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
@@ -1222,6 +1448,220 @@ const Dashboard = () => {
         @keyframes pulse-dot {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
+        }
+
+        /* ── Dynamic Widgets Grid & Components ────── */
+        .widgets-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+          padding: 0 20px 24px;
+        }
+        .widget-wrapper {
+          background: var(--dash-card);
+          border-radius: 24px;
+          border: 1px solid var(--dash-border);
+          padding: 18px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: flex-start;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          overflow: hidden;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .widget-wrapper:hover {
+          box-shadow: 0 8px 24px rgba(34,52,108,0.06);
+          transform: translateY(-2px);
+        }
+        .widget-wrapper.edit-mode {
+          border: 2px dashed var(--dash-accent);
+          cursor: grab;
+        }
+        .widget-wrapper.edit-mode:active {
+          cursor: grabbing;
+        }
+        .widget-span-small {
+          grid-column: span 1;
+        }
+        .widget-span-medium {
+          grid-column: span 2;
+        }
+        .widget-span-large {
+          grid-column: span 2;
+          min-height: 280px;
+        }
+
+        .widget-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 14px;
+          border-bottom: 1px solid var(--dash-divider);
+          padding-bottom: 8px;
+          width: 100%;
+        }
+        .widget-title {
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--dash-text-primary);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .widget-header-controls {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .widget-size-select {
+          font-size: 10px;
+          font-weight: 700;
+          background: var(--dash-input-bg);
+          border: 1px solid var(--dash-border);
+          border-radius: 6px;
+          padding: 2px 4px;
+          color: var(--dash-text-primary);
+          outline: none;
+          cursor: pointer;
+        }
+        .widget-action-btn {
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          color: var(--dash-text-secondary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px;
+          border-radius: 6px;
+          transition: all 0.15s;
+        }
+        .widget-action-btn:hover {
+          background: var(--dash-input-bg);
+          color: var(--dash-text-primary);
+        }
+        .widget-drag-handle {
+          color: var(--dash-text-secondary);
+          cursor: grab;
+          display: flex;
+          align-items: center;
+          padding: 4px;
+        }
+
+        .dash-controls-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 16px 20px 12px;
+        }
+        .dash-control-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          font-weight: 700;
+          color: var(--dash-text-secondary);
+          background: var(--dash-card);
+          border: 1px solid var(--dash-border);
+          padding: 8px 16px;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.15s;
+          box-shadow: 0 2px 6px rgba(34,52,108,0.03);
+        }
+        .dash-control-btn:hover {
+          background: var(--dash-input-bg);
+          color: var(--dash-text-primary);
+        }
+        .dash-control-btn.active {
+          background: var(--dash-accent);
+          color: #fff;
+          border-color: var(--dash-accent);
+        }
+
+        /* Guest slider styles */
+        .guest-slider-container {
+          position: relative;
+          margin: 16px 20px 8px;
+          border-radius: 24px;
+          overflow: hidden;
+          height: 180px;
+          box-shadow: 0 8px 24px rgba(34,52,108,0.12);
+        }
+        .guest-slider-track {
+          display: flex;
+          height: 100%;
+          transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .guest-slide {
+          min-width: 100%;
+          height: 100%;
+          position: relative;
+        }
+        .guest-slide-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .guest-slide-overlay {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to top, rgba(15,23,42,0.85) 0%, rgba(15,23,42,0.4) 60%, transparent 100%);
+        }
+        .guest-slide-content {
+          position: absolute;
+          bottom: 16px;
+          left: 16px;
+          right: 16px;
+          color: #fff;
+          z-index: 2;
+          text-align: left;
+        }
+        .guest-slide-tag {
+          font-size: 8px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: #fff;
+          background: var(--dash-accent);
+          padding: 4px 8px;
+          border-radius: 6px;
+          display: inline-block;
+        }
+        .guest-slide-title {
+          font-size: 16px;
+          font-weight: 800;
+          margin: 6px 0 2px 0;
+          letter-spacing: -0.3px;
+        }
+        .guest-slide-desc {
+          font-size: 11px;
+          opacity: 0.85;
+          margin: 0;
+          font-weight: 500;
+        }
+        .guest-slider-dots {
+          position: absolute;
+          right: 16px;
+          top: 16px;
+          display: flex;
+          gap: 6px;
+          z-index: 10;
+        }
+        .guest-slider-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: rgba(255,255,255,0.4);
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .guest-slider-dot.active {
+          background: #fff;
+          transform: scale(1.3);
         }
       `}</style>
     </div>
