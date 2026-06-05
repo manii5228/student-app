@@ -653,7 +653,6 @@ const InternshipTracker = () => {
                 <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Select Student *</label>
                 <select
                   value={form.student_id}
-                  disabled={!!editingId}
                   onChange={e => setForm({ ...form, student_id: e.target.value })}
                   className={`w-full bg-slate-50 rounded-xl px-3 py-3 text-xs font-bold border ${formErrors.student_id ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
                 >

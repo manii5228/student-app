@@ -1832,6 +1832,7 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   if (cleanUrl.startsWith('/career/badges/') && !cleanUrl.endsWith('/award') && !cleanUrl.endsWith('/holders') && method === 'delete') {
     const bid = cleanUrl.split('/')[3];
     db.badges = (db.badges || []).filter((b: any) => b.id !== bid);
+    db.earnedBadges = (db.earnedBadges || []).filter((eb: any) => eb.badge_id !== bid && eb.badge?.id !== bid);
     saveMockDb(db);
     return { status: 200, data: { message: "Badge deleted successfully" } };
   }
@@ -3388,6 +3389,7 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   if (cleanUrl.startsWith('/career/badges/') && !cleanUrl.endsWith('/award') && !cleanUrl.endsWith('/holders') && method === 'delete') {
     const bid = cleanUrl.split('/')[3];
     db.badges = (db.badges || []).filter((b: any) => b.id !== bid);
+    db.earnedBadges = (db.earnedBadges || []).filter((eb: any) => eb.badge_id !== bid && eb.badge?.id !== bid);
     saveMockDb(db);
     return { status: 200, data: { message: "Badge deleted successfully" } };
   }
@@ -3539,6 +3541,35 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     db.interviews.push(newIv);
     saveMockDb(db);
     return { status: 201, data: { message: "Interview scheduled successfully", schedule: newIv } };
+  }
+
+  if (cleanUrl.startsWith('/career/interviews/') && method === 'put') {
+    const id = cleanUrl.split('/').pop();
+    const payload = getPayload(config.data);
+    if (!db.interviews) db.interviews = [];
+    const idx = db.interviews.findIndex((iv: any) => iv.id === id);
+    if (idx !== -1) {
+      db.interviews[idx] = {
+        ...db.interviews[idx],
+        student_id: payload.student_id,
+        posting_id: payload.posting_id,
+        round_name: payload.round_name,
+        scheduled_at: payload.scheduled_at,
+        venue: payload.venue,
+        status: payload.status || db.interviews[idx].status
+      };
+      saveMockDb(db);
+      return { status: 200, data: { message: "Interview updated successfully", schedule: db.interviews[idx] } };
+    }
+    return { status: 404, data: { error: "Interview not found" } };
+  }
+
+  if (cleanUrl.startsWith('/career/interviews/') && method === 'delete') {
+    const id = cleanUrl.split('/').pop();
+    if (!db.interviews) db.interviews = [];
+    db.interviews = db.interviews.filter((iv: any) => iv.id !== id);
+    saveMockDb(db);
+    return { status: 200, data: { message: "Interview deleted successfully" } };
   }
 
   if (cleanUrl === '/career/interviews/all' && method === 'get') {
