@@ -1808,6 +1808,34 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     return { status: 200, data: { holders } };
   }
 
+  if (cleanUrl.startsWith('/career/badges/') && !cleanUrl.endsWith('/award') && !cleanUrl.endsWith('/holders') && method === 'put') {
+    const bid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    const idx = (db.badges || []).findIndex((b: any) => b.id === bid);
+    if (idx !== -1) {
+      db.badges[idx] = {
+        ...db.badges[idx],
+        name: payload.name,
+        description: payload.description,
+        category: payload.category,
+        icon: payload.icon,
+        color: payload.color,
+        criteria: payload.criteria,
+        points: parseInt(payload.points) || db.badges[idx].points
+      };
+      saveMockDb(db);
+      return { status: 200, data: { message: "Badge updated", badge: db.badges[idx] } };
+    }
+    return { status: 404, data: { error: "Badge template not found" } };
+  }
+
+  if (cleanUrl.startsWith('/career/badges/') && !cleanUrl.endsWith('/award') && !cleanUrl.endsWith('/holders') && method === 'delete') {
+    const bid = cleanUrl.split('/')[3];
+    db.badges = (db.badges || []).filter((b: any) => b.id !== bid);
+    saveMockDb(db);
+    return { status: 200, data: { message: "Badge deleted successfully" } };
+  }
+
   // Notices
   if (cleanUrl === '/campus/notices' && method === 'get') {
     return {
@@ -2812,9 +2840,13 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   }
   if (cleanUrl === '/career/internships' && method === 'post') {
     const payload = getPayload(config.data);
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    const isFacultyOrAdmin = activeUser?.role === 'faculty' || activeUser?.role === 'admin';
+    const studentId = (isFacultyOrAdmin && payload.student_id) ? payload.student_id : activeUserId;
+
     const newInt = {
       id: `int_${Date.now()}`,
-      student_id: activeUserId,
+      student_id: studentId,
       company_name: payload.company_name,
       role_title: payload.role_title,
       description: payload.description || "",
@@ -2825,7 +2857,7 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       certificate_url: payload.certificate_url || "",
       status: payload.status || "ongoing",
       skills_learned: payload.skills_learned || "",
-      is_verified: false
+      is_verified: isFacultyOrAdmin ? true : false
     };
     db.internships.push(newInt);
     saveMockDb(db);
@@ -3332,6 +3364,34 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     return { status: 201, data: { message: "Badge created", badge: newBadge } };
   }
 
+  if (cleanUrl.startsWith('/career/badges/') && !cleanUrl.endsWith('/award') && !cleanUrl.endsWith('/holders') && method === 'put') {
+    const bid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    const idx = (db.badges || []).findIndex((b: any) => b.id === bid);
+    if (idx !== -1) {
+      db.badges[idx] = {
+        ...db.badges[idx],
+        name: payload.name,
+        description: payload.description,
+        category: payload.category,
+        icon: payload.icon,
+        color: payload.color,
+        criteria: payload.criteria,
+        points: parseInt(payload.points) || db.badges[idx].points
+      };
+      saveMockDb(db);
+      return { status: 200, data: { message: "Badge updated", badge: db.badges[idx] } };
+    }
+    return { status: 404, data: { error: "Badge template not found" } };
+  }
+
+  if (cleanUrl.startsWith('/career/badges/') && !cleanUrl.endsWith('/award') && !cleanUrl.endsWith('/holders') && method === 'delete') {
+    const bid = cleanUrl.split('/')[3];
+    db.badges = (db.badges || []).filter((b: any) => b.id !== bid);
+    saveMockDb(db);
+    return { status: 200, data: { message: "Badge deleted successfully" } };
+  }
+
   if (cleanUrl.startsWith('/career/badges/') && cleanUrl.endsWith('/award') && method === 'post') {
     const bid = cleanUrl.split('/')[3];
     const payload = getPayload(config.data);
@@ -3417,6 +3477,29 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     db.jobs.push(newJob);
     saveMockDb(db);
     return { status: 201, data: { message: "Job posted", job: newJob } };
+  }
+
+  // Job Update (PUT)
+  if (cleanUrl.startsWith('/career/jobs/') && !cleanUrl.includes('/applications') && !cleanUrl.includes('/save') && !cleanUrl.includes('/apply') && !cleanUrl.includes('/interview-slots') && !cleanUrl.includes('/book-interview') && method === 'put') {
+    const jid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    if (!db.jobs) db.jobs = [];
+    const idx = db.jobs.findIndex((j: any) => j.id === jid);
+    if (idx !== -1) {
+      db.jobs[idx] = { ...db.jobs[idx], ...payload, salary: payload.package_lpa ? `${payload.package_lpa} LPA` : db.jobs[idx].salary };
+      saveMockDb(db);
+      return { status: 200, data: { message: "Job updated", job: db.jobs[idx] } };
+    }
+    return { status: 404, data: { error: "Job not found" } };
+  }
+
+  // Job Delete (DELETE)
+  if (cleanUrl.startsWith('/career/jobs/') && !cleanUrl.includes('/applications') && !cleanUrl.includes('/save') && !cleanUrl.includes('/apply') && method === 'delete') {
+    const jid = cleanUrl.split('/')[3];
+    if (!db.jobs) db.jobs = [];
+    db.jobs = db.jobs.filter((j: any) => j.id !== jid);
+    saveMockDb(db);
+    return { status: 200, data: { message: "Job deleted", success: true } };
   }
 
   if (cleanUrl.startsWith('/career/jobs/') && cleanUrl.endsWith('/applications') && method === 'get') {

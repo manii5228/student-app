@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Award, Star, Zap, Code, Users, Trophy, BookOpen, Share2, Info, Plus, CheckCircle, X } from 'lucide-react';
+import { ChevronLeft, Award, Star, Zap, Code, Users, Trophy, BookOpen, Share2, Info, Plus, CheckCircle, X, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -7,11 +7,11 @@ import { api } from '../lib/api';
 interface Badge { 
   id: string; 
   name: string; 
-  description: string | null; 
+  description: string; 
   category: string; 
   icon: string; 
   color: string; 
-  criteria: string | null; 
+  criteria: string; 
   points: number; 
 }
 
@@ -74,6 +74,7 @@ const SkillBadges = () => {
 
   // Faculty Creation Modal State
   const [showCreate, setShowCreate] = useState(false);
+  const [editingBadgeId, setEditingBadgeId] = useState<string | null>(null);
   const [createForm, setCreateForm] = useState({
     name: '',
     description: '',
@@ -84,6 +85,7 @@ const SkillBadges = () => {
     points: 10
   });
   const [creating, setCreating] = useState(false);
+  const [badgeFormErrors, setBadgeFormErrors] = useState<Record<string, boolean>>({});
 
   // Faculty Award State
   const [classStudents, setClassStudents] = useState<StudentUser[]>([]);
@@ -92,6 +94,7 @@ const SkillBadges = () => {
   const [awardNote, setAwardNote] = useState('');
   const [awarding, setAwarding] = useState(false);
   const [awardSuccess, setAwardSuccess] = useState(false);
+  const [awardErrors, setAwardErrors] = useState<Record<string, boolean>>({});
 
   const loadData = () => {
     setLoading(true);
@@ -127,6 +130,7 @@ const SkillBadges = () => {
     setAwardSuccess(false);
     setSelectedStudent('');
     setAwardNote('');
+    setAwardErrors({});
     setLoadingHolders(true);
     setHolders([]);
     
@@ -153,25 +157,47 @@ const SkillBadges = () => {
     window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${url}&title=${title}&summary=${summary}`, '_blank', 'width=600,height=600');
   };
 
-  // Faculty: Create Badge Template
-  const handleCreateBadge = async () => {
-    if (!createForm.name.trim()) return;
+  const validateBadgeForm = (): boolean => {
+    const errors: Record<string, boolean> = {};
+    if (!createForm.name.trim()) errors.name = true;
+    if (!createForm.description.trim()) errors.description = true;
+    if (!createForm.criteria.trim()) errors.criteria = true;
+    if (!createForm.points || isNaN(createForm.points) || createForm.points <= 0) errors.points = true;
+    setBadgeFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const resetBadgeForm = () => {
+    setCreateForm({
+      name: '',
+      description: '',
+      category: 'technical',
+      icon: 'award',
+      color: '#6366f1',
+      criteria: '',
+      points: 10
+    });
+    setEditingBadgeId(null);
+    setBadgeFormErrors({});
+  };
+
+  // Faculty: Create or Edit Badge Template
+  const handleSaveBadge = async () => {
+    if (!validateBadgeForm()) return;
     setCreating(true);
     try {
-      await api.post('/career/badges', createForm);
+      if (editingBadgeId) {
+        await api.put(`/career/badges/${editingBadgeId}`, createForm);
+        alert('Badge template updated successfully!');
+      } else {
+        await api.post('/career/badges', createForm);
+        alert('Badge template created successfully!');
+      }
       setShowCreate(false);
-      setCreateForm({
-        name: '',
-        description: '',
-        category: 'technical',
-        icon: 'award',
-        color: '#6366f1',
-        criteria: '',
-        points: 10
-      });
+      resetBadgeForm();
       loadData();
     } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to create badge template');
+      alert(error.response?.data?.error || 'Failed to save badge template');
     } finally {
       setCreating(false);
     }
@@ -179,16 +205,23 @@ const SkillBadges = () => {
 
   // Faculty: Award Badge
   const handleAwardBadge = async () => {
-    if (!selectedBadge || !selectedStudent) return;
+    const errors: Record<string, boolean> = {};
+    if (!selectedStudent) errors.student = true;
+    if (!awardNote.trim()) errors.note = true;
+    setAwardErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    if (!selectedBadge) return;
     setAwarding(true);
     try {
       await api.post(`/career/badges/${selectedBadge.badge.id}/award`, {
         student_id: selectedStudent,
-        note: awardNote
+        note: awardNote.trim()
       });
       setAwardSuccess(true);
       setSelectedStudent('');
       setAwardNote('');
+      setAwardErrors({});
       
       // Refresh holders
       const { data } = await api.get(`/career/badges/${selectedBadge.badge.id}/holders`);
@@ -226,7 +259,7 @@ const SkillBadges = () => {
             </div>
           </div>
           {(isFaculty || isAdmin) && (
-            <button onClick={() => setShowCreate(true)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-all">
+            <button onClick={() => { resetBadgeForm(); setShowCreate(true); }} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-all" title="Create Badge Template">
               <Plus className="w-5 h-5"/>
             </button>
           )}
@@ -301,9 +334,9 @@ const SkillBadges = () => {
                 <Info className="w-3.5 h-3.5 text-indigo-600"/> How to Achieve Skill Badges
               </h4>
               <ul className="text-[10px] text-indigo-700/80 font-medium space-y-1.5 list-disc pl-4 leading-relaxed">
-                <li><span className="font-bold text-indigo-900">Workshop Sync:</span> Automatically synced and awarded when you register and attend department seminars and practical labs.</li>
-                <li><span className="font-bold text-indigo-900">Project Tracker:</span> Completed projects (with 100% Kanban tasks checked off) earn you execution badges.</li>
-                <li><span className="font-bold text-indigo-900">Faculty Nominations:</span> Mentors and professors can award custom achievement badges directly to your profile.</li>
+                <li><span className="font-bold text-indigo-900">Workshop Sync:</span> Synced and awarded automatically after department seminar attendance.</li>
+                <li><span className="font-bold text-indigo-900">Project Tracker:</span> Complete milestones in project Kanban board to earn execution badges.</li>
+                <li><span className="font-bold text-indigo-900">Faculty Nominations:</span> Mentors and advisors can award custom badges directly.</li>
               </ul>
             </div>
             
@@ -379,21 +412,23 @@ const SkillBadges = () => {
                     <div className="flex flex-col gap-2">
                       <select
                         value={selectedStudent}
-                        onChange={e => setSelectedStudent(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold"
+                        onChange={e => { setSelectedStudent(e.target.value); setAwardErrors({...awardErrors, student: false}); }}
+                        className={`w-full bg-white border ${awardErrors.student ? 'border-red-400 bg-red-50/20' : 'border-slate-200'} rounded-xl px-3 py-2 text-xs font-bold`}
                       >
-                        <option value="">Select Student</option>
+                        <option value="">Select Student *</option>
                         {classStudents.map(s => (
                           <option key={s.id} value={s.id}>{s.name} ({s.roll_number || 'No Roll'})</option>
                         ))}
                       </select>
+                      {awardErrors.student && <p className="text-[9px] text-red-500 font-bold">Student is required</p>}
 
                       <input
                         value={awardNote}
-                        onChange={e => setAwardNote(e.target.value)}
-                        placeholder="Award citation note (e.g. Excellent HackGrid setup)"
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs"
+                        onChange={e => { setAwardNote(e.target.value); setAwardErrors({...awardErrors, note: false}); }}
+                        placeholder="Award citation note (compulsory) *"
+                        className={`w-full bg-white border ${awardErrors.note ? 'border-red-400 bg-red-50/20' : 'border-slate-200'} rounded-xl px-3 py-2 text-xs`}
                       />
+                      {awardErrors.note && <p className="text-[9px] text-red-500 font-bold">Citation note is compulsory</p>}
 
                       <button
                         onClick={handleAwardBadge}
@@ -407,14 +442,56 @@ const SkillBadges = () => {
                 </div>
               )}
 
+              {/* Template Edit/Delete for faculty */}
+              {(isFaculty || isAdmin) && (
+                <div className="mb-6 flex gap-3">
+                  <button 
+                    onClick={() => {
+                      const b = selectedBadge.badge;
+                      setEditingBadgeId(b.id);
+                      setCreateForm({
+                        name: b.name,
+                        description: b.description || '',
+                        category: b.category,
+                        icon: b.icon,
+                        color: b.color,
+                        criteria: b.criteria || '',
+                        points: b.points
+                      });
+                      setBadgeFormErrors({});
+                      setSelectedBadge(null);
+                      setShowCreate(true);
+                    }} 
+                    className="flex-1 py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-2xl text-xs font-black flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <Edit className="w-3.5 h-3.5" /> Edit Template
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      if (!confirm('Are you sure you want to delete this badge template?')) return;
+                      try {
+                        await api.delete(`/career/badges/${selectedBadge.badge.id}`);
+                        alert('Badge template deleted successfully.');
+                        setSelectedBadge(null);
+                        loadData();
+                      } catch {
+                        alert('Failed to delete badge template.');
+                      }
+                    }} 
+                    className="py-3 px-4 bg-red-50 hover:bg-red-100 text-red-500 rounded-2xl text-xs font-black flex items-center justify-center transition-colors"
+                    title="Delete Template"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
               {selectedBadge.earned && selectedBadge.earned.note && (
                 <div className="mb-6 bg-indigo-50 rounded-2xl p-4 border border-indigo-100">
                   <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2">Award Note</h4>
                   <p className="text-xs font-medium text-indigo-900 italic">"{selectedBadge.earned.note}"</p>
                 </div>
               )}
-
-
 
               <div>
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
@@ -450,13 +527,13 @@ const SkillBadges = () => {
         </div>
       )}
 
-      {/* Faculty Create Badge Modal */}
+      {/* Faculty Create/Edit Badge Modal */}
       {showCreate && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-t-[32px] p-6 w-full max-w-lg animate-slide-up max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-slate-900">Create Badge Template</h2>
-              <button onClick={() => setShowCreate(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+              <h2 className="text-lg font-bold text-slate-900">{editingBadgeId ? 'Edit Badge Template' : 'Create Badge Template'}</h2>
+              <button onClick={() => { setShowCreate(false); resetBadgeForm(); }} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
                 <X className="w-4 h-4 text-slate-500"/>
               </button>
             </div>
@@ -468,12 +545,13 @@ const SkillBadges = () => {
                   value={createForm.name}
                   onChange={e => setCreateForm({...createForm, name: e.target.value})}
                   placeholder="e.g. Flutter Master"
-                  className="w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm font-medium border border-slate-200 focus:outline-none focus:border-indigo-400"
+                  className={`w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm font-medium border ${badgeFormErrors.name ? 'border-red-400 bg-red-50/20' : 'border-slate-200'} focus:outline-none focus:border-indigo-400`}
                 />
+                {badgeFormErrors.name && <p className="text-[9px] text-red-500 font-bold">Badge name is compulsory</p>}
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Category</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Category *</label>
                 <select
                   value={createForm.category}
                   onChange={e => setCreateForm({...createForm, category: e.target.value})}
@@ -488,7 +566,7 @@ const SkillBadges = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Icon</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Icon *</label>
                   <select
                     value={createForm.icon}
                     onChange={e => setCreateForm({...createForm, icon: e.target.value})}
@@ -505,43 +583,45 @@ const SkillBadges = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">XP Points</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">XP Points *</label>
                   <input
                     type="number"
                     value={createForm.points}
                     onChange={e => setCreateForm({...createForm, points: parseInt(e.target.value) || 10})}
-                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-sm border border-slate-200"
+                    className={`w-full bg-slate-50 rounded-xl px-3 py-2.5 text-sm border ${badgeFormErrors.points ? 'border-red-400 bg-red-50/20' : 'border-slate-200'}`}
                   />
+                  {badgeFormErrors.points && <p className="text-[9px] text-red-500 font-bold">XP Points is compulsory (minimum 1)</p>}
                 </div>
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Description</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Description *</label>
                 <textarea
                   value={createForm.description}
                   onChange={e => setCreateForm({...createForm, description: e.target.value})}
                   placeholder="What is this badge for?"
                   rows={2}
-                  className="w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm border border-slate-200 focus:outline-none focus:border-indigo-400 resize-none"
+                  className={`w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm border ${badgeFormErrors.description ? 'border-red-400 bg-red-50/20' : 'border-slate-200'} focus:outline-none focus:border-indigo-400 resize-none`}
                 />
+                {badgeFormErrors.description && <p className="text-[9px] text-red-500 font-bold">Description is compulsory</p>}
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Criteria (Optional)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Criteria *</label>
                 <input
                   value={createForm.criteria}
                   onChange={e => setCreateForm({...createForm, criteria: e.target.value})}
                   placeholder="e.g. Score >90% in Flutter Hackathon"
-                  className="w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm border border-slate-200 focus:outline-none focus:border-indigo-400"
+                  className={`w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm border ${badgeFormErrors.criteria ? 'border-red-400 bg-red-50/20' : 'border-slate-200'} focus:outline-none focus:border-indigo-400`}
                 />
+                {badgeFormErrors.criteria && <p className="text-[9px] text-red-500 font-bold">Criteria is compulsory</p>}
               </div>
 
               <button
-                onClick={handleCreateBadge}
-                disabled={creating || !createForm.name.trim()}
+                onClick={handleSaveBadge}
                 className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-sm hover:bg-indigo-700 active:scale-[0.98] transition-all disabled:opacity-40"
               >
-                {creating ? 'Creating...' : 'Create Badge Template'}
+                {creating ? 'Saving...' : (editingBadgeId ? 'Update Template' : 'Create Badge Template')}
               </button>
             </div>
           </div>

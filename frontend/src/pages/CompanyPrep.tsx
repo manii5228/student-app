@@ -356,6 +356,15 @@ const CompanyPrep = () => {
     const masteredIds = updated.filter(c => c.isMastered).map(c => c.id);
     localStorage.setItem('prep_mastered_flashcards', JSON.stringify(masteredIds));
     localStorage.setItem('prep_flashcards', JSON.stringify(updated));
+
+    // Clamp index and reset card flipping state
+    const nextFiltered = updated.filter(c => !c.isMastered);
+    if (activeFlashcardIdx >= nextFiltered.length && nextFiltered.length > 0) {
+      setActiveFlashcardIdx(nextFiltered.length - 1);
+    } else if (nextFiltered.length === 0) {
+      setActiveFlashcardIdx(0);
+    }
+    setCardFlipped(false);
   };
 
   const filteredCards = flashcards.filter(c => !c.isMastered);
@@ -611,41 +620,41 @@ const CompanyPrep = () => {
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col gap-4 items-center">
+              <div className="flex flex-col gap-4 items-center w-full">
                 {/* Visual Flipping Card Container */}
-                <div 
-                  onClick={() => setCardFlipped(!cardFlipped)}
-                  className="w-full aspect-[4/3] max-w-sm rounded-[32px] shadow-lg border border-slate-200/50 bg-white cursor-pointer relative perspective-1000 transform-style-3d transition-transform duration-500 flex items-center justify-center p-6 text-center"
-                  style={{ transform: cardFlipped ? 'rotateY(180deg)' : 'rotateY(0)' }}
-                >
-                  {/* Front View */}
-                  <div className={`absolute inset-0 backface-hidden p-6 flex flex-col justify-between items-center ${cardFlipped ? 'opacity-0' : 'opacity-100'}`}>
-                    <span className="text-[9px] font-black uppercase bg-blue-50 text-blue-600 px-3 py-1 rounded-full tracking-wider">
-                      {filteredCards[activeFlashcardIdx].category}
-                    </span>
-                    <h4 className="text-base font-black text-slate-800 leading-relaxed max-w-xs">
-                      {filteredCards[activeFlashcardIdx].front}
-                    </h4>
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tap to Flip Card</span>
-                  </div>
-
-                  {/* Back View (Rotated 180deg to avoid mirror image) */}
+                <div className="w-full aspect-[4/3] max-w-sm [perspective:1000px] cursor-pointer">
                   <div 
-                    className={`absolute inset-0 backface-hidden p-6 flex flex-col justify-between items-center ${cardFlipped ? 'opacity-100' : 'opacity-0'}`}
-                    style={{ transform: 'rotateY(180deg)' }}
+                    onClick={() => setCardFlipped(!cardFlipped)}
+                    className={`relative w-full h-full rounded-[32px] shadow-lg border border-slate-200/50 bg-white transition-transform duration-500 [transform-style:preserve-3d] ${cardFlipped ? '[transform:rotateY(180deg)]' : ''}`}
                   >
-                    <span className="text-[9px] font-black uppercase bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full tracking-wider">
-                      Explanation
-                    </span>
-                    <p className="text-xs text-slate-700 font-semibold leading-relaxed max-w-xs mt-4">
-                      {filteredCards[activeFlashcardIdx].back}
-                    </p>
-                    <button
-                      onClick={(e) => toggleMastered(filteredCards[activeFlashcardIdx].id, e)}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-md shadow-emerald-500/10 flex items-center gap-1 animate-pulse"
+                    {/* Front View */}
+                    <div className="absolute inset-0 p-6 rounded-[32px] bg-white flex flex-col justify-between items-center [backface-visibility:hidden]">
+                      <span className="text-[9px] font-black uppercase bg-blue-50 text-blue-600 px-3 py-1 rounded-full tracking-wider">
+                        {filteredCards[activeFlashcardIdx]?.category || 'Card'}
+                      </span>
+                      <h4 className="text-base font-black text-slate-800 leading-relaxed max-w-xs">
+                        {filteredCards[activeFlashcardIdx]?.front || ''}
+                      </h4>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Tap to Flip Card</span>
+                    </div>
+
+                    {/* Back View (Rotated 180deg to avoid mirror image) */}
+                    <div 
+                      className="absolute inset-0 p-6 rounded-[32px] bg-white flex flex-col justify-between items-center [backface-visibility:hidden] [transform:rotateY(180deg)]"
                     >
-                      <CheckCircle className="w-3.5 h-3.5" /> Mark as Mastered
-                    </button>
+                      <span className="text-[9px] font-black uppercase bg-indigo-50 text-indigo-600 px-3 py-1 rounded-full tracking-wider">
+                        Explanation
+                      </span>
+                      <p className="text-xs text-slate-700 font-semibold leading-relaxed max-w-xs mt-4">
+                        {filteredCards[activeFlashcardIdx]?.back || ''}
+                      </p>
+                      <button
+                        onClick={(e) => toggleMastered(filteredCards[activeFlashcardIdx]?.id, e)}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-md shadow-emerald-500/10 flex items-center gap-1 animate-pulse"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> Mark as Mastered
+                      </button>
+                    </div>
                   </div>
                 </div>
 

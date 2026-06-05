@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Briefcase, Target, MapPin, CheckCircle, XCircle, FileText, Bookmark, BookmarkCheck, Check, AlertTriangle, AlertCircle, Plus, Users } from 'lucide-react';
+import { ChevronLeft, Briefcase, Target, MapPin, CheckCircle, XCircle, FileText, Bookmark, BookmarkCheck, Check, AlertTriangle, AlertCircle, Plus, Users, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -41,6 +41,8 @@ const JobPortal = () => {
   const [selectedJobForApps, setSelectedJobForApps] = useState<Job | null>(null);
   const [jobApplications, setJobApplications] = useState<any[]>([]);
   const [loadingApps, setLoadingApps] = useState(false);
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, boolean>>({});
   
   // New Job Form State
   const [newJobForm, setNewJobForm] = useState({
@@ -73,34 +75,100 @@ const JobPortal = () => {
     }
   };
 
+  const validateJobForm = (): boolean => {
+    const errors: Record<string, boolean> = {};
+    if (!newJobForm.company_name.trim()) errors.company_name = true;
+    if (!newJobForm.role_title.trim()) errors.role_title = true;
+    if (!newJobForm.description.trim()) errors.description = true;
+    if (!newJobForm.location.trim()) errors.location = true;
+    if (!newJobForm.min_cgpa || isNaN(parseFloat(newJobForm.min_cgpa))) errors.min_cgpa = true;
+    if (!newJobForm.eligible_departments.trim()) errors.eligible_departments = true;
+    if (!newJobForm.package_lpa || isNaN(parseFloat(newJobForm.package_lpa))) errors.package_lpa = true;
+    if (!newJobForm.job_type) errors.job_type = true;
+    if (!newJobForm.drive_date) errors.drive_date = true;
+    if (!newJobForm.last_date_apply) errors.last_date_apply = true;
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const resetJobForm = () => {
+    setNewJobForm({
+      company_name: '',
+      role_title: '',
+      description: '',
+      location: 'Bangalore',
+      min_cgpa: '7.5',
+      eligible_departments: 'CSE,IT,ECE',
+      package_lpa: '6.0',
+      job_type: 'placement',
+      drive_date: '',
+      last_date_apply: ''
+    });
+    setEditingJobId(null);
+    setFormErrors({});
+  };
+
   const handleCreateJob = async () => {
-    if (!newJobForm.company_name || !newJobForm.role_title) return;
+    if (!validateJobForm()) return;
     setPostingJob(true);
     try {
-      const { data } = await api.post('/career/jobs', {
-        ...newJobForm,
-        min_cgpa: parseFloat(newJobForm.min_cgpa) || 0,
-        package_lpa: parseFloat(newJobForm.package_lpa) || 0
-      });
-      setJobs([data.job || data, ...jobs]);
+      if (editingJobId) {
+        // UPDATE existing job
+        const { data } = await api.put(`/career/jobs/${editingJobId}`, {
+          ...newJobForm,
+          min_cgpa: parseFloat(newJobForm.min_cgpa) || 0,
+          package_lpa: parseFloat(newJobForm.package_lpa) || 0
+        });
+        const updated = data.job || data;
+        setJobs(jobs.map(j => j.id === editingJobId ? { ...j, ...updated } : j));
+        alert('Placement drive updated successfully!');
+      } else {
+        // CREATE new job
+        const { data } = await api.post('/career/jobs', {
+          ...newJobForm,
+          min_cgpa: parseFloat(newJobForm.min_cgpa) || 0,
+          package_lpa: parseFloat(newJobForm.package_lpa) || 0
+        });
+        setJobs([data.job || data, ...jobs]);
+        alert('Placement/Internship drive posted successfully!');
+      }
       setShowAddJobModal(false);
-      setNewJobForm({
-        company_name: '',
-        role_title: '',
-        description: '',
-        location: 'Bangalore',
-        min_cgpa: '7.5',
-        eligible_departments: 'CSE,IT,ECE',
-        package_lpa: '6.0',
-        job_type: 'placement',
-        drive_date: '',
-        last_date_apply: ''
-      });
-      alert('Placement/Internship drive posted successfully!');
+      resetJobForm();
     } catch (err) {
-      alert('Failed to post placement drive.');
+      alert(editingJobId ? 'Failed to update placement drive.' : 'Failed to post placement drive.');
     } finally {
       setPostingJob(false);
+    }
+  };
+
+  const handleEditJob = (job: Job, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingJobId(job.id);
+    setNewJobForm({
+      company_name: job.company_name,
+      role_title: job.role_title,
+      description: job.description || '',
+      location: job.location || 'Bangalore',
+      min_cgpa: String(job.min_cgpa),
+      eligible_departments: job.eligible_departments,
+      package_lpa: String(job.package_lpa || ''),
+      job_type: 'placement',
+      drive_date: '',
+      last_date_apply: ''
+    });
+    setFormErrors({});
+    setShowAddJobModal(true);
+  };
+
+  const handleDeleteJob = async (jobId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this placement drive?')) return;
+    try {
+      await api.delete(`/career/jobs/${jobId}`);
+      setJobs(jobs.filter(j => j.id !== jobId));
+      alert('Placement drive deleted successfully.');
+    } catch {
+      setJobs(jobs.filter(j => j.id !== jobId));
     }
   };
 
@@ -185,7 +253,7 @@ const JobPortal = () => {
     }
   };
 
-  if (studentUser.role === 'faculty') {
+  if (studentUser.role === 'faculty' || studentUser.role === 'admin') {
     return (
       <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in pb-24 relative">
         {/* Top Navigation */}
@@ -232,6 +300,14 @@ const JobPortal = () => {
                       <p className="text-xs font-bold text-slate-500">{job.company_name}</p>
                     </div>
                   </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={(e) => handleEditJob(job, e)} className="w-8 h-8 rounded-xl bg-blue-50 hover:bg-blue-100 flex items-center justify-center text-blue-600 transition-colors" title="Edit Drive">
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={(e) => handleDeleteJob(job.id, e)} className="w-8 h-8 rounded-xl bg-red-50 hover:bg-red-100 flex items-center justify-center text-red-500 transition-colors" title="Delete Drive">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
                 
                 <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{job.description}</p>
@@ -260,8 +336,8 @@ const JobPortal = () => {
           <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
             <div className="bg-white w-full max-w-md rounded-t-[40px] p-6 pb-12 shadow-2xl animate-slide-up relative flex flex-col max-h-[85vh]">
               <div className="flex justify-between items-center mb-4 shrink-0">
-                <h3 className="text-lg font-black text-slate-900">Post New Recruitment Drive</h3>
-                <button onClick={() => setShowAddJobModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
+                <h3 className="text-lg font-black text-slate-900">{editingJobId ? 'Edit Recruitment Drive' : 'Post New Recruitment Drive'}</h3>
+                <button onClick={() => { setShowAddJobModal(false); resetJobForm(); }} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
               </div>
 
               <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
@@ -286,14 +362,15 @@ const JobPortal = () => {
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Job Description</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Job Description *</label>
                   <textarea
                     value={newJobForm.description}
                     onChange={e => setNewJobForm({...newJobForm, description: e.target.value})}
                     placeholder="Describe the responsibilities, tech stack, and eligibility details..."
                     rows={3}
-                    className="w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm font-medium border border-slate-200 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none"
+                    className={`w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm font-medium border ${formErrors.description ? 'border-red-400 bg-red-50/30' : 'border-slate-200'} focus:outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none`}
                   />
+                  {formErrors.description && <span className="text-[9px] text-red-500 font-bold">Description is required</span>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -321,18 +398,19 @@ const JobPortal = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Package LPA</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Package LPA *</label>
                     <input
                       type="number"
                       step="0.5"
                       value={newJobForm.package_lpa}
                       onChange={e => setNewJobForm({...newJobForm, package_lpa: e.target.value})}
-                      className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                      className={`w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border ${formErrors.package_lpa ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
                     />
+                    {formErrors.package_lpa && <span className="text-[9px] text-red-500 font-bold">Required</span>}
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Job Type</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Job Type *</label>
                     <select
                       value={newJobForm.job_type}
                       onChange={e => setNewJobForm({...newJobForm, job_type: e.target.value})}
@@ -346,23 +424,25 @@ const JobPortal = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Drive Date</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Drive Date *</label>
                     <input
                       type="date"
                       value={newJobForm.drive_date}
                       onChange={e => setNewJobForm({...newJobForm, drive_date: e.target.value})}
-                      className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                      className={`w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border ${formErrors.drive_date ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
                     />
+                    {formErrors.drive_date && <span className="text-[9px] text-red-500 font-bold">Required</span>}
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Last Date Apply</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Last Date Apply *</label>
                     <input
                       type="date"
                       value={newJobForm.last_date_apply}
                       onChange={e => setNewJobForm({...newJobForm, last_date_apply: e.target.value})}
-                      className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                      className={`w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border ${formErrors.last_date_apply ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
                     />
+                    {formErrors.last_date_apply && <span className="text-[9px] text-red-500 font-bold">Required</span>}
                   </div>
                 </div>
               </div>
@@ -370,10 +450,10 @@ const JobPortal = () => {
               <div className="mt-6 shrink-0 border-t border-slate-100 pt-4">
                 <button
                   onClick={handleCreateJob}
-                  disabled={postingJob || !newJobForm.company_name || !newJobForm.role_title}
+                  disabled={postingJob}
                   className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs hover:bg-slate-800 transition-all disabled:opacity-40 shadow-xl"
                 >
-                  {postingJob ? 'Posting Drive...' : 'Publish Drive'}
+                  {postingJob ? (editingJobId ? 'Updating...' : 'Posting Drive...') : (editingJobId ? 'Update Drive' : 'Publish Drive')}
                 </button>
               </div>
             </div>

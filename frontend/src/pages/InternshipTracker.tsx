@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Plus, Briefcase, Calendar, DollarSign, Trash2, X, Award, CheckCircle2, Download } from 'lucide-react';
+import { ChevronLeft, Plus, Briefcase, Calendar, DollarSign, Trash2, X, Award, CheckCircle2, Download, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 
 interface InternshipT { 
   id: string; 
+  student_id?: string;
+  student_name?: string;
+  student_roll?: string;
+  student_department?: string;
   company_name: string; 
   role_title: string; 
-  description: string | null; 
-  start_date: string | null; 
-  end_date: string | null; 
-  stipend: number | null; 
+  description: string; 
+  start_date: string; 
+  end_date: string; 
+  stipend: number; 
   mode: string; 
   certificate_url: string | null; 
   status: string; 
-  skills_learned: string | null; 
+  skills_learned: string; 
   is_verified?: boolean; 
 }
 
@@ -34,16 +38,20 @@ const InternshipTracker = () => {
     stipend: '', 
     mode: 'onsite', 
     skills_learned: '', 
-    status: 'ongoing' 
+    status: 'ongoing',
+    student_id: ''
   });
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, boolean>>({});
 
-  // Faculty State
+  // Faculty/Admin State
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
-  const isFaculty = user?.role === 'faculty';
+  const isFaculty = user?.role === 'faculty' || user?.role === 'admin';
 
   const [allInternships, setAllInternships] = useState<any[]>([]);
+  const [classStudents, setClassStudents] = useState<any[]>([]);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -56,15 +64,31 @@ const InternshipTracker = () => {
   }, []);
 
   const fetchAll = async () => { 
+    setLoading(true);
     try { 
-      const { data } = await api.get('/career/internships/all'); 
-      setAllInternships(data.internships || []); 
-    } catch {
-      console.warn("Failed to fetch all internships, using fallback");
-      setAllInternships([
-        { id: 'i1', student_name: 'Mani Manjunath', student_roll: '22CSE101', student_department: 'CSE', company_name: 'Google', role_title: 'SDE Intern', mode: 'remote', status: 'ongoing', start_date: '2026-05-01', end_date: null, stipend: 50000, is_verified: true },
-        { id: 'i2', student_name: 'Arjun Reddy', student_roll: '22CSE102', student_department: 'CSE', company_name: 'Microsoft', role_title: 'SWE Intern', mode: 'onsite', status: 'completed', start_date: '2025-12-01', end_date: '2026-03-01', stipend: 45000, is_verified: false }
+      const [intRes, stdRes] = await Promise.all([
+        api.get('/career/internships/all'),
+        api.get('/faculty/class-students')
       ]);
+      setAllInternships(intRes.data.internships || []); 
+      const students = stdRes.data.students || [];
+      setClassStudents(students);
+      if (students.length > 0) {
+        setForm(f => ({ ...f, student_id: students[0].id }));
+      }
+    } catch {
+      console.warn("Failed to fetch all internships/students, using fallback");
+      setAllInternships([
+        { id: 'i1', student_id: 'std_1', student_name: 'Mani Manjunath', student_roll: '22CSE101', student_department: 'CSE', company_name: 'Google', role_title: 'SDE Intern', mode: 'remote', status: 'ongoing', start_date: '2026-05-01', end_date: '2026-08-01', stipend: 50000, description: 'Working on Chrome dev tools frontend features.', skills_learned: 'React, TypeScript, CSS', is_verified: true },
+        { id: 'i2', student_id: 'std_2', student_name: 'Arjun Reddy', student_roll: '22CSE102', student_department: 'CSE', company_name: 'Microsoft', role_title: 'SWE Intern', mode: 'onsite', status: 'completed', start_date: '2025-12-01', end_date: '2026-03-01', stipend: 45000, description: 'Worked on Azure storage optimization.', skills_learned: 'C#, Azure, SQL', is_verified: false }
+      ]);
+      const mockStds = [
+        { id: 'std_1', name: 'Mani Manjunath', roll_number: '22CSE101' },
+        { id: 'std_2', name: 'Arjun Reddy', roll_number: '22CSE102' },
+        { id: 'std_3', name: 'Neha Sharma', roll_number: '22CSE103' }
+      ];
+      setClassStudents(mockStds);
+      setForm(f => ({ ...f, student_id: 'std_1' }));
     } 
     setLoading(false); 
   };
@@ -84,6 +108,7 @@ const InternshipTracker = () => {
   };
 
   const fetch = async () => { 
+    setLoading(true);
     try { 
       const { data } = await api.get('/career/internships'); 
       setList(data.internships || []); 
@@ -91,44 +116,112 @@ const InternshipTracker = () => {
     setLoading(false); 
   };
 
-  const add = async () => {
-    if (!form.company_name.trim() || !form.role_title.trim() || !form.start_date) return;
-    setSubmitting(true);
-    try {
-      const payload = {
-        company_name: form.company_name,
-        role_title: form.role_title,
-        description: form.description.trim() || null,
-        start_date: form.start_date,
-        end_date: form.end_date ? form.end_date : null,
-        stipend: form.stipend ? parseFloat(form.stipend) : null,
-        mode: form.mode,
-        skills_learned: form.skills_learned.trim() || null,
-        status: form.status
-      };
-      await api.post('/career/internships', payload);
-      setShowAdd(false); 
-      setForm({ 
-        company_name: '', 
-        role_title: '', 
-        description: '', 
-        start_date: '', 
-        end_date: '', 
-        stipend: '', 
-        mode: 'onsite', 
-        skills_learned: '', 
-        status: 'ongoing' 
-      }); 
-      fetch();
-    } catch {}
-    setSubmitting(false);
+  const validateForm = (): boolean => {
+    const errors: Record<string, boolean> = {};
+    if (isFaculty && !form.student_id) errors.student_id = true;
+    if (!form.company_name.trim()) errors.company_name = true;
+    if (!form.role_title.trim()) errors.role_title = true;
+    if (!form.description.trim()) errors.description = true;
+    if (!form.start_date) errors.start_date = true;
+    if (!form.end_date) errors.end_date = true;
+    if (!form.stipend || isNaN(parseFloat(form.stipend))) errors.stipend = true;
+    if (!form.skills_learned.trim()) errors.skills_learned = true;
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
-  const del = async (id: string) => { 
-    try { 
-      await api.delete(`/career/internships/${id}`); 
-      setList(p => p.filter(x => x.id !== id)); 
-    } catch {} 
+  const resetForm = () => {
+    setForm({
+      company_name: '',
+      role_title: '',
+      description: '',
+      start_date: '',
+      end_date: '',
+      stipend: '',
+      mode: 'onsite',
+      skills_learned: '',
+      status: 'ongoing',
+      student_id: classStudents.length > 0 ? classStudents[0].id : ''
+    });
+    setEditingId(null);
+    setFormErrors({});
+  };
+
+  const handleSaveInternship = async () => {
+    if (!validateForm()) return;
+    setSubmitting(true);
+    const payload = {
+      company_name: form.company_name.trim(),
+      role_title: form.role_title.trim(),
+      description: form.description.trim(),
+      start_date: form.start_date,
+      end_date: form.end_date,
+      stipend: parseFloat(form.stipend),
+      mode: form.mode,
+      skills_learned: form.skills_learned.trim(),
+      status: form.status,
+      student_id: isFaculty ? form.student_id : undefined
+    };
+
+    try {
+      if (editingId) {
+        await api.put(`/career/internships/${editingId}`, payload);
+        alert('Internship updated successfully!');
+      } else {
+        await api.post('/career/internships', payload);
+        alert('Internship added successfully!');
+      }
+      setShowAdd(false);
+      resetForm();
+      if (isFaculty) {
+        fetchAll();
+      } else {
+        fetch();
+      }
+    } catch (err: any) {
+      alert(editingId ? 'Failed to update internship.' : 'Failed to add internship.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditClick = (item: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(item.id);
+    setForm({
+      company_name: item.company_name || '',
+      role_title: item.role_title || '',
+      description: item.description || '',
+      start_date: item.start_date ? item.start_date.split('T')[0] : '',
+      end_date: item.end_date ? item.end_date.split('T')[0] : '',
+      stipend: item.stipend ? String(item.stipend) : '',
+      mode: item.mode || 'onsite',
+      skills_learned: item.skills_learned || '',
+      status: item.status || 'ongoing',
+      student_id: item.student_id || (classStudents.length > 0 ? classStudents[0].id : '')
+    });
+    setFormErrors({});
+    setShowAdd(true);
+  };
+
+  const handleDeleteClick = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this internship?')) return;
+    try {
+      await api.delete(`/career/internships/${id}`);
+      alert('Internship deleted successfully.');
+      if (isFaculty) {
+        fetchAll();
+      } else {
+        fetch();
+      }
+    } catch {
+      if (isFaculty) {
+        setAllInternships(p => p.filter(x => x.id !== id));
+      } else {
+        setList(p => p.filter(x => x.id !== id));
+      }
+    }
   };
 
   const markComplete = async (id: string) => { 
@@ -183,7 +276,7 @@ const InternshipTracker = () => {
           <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
           <div className="flex items-center justify-between relative z-10">
             <div className="flex items-center gap-3">
-              <button onClick={() => nav('/faculty/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
+              <button onClick={() => nav(user?.role === 'faculty' ? '/faculty/career' : '/admin')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
                 <ChevronLeft className="w-5 h-5 text-white" />
               </button>
               <div>
@@ -191,6 +284,9 @@ const InternshipTracker = () => {
                 <p className="text-xs text-teal-100">{allInternships.length} student records</p>
               </div>
             </div>
+            <button onClick={() => { resetForm(); setShowAdd(true); }} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 transition-all" title="Add Student Internship">
+              <Plus className="w-5 h-5" />
+            </button>
           </div>
           
           {/* Stats */}
@@ -296,11 +392,24 @@ const InternshipTracker = () => {
                       )}
                     </button>
                   </div>
+
+                  {/* Edit/Delete actions for faculty */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 flex gap-2">
+                    <button onClick={(e) => handleEditClick(i, e)} className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 flex items-center justify-center gap-1 transition-colors">
+                      <Edit className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button onClick={(e) => handleDeleteClick(i.id, e)} className="py-2 px-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Render Add/Edit Modal */}
+        {renderModal()}
 
         <BottomNav />
       </div>
@@ -326,7 +435,7 @@ const InternshipTracker = () => {
             <button onClick={handleExport} title="Export to CSV" className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30">
               <Download className="w-5 h-5" />
             </button>
-            <button onClick={() => setShowAdd(true)} title="Add Internship" className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30">
+            <button onClick={() => { resetForm(); setShowAdd(true); }} title="Add Internship" className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30">
               <Plus className="w-5 h-5" />
             </button>
           </div>
@@ -380,7 +489,7 @@ const InternshipTracker = () => {
             <Briefcase className="w-10 h-10 text-slate-300 mx-auto mb-3" />
             <h2 className="text-lg font-bold text-slate-900">No Internships</h2>
             <p className="text-sm text-slate-500 mt-1 mb-4">Record your internship experience to keep track.</p>
-            <button onClick={() => setShowAdd(true)} className="bg-teal-600 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-md shadow-teal-500/10 hover:bg-teal-700 transition-all">
+            <button onClick={() => { resetForm(); setShowAdd(true); }} className="bg-teal-600 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-md shadow-teal-500/10 hover:bg-teal-700 transition-all">
               + Add Internship
             </button>
           </div>
@@ -427,7 +536,10 @@ const InternshipTracker = () => {
                       <Award className="w-3.5 h-3.5" />Mark Complete
                     </button>
                   )}
-                  <button onClick={() => del(i.id)} className="py-2 px-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
+                  <button onClick={(e) => handleEditClick(i, e)} className="py-2 px-3 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors">
+                    <Edit className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={(e) => handleDeleteClick(i.id, e)} className="py-2 px-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -436,7 +548,7 @@ const InternshipTracker = () => {
             
             <div className="mt-4 mb-28">
               <button
-                onClick={() => setShowAdd(true)}
+                onClick={() => { resetForm(); setShowAdd(true); }}
                 className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-teal-500/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
                 <Plus className="w-5 h-5" /> Add Internship
@@ -493,7 +605,10 @@ const InternshipTracker = () => {
                         <Award className="w-3.5 h-3.5" />Mark Complete
                       </button>
                     )}
-                    <button onClick={() => del(i.id)} className="py-2 px-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
+                    <button onClick={(e) => handleEditClick(i, e)} className="py-2 px-3 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 transition-colors">
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={(e) => handleDeleteClick(i.id, e)} className="py-2 px-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -503,7 +618,7 @@ const InternshipTracker = () => {
             
             <div className="mt-4 mb-28 mr-3">
               <button
-                onClick={() => setShowAdd(true)}
+                onClick={() => { resetForm(); setShowAdd(true); }}
                 className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-4 px-6 rounded-2xl shadow-lg shadow-teal-500/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
                 <Plus className="w-5 h-5" /> Add Internship
@@ -513,79 +628,146 @@ const InternshipTracker = () => {
         )}
       </div>
 
-      {/* Add Modal */}
-      {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto animate-slide-up shadow-2xl relative">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold text-slate-900">Add Internship</h2>
-              <button onClick={() => setShowAdd(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
-                <X className="w-4 h-4 text-slate-500" />
-              </button>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Company Name *</label>
-                <input value={form.company_name} onChange={e => setForm({ ...form, company_name: e.target.value })} placeholder="Google, TCS, etc." className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-xs font-semibold border border-slate-200 focus:outline-none focus:border-teal-500 focus:bg-white transition-all" />
-              </div>
-              
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Role / Title *</label>
-                <input value={form.role_title} onChange={e => setForm({ ...form, role_title: e.target.value })} placeholder="Software Engineer Intern" className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-xs font-semibold border border-slate-200 focus:outline-none focus:border-teal-500 focus:bg-white transition-all" />
-              </div>
-              
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Description</label>
-                <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Brief details about your role and responsibilities..." rows={3} className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-xs font-medium border border-slate-200 focus:outline-none focus:border-teal-500 focus:bg-white transition-all resize-none" />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Start Date *</label>
-                  <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} className="w-full bg-slate-50 rounded-xl px-3 py-3 text-xs font-semibold border border-slate-200 focus:outline-none focus:border-teal-500 focus:bg-white transition-all" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">End Date (optional)</label>
-                  <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} className="w-full bg-slate-50 rounded-xl px-3 py-3 text-xs font-semibold border border-slate-200 focus:outline-none focus:border-teal-500 focus:bg-white transition-all" />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Stipend (₹/month)</label>
-                  <input type="number" value={form.stipend} onChange={e => setForm({ ...form, stipend: e.target.value })} placeholder="15000" className="w-full bg-slate-50 rounded-xl px-3 py-3 text-xs font-semibold border border-slate-200 focus:outline-none focus:border-teal-500 focus:bg-white transition-all" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Mode</label>
-                  <select value={form.mode} onChange={e => setForm({ ...form, mode: e.target.value })} className="w-full bg-slate-50 rounded-xl px-3 py-3 text-xs font-bold text-slate-700 border border-slate-200 focus:outline-none focus:border-teal-500 focus:bg-white transition-all">
-                    <option value="onsite">Onsite</option>
-                    <option value="remote">Remote</option>
-                    <option value="hybrid">Hybrid</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Skills Learned</label>
-                <input value={form.skills_learned} onChange={e => setForm({ ...form, skills_learned: e.target.value })} placeholder="React, Python, Git (comma-separated)" className="w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-xs font-semibold border border-slate-200 focus:outline-none focus:border-teal-500 focus:bg-white transition-all" />
-              </div>
-              
-              <button 
-                onClick={add} 
-                disabled={submitting || !form.company_name.trim() || !form.role_title.trim() || !form.start_date} 
-                className="w-full bg-teal-600 text-white py-4 rounded-2xl font-bold text-xs hover:bg-teal-700 active:scale-[0.98] transition-all disabled:opacity-40 shadow-lg shadow-teal-600/10 mt-2"
-              >
-                {submitting ? 'Saving...' : 'Add Internship'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Render Add/Edit Modal */}
+      {renderModal()}
       
       <BottomNav />
     </div>
   );
+
+  function renderModal() {
+    if (!showAdd) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in p-4">
+        <div className="bg-white rounded-3xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto animate-slide-up shadow-2xl relative">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg font-bold text-slate-900">{editingId ? 'Edit Internship' : 'Add Internship'}</h2>
+            <button onClick={() => { setShowAdd(false); resetForm(); }} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
+              <X className="w-4 h-4 text-slate-500" />
+            </button>
+          </div>
+          
+          <div className="flex flex-col gap-4">
+            {isFaculty && (
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Select Student *</label>
+                <select
+                  value={form.student_id}
+                  disabled={!!editingId}
+                  onChange={e => setForm({ ...form, student_id: e.target.value })}
+                  className={`w-full bg-slate-50 rounded-xl px-3 py-3 text-xs font-bold border ${formErrors.student_id ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
+                >
+                  <option value="">Select Student</option>
+                  {classStudents.map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.roll_number})</option>
+                  ))}
+                </select>
+                {formErrors.student_id && <span className="text-[9px] text-red-500 font-bold">Student selection is compulsory</span>}
+              </div>
+            )}
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Company Name *</label>
+              <input 
+                value={form.company_name} 
+                onChange={e => setForm({ ...form, company_name: e.target.value })} 
+                placeholder="Google, TCS, etc." 
+                className={`w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-xs font-semibold border ${formErrors.company_name ? 'border-red-400 bg-red-50/30' : 'border-slate-200'} focus:outline-none focus:border-teal-500 focus:bg-white transition-all`} 
+              />
+              {formErrors.company_name && <span className="text-[9px] text-red-500 font-bold">Company name is compulsory</span>}
+            </div>
+            
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Role / Title *</label>
+              <input 
+                value={form.role_title} 
+                onChange={e => setForm({ ...form, role_title: e.target.value })} 
+                placeholder="Software Engineer Intern" 
+                className={`w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-xs font-semibold border ${formErrors.role_title ? 'border-red-400 bg-red-50/30' : 'border-slate-200'} focus:outline-none focus:border-teal-500 focus:bg-white transition-all`} 
+              />
+              {formErrors.role_title && <span className="text-[9px] text-red-500 font-bold">Role / Title is compulsory</span>}
+            </div>
+            
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Description *</label>
+              <textarea 
+                value={form.description} 
+                onChange={e => setForm({ ...form, description: e.target.value })} 
+                placeholder="Brief details about your role and responsibilities..." 
+                rows={3} 
+                className={`w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-xs font-medium border ${formErrors.description ? 'border-red-400 bg-red-50/30' : 'border-slate-200'} focus:outline-none focus:border-teal-500 focus:bg-white transition-all resize-none`} 
+              />
+              {formErrors.description && <span className="text-[9px] text-red-500 font-bold">Description is compulsory</span>}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Start Date *</label>
+                <input 
+                  type="date" 
+                  value={form.start_date} 
+                  onChange={e => setForm({ ...form, start_date: e.target.value })} 
+                  className={`w-full bg-slate-50 rounded-xl px-3 py-3 text-xs font-semibold border ${formErrors.start_date ? 'border-red-400 bg-red-50/30' : 'border-slate-200'} focus:outline-none focus:border-teal-500 focus:bg-white transition-all`} 
+                />
+                {formErrors.start_date && <span className="text-[9px] text-red-500 font-bold">Start date is compulsory</span>}
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">End Date *</label>
+                <input 
+                  type="date" 
+                  value={form.end_date} 
+                  onChange={e => setForm({ ...form, end_date: e.target.value })} 
+                  className={`w-full bg-slate-50 rounded-xl px-3 py-3 text-xs font-semibold border ${formErrors.end_date ? 'border-red-400 bg-red-50/30' : 'border-slate-200'} focus:outline-none focus:border-teal-500 focus:bg-white transition-all`} 
+                />
+                {formErrors.end_date && <span className="text-[9px] text-red-500 font-bold">End date is compulsory</span>}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Stipend (₹/month) *</label>
+                <input 
+                  type="number" 
+                  value={form.stipend} 
+                  onChange={e => setForm({ ...form, stipend: e.target.value })} 
+                  placeholder="15000" 
+                  className={`w-full bg-slate-50 rounded-xl px-3 py-3 text-xs font-semibold border ${formErrors.stipend ? 'border-red-400 bg-red-50/30' : 'border-slate-200'} focus:outline-none focus:border-teal-500 focus:bg-white transition-all`} 
+                />
+                {formErrors.stipend && <span className="text-[9px] text-red-500 font-bold">Stipend is compulsory</span>}
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Mode *</label>
+                <select value={form.mode} onChange={e => setForm({ ...form, mode: e.target.value })} className="w-full bg-slate-50 rounded-xl px-3 py-3 text-xs font-bold text-slate-700 border border-slate-200 focus:outline-none focus:border-teal-500 focus:bg-white transition-all">
+                  <option value="onsite">Onsite</option>
+                  <option value="remote">Remote</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
+              </div>
+            </div>
+            
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Skills Learned *</label>
+              <input 
+                value={form.skills_learned} 
+                onChange={e => setForm({ ...form, skills_learned: e.target.value })} 
+                placeholder="React, Python, Git (comma-separated)" 
+                className={`w-full bg-slate-50 rounded-2xl px-4 py-3.5 text-xs font-semibold border ${formErrors.skills_learned ? 'border-red-400 bg-red-50/30' : 'border-slate-200'} focus:outline-none focus:border-teal-500 focus:bg-white transition-all`} 
+              />
+              {formErrors.skills_learned && <span className="text-[9px] text-red-500 font-bold">Skills learned field is compulsory</span>}
+            </div>
+            
+            <button 
+              onClick={handleSaveInternship} 
+              disabled={submitting} 
+              className="w-full bg-teal-600 text-white py-4 rounded-2xl font-bold text-xs hover:bg-teal-700 active:scale-[0.98] transition-all disabled:opacity-40 shadow-lg shadow-teal-600/10 mt-2"
+            >
+              {submitting ? 'Saving...' : (editingId ? 'Update Internship' : 'Add Internship')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default InternshipTracker;

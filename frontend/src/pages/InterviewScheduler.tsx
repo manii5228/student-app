@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, CheckCircle, AlertCircle, Calendar, ExternalLink, Plus } from 'lucide-react';
+import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, CheckCircle, AlertCircle, Calendar, ExternalLink, Plus, Edit, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -36,13 +36,15 @@ const InterviewScheduler = () => {
   // Faculty State
   const userStr = localStorage.getItem('user');
   const user = userStr ? JSON.parse(userStr) : null;
-  const isFaculty = user?.role === 'faculty';
+  const isFaculty = user?.role === 'faculty' || user?.role === 'admin';
 
   const [allInterviews, setAllInterviews] = useState<any[]>([]);
   const [classStudents, setClassStudents] = useState<any[]>([]);
   const [jobsList, setJobsList] = useState<any[]>([]);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduling, setScheduling] = useState(false);
+  const [editingIvId, setEditingIvId] = useState<string | null>(null);
+  const [ivFormErrors, setIvFormErrors] = useState<Record<string, boolean>>({});
   const [newIvForm, setNewIvForm] = useState({
     student_id: '',
     posting_id: '',
@@ -96,27 +98,83 @@ const InterviewScheduler = () => {
     }
   };
 
+  const validateIvForm = (): boolean => {
+    const errors: Record<string, boolean> = {};
+    if (!newIvForm.student_id) errors.student_id = true;
+    if (!newIvForm.posting_id) errors.posting_id = true;
+    if (!newIvForm.round_name.trim()) errors.round_name = true;
+    if (!newIvForm.scheduled_at) errors.scheduled_at = true;
+    if (!newIvForm.venue.trim()) errors.venue = true;
+    setIvFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const resetIvForm = () => {
+    setNewIvForm({
+      student_id: classStudents.length > 0 ? classStudents[0].id : '',
+      posting_id: jobsList.length > 0 ? jobsList[0].id : '',
+      round_name: 'Technical Round 1',
+      scheduled_at: '',
+      venue: 'Placement Cell'
+    });
+    setEditingIvId(null);
+    setIvFormErrors({});
+  };
+
   const handleScheduleInterview = async () => {
-    if (!newIvForm.student_id || !newIvForm.posting_id || !newIvForm.scheduled_at) {
-      alert('Please fill out all required fields.');
-      return;
-    }
+    if (!validateIvForm()) return;
     setScheduling(true);
     try {
-      await api.post('/career/interviews', {
-        student_id: newIvForm.student_id,
-        posting_id: newIvForm.posting_id,
-        round_name: newIvForm.round_name,
-        scheduled_at: new Date(newIvForm.scheduled_at).toISOString(),
-        venue: newIvForm.venue
-      });
-      alert('Interview scheduled successfully!');
+      if (editingIvId) {
+        await api.put(`/career/interviews/${editingIvId}`, {
+          student_id: newIvForm.student_id,
+          posting_id: newIvForm.posting_id,
+          round_name: newIvForm.round_name,
+          scheduled_at: new Date(newIvForm.scheduled_at).toISOString(),
+          venue: newIvForm.venue
+        });
+        alert('Interview updated successfully!');
+      } else {
+        await api.post('/career/interviews', {
+          student_id: newIvForm.student_id,
+          posting_id: newIvForm.posting_id,
+          round_name: newIvForm.round_name,
+          scheduled_at: new Date(newIvForm.scheduled_at).toISOString(),
+          venue: newIvForm.venue
+        });
+        alert('Interview scheduled successfully!');
+      }
       setShowScheduleModal(false);
+      resetIvForm();
       fetchFacultyData();
     } catch (err) {
-      alert('Failed to schedule interview.');
+      alert(editingIvId ? 'Failed to update interview.' : 'Failed to schedule interview.');
     } finally {
       setScheduling(false);
+    }
+  };
+
+  const handleEditInterview = (iv: any) => {
+    setEditingIvId(iv.id);
+    setNewIvForm({
+      student_id: iv.student_id || '',
+      posting_id: iv.posting_id || '',
+      round_name: iv.round_name || 'Technical Round 1',
+      scheduled_at: iv.scheduled_at ? new Date(iv.scheduled_at).toISOString().slice(0, 16) : '',
+      venue: iv.venue || 'Placement Cell'
+    });
+    setIvFormErrors({});
+    setShowScheduleModal(true);
+  };
+
+  const handleDeleteInterview = async (ivId: string) => {
+    if (!confirm('Are you sure you want to delete this interview?')) return;
+    try {
+      await api.delete(`/career/interviews/${ivId}`);
+      fetchFacultyData();
+      alert('Interview deleted successfully.');
+    } catch {
+      setAllInterviews(p => p.filter(x => x.id !== ivId));
     }
   };
 
@@ -310,6 +368,14 @@ const InterviewScheduler = () => {
                         <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-slate-400" />{formatDate(iv.scheduled_at)} · {formatTime(iv.scheduled_at)}</span>
                         {iv.venue && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-slate-400" />{iv.venue}</span>}
                       </div>
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => handleEditInterview(iv)} className="flex-1 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-bold hover:bg-blue-100 flex items-center justify-center gap-1 transition-colors">
+                          <Edit className="w-3.5 h-3.5" /> Edit
+                        </button>
+                        <button onClick={() => handleDeleteInterview(iv.id)} className="py-2 px-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold hover:bg-red-100 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -323,8 +389,8 @@ const InterviewScheduler = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
             <div className="bg-white w-full max-w-md rounded-[32px] p-6 shadow-2xl animate-slide-up flex flex-col max-h-[85vh]">
               <div className="flex justify-between items-center mb-4 shrink-0">
-                <h3 className="text-base font-black text-slate-900">Schedule Interview Round</h3>
-                <button onClick={() => setShowScheduleModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
+                <h3 className="text-base font-black text-slate-900">{editingIvId ? 'Edit Interview Round' : 'Schedule Interview Round'}</h3>
+                <button onClick={() => { setShowScheduleModal(false); resetIvForm(); }} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
               </div>
 
               <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
@@ -332,36 +398,41 @@ const InterviewScheduler = () => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Select Student *</label>
                   <select
                     value={newIvForm.student_id}
-                    onChange={e => setNewIvForm({...newIvForm, student_id: e.target.value})}
-                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                    onChange={e => { setNewIvForm({...newIvForm, student_id: e.target.value}); setIvFormErrors({...ivFormErrors, student_id: false}); }}
+                    className={`w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border ${ivFormErrors.student_id ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
                   >
+                    <option value="">Select Student</option>
                     {classStudents.map(s => (
                       <option key={s.id} value={s.id}>{s.name} ({s.roll_number})</option>
                     ))}
                   </select>
+                  {ivFormErrors.student_id && <span className="text-[9px] text-red-500 font-bold">Student is required</span>}
                 </div>
 
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Select Job Drive *</label>
                   <select
                     value={newIvForm.posting_id}
-                    onChange={e => setNewIvForm({...newIvForm, posting_id: e.target.value})}
-                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                    onChange={e => { setNewIvForm({...newIvForm, posting_id: e.target.value}); setIvFormErrors({...ivFormErrors, posting_id: false}); }}
+                    className={`w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border ${ivFormErrors.posting_id ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
                   >
+                    <option value="">Select Job Drive</option>
                     {jobsList.map(j => (
                       <option key={j.id} value={j.id}>{j.company_name} - {j.role_title}</option>
                     ))}
                   </select>
+                  {ivFormErrors.posting_id && <span className="text-[9px] text-red-500 font-bold">Job Drive is required</span>}
                 </div>
 
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Round Name *</label>
                   <input
                     value={newIvForm.round_name}
-                    onChange={e => setNewIvForm({...newIvForm, round_name: e.target.value})}
+                    onChange={e => { setNewIvForm({...newIvForm, round_name: e.target.value}); setIvFormErrors({...ivFormErrors, round_name: false}); }}
                     placeholder="e.g. Technical Round 1"
-                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                    className={`w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border ${ivFormErrors.round_name ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
                   />
+                  {ivFormErrors.round_name && <span className="text-[9px] text-red-500 font-bold">Round Name is required</span>}
                 </div>
 
                 <div>
@@ -369,29 +440,31 @@ const InterviewScheduler = () => {
                   <input
                     type="datetime-local"
                     value={newIvForm.scheduled_at}
-                    onChange={e => setNewIvForm({...newIvForm, scheduled_at: e.target.value})}
-                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                    onChange={e => { setNewIvForm({...newIvForm, scheduled_at: e.target.value}); setIvFormErrors({...ivFormErrors, scheduled_at: false}); }}
+                    className={`w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border ${ivFormErrors.scheduled_at ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
                   />
+                  {ivFormErrors.scheduled_at && <span className="text-[9px] text-red-500 font-bold">Scheduled date & time is required</span>}
                 </div>
 
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Venue *</label>
                   <input
                     value={newIvForm.venue}
-                    onChange={e => setNewIvForm({...newIvForm, venue: e.target.value})}
+                    onChange={e => { setNewIvForm({...newIvForm, venue: e.target.value}); setIvFormErrors({...ivFormErrors, venue: false}); }}
                     placeholder="e.g. Placement Cell, Lab 3"
-                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                    className={`w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border ${ivFormErrors.venue ? 'border-red-400 bg-red-50/30' : 'border-slate-200'}`}
                   />
+                  {ivFormErrors.venue && <span className="text-[9px] text-red-500 font-bold">Venue is required</span>}
                 </div>
               </div>
 
               <div className="mt-6 shrink-0 border-t border-slate-100 pt-4">
                 <button
                   onClick={handleScheduleInterview}
-                  disabled={scheduling || !newIvForm.student_id || !newIvForm.posting_id || !newIvForm.scheduled_at}
+                  disabled={scheduling}
                   className="w-full bg-violet-600 text-white py-4 rounded-2xl font-black text-xs hover:bg-violet-700 transition-all disabled:opacity-40 shadow-xl"
                 >
-                  {scheduling ? 'Scheduling...' : 'Confirm & Publish'}
+                  {scheduling ? (editingIvId ? 'Updating...' : 'Scheduling...') : (editingIvId ? 'Update Interview' : 'Confirm & Publish')}
                 </button>
               </div>
             </div>

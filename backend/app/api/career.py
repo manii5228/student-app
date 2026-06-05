@@ -1064,21 +1064,6 @@ def webhook_award_badge():
     }), 200
 
 
-@career_bp.route("/badges/<bid>/holders", methods=["GET"])
-@jwt_required()
-def badge_holders(bid):
-    """List all students who earned a specific badge."""
-    earned = EarnedBadge.query.filter_by(badge_id=bid).all()
-    holders = []
-    for e in earned:
-        u = db.session.get(User, e.student_id)
-        if u:
-            holders.append({
-                "student_id": u.id, "name": u.full_name, "department": u.department,
-                "earned_at": e.earned_at.isoformat() if e.earned_at else None,
-            })
-    return jsonify({"holders": holders}), 200
-
 
 @career_bp.route("/badges/claims", methods=["POST"])
 @jwt_required()
@@ -1507,20 +1492,38 @@ def verify_internship(iid):
 
 @career_bp.route("/internships", methods=["POST"])
 @jwt_required()
-@role_required("student")
+@role_required("student", "faculty", "admin")
 def add_internship():
     """Record a new internship."""
-    data = request.get_json()
+    data = request.get_json() or {}
+    caller_id = get_jwt_identity()
+    caller = db.session.get(User, caller_id)
+    caller_role = caller.role.value if (caller and hasattr(caller, "role") and hasattr(caller.role, "value")) else "student"
+    
+    if caller_role in ("faculty", "admin"):
+        student_id = data.get("student_id")
+        if not student_id:
+            return jsonify({"error": "student_id is required"}), 400
+    else:
+        student_id = caller_id
+
+    # Enforce compulsory fields
+    compulsory_fields = ["company_name", "role_title", "description", "start_date", "end_date", "stipend", "skills_learned"]
+    for field in compulsory_fields:
+        if field not in data or not str(data[field]).strip():
+            return jsonify({"error": f"{field} is compulsory"}), 400
+
     i = Internship(
-        student_id=get_jwt_identity(),
+        student_id=student_id,
         company_name=data["company_name"], role_title=data["role_title"],
-        description=data.get("description"),
+        description=data["description"],
         start_date=dt_date.fromisoformat(data["start_date"].split("T")[0]),
-        end_date=dt_date.fromisoformat(data["end_date"].split("T")[0]) if data.get("end_date") else None,
-        stipend=data.get("stipend"), mode=data.get("mode", "onsite"),
+        end_date=dt_date.fromisoformat(data["end_date"].split("T")[0]),
+        stipend=float(data["stipend"]),
+        mode=data.get("mode", "onsite"),
         certificate_url=data.get("certificate_url"),
         status=data.get("status", "ongoing"),
-        skills_learned=data.get("skills_learned"),
+        skills_learned=data["skills_learned"],
     )
     db.session.add(i)
     db.session.commit()
@@ -1532,15 +1535,35 @@ def add_internship():
 def update_internship(iid):
     """Update an internship record."""
     i = db.session.get(Internship, iid)
-    if not i or i.student_id != get_jwt_identity():
+    if not i:
         return jsonify({"error": "Not found"}), 404
-    data = request.get_json()
-    for field in ["company_name", "role_title", "description", "stipend", "mode",
-                  "certificate_url", "status", "skills_learned"]:
-        if field in data:
-            setattr(i, field, data[field])
-    if "end_date" in data and data["end_date"]:
-        i.end_date = dt_date.fromisoformat(data["end_date"].split("T")[0])
+        
+    caller_id = get_jwt_identity()
+    caller = db.session.get(User, caller_id)
+    caller_role = caller.role.value if (caller and hasattr(caller, "role") and hasattr(caller.role, "value")) else "student"
+    
+    if i.student_id != caller_id and caller_role not in ("faculty", "admin"):
+        return jsonify({"error": "Unauthorized"}), 403
+        
+    data = request.get_json() or {}
+    
+    # Enforce compulsory fields
+    compulsory_fields = ["company_name", "role_title", "description", "start_date", "end_date", "stipend", "skills_learned"]
+    for field in compulsory_fields:
+        if field not in data or not str(data[field]).strip():
+            return jsonify({"error": f"{field} is compulsory"}), 400
+
+    i.company_name = data["company_name"]
+    i.role_title = data["role_title"]
+    i.description = data["description"]
+    i.stipend = float(data["stipend"])
+    i.mode = data.get("mode", "onsite")
+    i.certificate_url = data.get("certificate_url")
+    i.status = data.get("status", "ongoing")
+    i.skills_learned = data["skills_learned"]
+    i.start_date = dt_date.fromisoformat(data["start_date"].split("T")[0])
+    i.end_date = dt_date.fromisoformat(data["end_date"].split("T")[0])
+    
     db.session.commit()
     return jsonify({"internship": i.to_dict()}), 200
 
@@ -1549,8 +1572,16 @@ def update_internship(iid):
 @jwt_required()
 def delete_internship(iid):
     i = db.session.get(Internship, iid)
-    if not i or i.student_id != get_jwt_identity():
+    if not i:
         return jsonify({"error": "Not found"}), 404
+        
+    caller_id = get_jwt_identity()
+    caller = db.session.get(User, caller_id)
+    caller_role = caller.role.value if (caller and hasattr(caller, "role") and hasattr(caller.role, "value")) else "student"
+    
+    if i.student_id != caller_id and caller_role not in ("faculty", "admin"):
+        return jsonify({"error": "Unauthorized"}), 403
+        
     db.session.delete(i)
     db.session.commit()
     return jsonify({"message": "Deleted"}), 200
