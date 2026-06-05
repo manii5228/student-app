@@ -337,7 +337,7 @@ const SkillBadges = () => {
 
       {/* ─── Badge Detail Modal ─── */}
       {selectedBadge && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-md animate-fade-in p-4" onClick={() => setSelectedBadge(null)}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md animate-fade-in p-4" onClick={() => setSelectedBadge(null)}>
           <div className="bg-white rounded-[32px] w-full max-w-sm shadow-2xl overflow-hidden animate-slide-up flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
             <div className={`relative pt-12 pb-8 px-6 bg-gradient-to-br ${catColors[selectedBadge.badge.category] || 'from-slate-500 to-slate-600'} text-center overflow-hidden shrink-0`}>
               <div className="absolute top-4 left-4"><button onClick={() => setSelectedBadge(null)} className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white"><ChevronLeft className="w-5 h-5"/></button></div>
@@ -414,27 +414,7 @@ const SkillBadges = () => {
                 </div>
               )}
 
-              {selectedBadge.earned && (
-                <div className="mb-6 bg-slate-900 text-slate-100 rounded-2xl p-4 border border-slate-800 shadow-md font-mono text-[9px]">
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-2">
-                    <span className="font-bold text-cyan-400 uppercase tracking-wider text-[8px]">Verifiable Credential</span>
-                    <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded text-[7px] font-bold uppercase">Secured</span>
-                  </div>
-                  <div className="flex flex-col gap-1 text-slate-400">
-                    <p><span className="text-slate-500 font-bold">ISSUER:</span> Vel Tech Registrar</p>
-                    <p><span className="text-slate-500 font-bold">RECORD ID:</span> VC-{selectedBadge.earned.id?.substring(0, 8).toUpperCase()}</p>
-                    <p className="break-all"><span className="text-slate-500 font-bold">BLOCK SIG:</span> SHA256:{(() => {
-                      const idVal = selectedBadge.earned.id || 'badge-auth';
-                      let hash = 0;
-                      for (let i = 0; i < idVal.length; i++) {
-                        hash = (hash << 5) - hash + idVal.charCodeAt(i);
-                        hash |= 0;
-                      }
-                      return Math.abs(hash).toString(16).repeat(4).substring(0, 40);
-                    })()}</p>
-                  </div>
-                </div>
-              )}
+
 
               <div>
                 <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 flex items-center justify-between">
@@ -472,7 +452,7 @@ const SkillBadges = () => {
 
       {/* Faculty Create Badge Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white rounded-t-[32px] p-6 w-full max-w-lg animate-slide-up max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-slate-900">Create Badge Template</h2>
