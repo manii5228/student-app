@@ -148,6 +148,10 @@ const ProjectReminders = () => {
       // Handle both real backend and mock response schemas
       if (data && data.project) {
         setProjects(p => p.map(x => x.id === data.project.id ? data.project : x));
+        const newMsItem = data.project.milestones?.find((m: any) => !currentProject?.milestones.some(ex => ex.id === m.id));
+        if (newMsItem && newMsItem.proposed_column) {
+          alert(`Milestone created. Move to '${newMsItem.proposed_column === 'in_progress' ? 'In Progress' : 'Done'}' requested. Faculty advisor approval required!`);
+        }
       } else if (data && data.id) {
         // Mock raw milestone response
         setProjects(p => p.map(x => {

@@ -2847,12 +2847,24 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     const payload = getPayload(config.data);
     const project = db.projects.find((p: any) => p.id === pid);
     if (project) {
+      const activeUser = db.users.find((u: any) => u.id === activeUserId);
+      const isStudent = activeUser?.role === 'student';
+      
+      const reqColumn = payload.column || "todo";
+      let col = reqColumn;
+      let proposed: string | null = null;
+      if (isStudent && reqColumn !== "todo") {
+        col = "todo";
+        proposed = reqColumn;
+      }
+
       const newMs = {
         id: `ms_${Date.now()}`,
         title: payload.title,
         due_date: payload.due_date || null,
-        column: payload.column || "todo",
-        is_completed: payload.column === 'done',
+        column: col,
+        proposed_column: proposed,
+        is_completed: col === 'done',
         assigned_to: payload.assigned_to || null
       };
       if (!project.milestones) project.milestones = [];

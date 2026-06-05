@@ -656,12 +656,28 @@ def add_milestone(pid):
     if not p or p.student_id != get_jwt_identity():
         return jsonify({"error": "Not found"}), 404
     data = request.get_json()
+    
+    # Check if student
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    is_student = user.role == UserRole.STUDENT if user else True
+    
+    req_column = data.get("column", "todo")
+    if is_student and req_column != "todo":
+        col = "todo"
+        proposed = req_column
+    else:
+        col = req_column
+        proposed = None
+
     ms = Milestone(
         project_id=pid,
         title=data["title"],
         due_date=dt_date.fromisoformat(data["due_date"].replace("Z", "").split("T")[0]) if data.get("due_date") else None,
         assigned_to=data.get("assigned_to"),
-        column=data.get("column", "todo"),
+        column=col,
+        proposed_column=proposed,
+        is_completed=col == "done"
     )
     db.session.add(ms)
     db.session.commit()
@@ -676,9 +692,27 @@ def toggle_milestone(mid):
     ms = db.session.get(Milestone, mid)
     if not ms:
         return jsonify({"error": "Not found"}), 404
-    ms.is_completed = not ms.is_completed
-    ms.completed_at = datetime.now(timezone.utc) if ms.is_completed else None
-    ms.column = "done" if ms.is_completed else "todo"
+        
+    # Check if student
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    is_student = user.role == UserRole.STUDENT if user else True
+    
+    if is_student:
+        current_active = ms.proposed_column or ms.column
+        if current_active == "done":
+            ms.column = "todo"
+            ms.is_completed = False
+            ms.completed_at = None
+            ms.proposed_column = None
+        else:
+            ms.proposed_column = "done"
+    else:
+        ms.is_completed = not ms.is_completed
+        ms.completed_at = datetime.now(timezone.utc) if ms.is_completed else None
+        ms.column = "done" if ms.is_completed else "todo"
+        ms.proposed_column = None
+        
     db.session.commit()
     _update_project_progress(ms.project)
     return jsonify({"milestone": ms.to_dict(), "project": ms.project.to_dict()}), 200
