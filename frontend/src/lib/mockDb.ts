@@ -2353,7 +2353,7 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     const q = decodeURIComponent(compStr).toLowerCase();
     const list = db.companyPrep || [];
     const filtered = list.filter((p: any) => p.company_name.toLowerCase().includes(q) || p.question_text.toLowerCase().includes(q));
-    return { status: 200, data: filtered };
+    return { status: 200, data: { questions: filtered } };
   }
   if (cleanUrl.startsWith('/career/prep/') && cleanUrl.endsWith('/question') && method === 'post') {
     const compStr = cleanUrl.split('/')[3] || '';
@@ -2369,7 +2369,7 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     };
     db.companyPrep.push(newQ);
     saveMockDb(db);
-    return { status: 201, data: newQ };
+    return { status: 201, data: { question: newQ } };
   }
   if (cleanUrl.startsWith('/career/prep/question/') && method === 'put') {
     const qid = cleanUrl.split('/').pop();
@@ -2378,7 +2378,7 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     if (qIdx !== -1) {
       db.companyPrep[qIdx] = { ...db.companyPrep[qIdx], ...payload };
       saveMockDb(db);
-      return { status: 200, data: db.companyPrep[qIdx] };
+      return { status: 200, data: { question: db.companyPrep[qIdx] } };
     }
   }
   if (cleanUrl.startsWith('/career/prep/question/') && method === 'delete') {

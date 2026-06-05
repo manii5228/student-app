@@ -72,7 +72,7 @@ const CompanyPrep = () => {
     setSearched(true);
     try {
       const { data } = await api.get(`/career/prep/${encodeURIComponent(q)}`);
-      setQuestions(data.questions || []);
+      setQuestions(data.questions || (Array.isArray(data) ? data : []));
     } catch {
       // Offline fallback
       setQuestions([
@@ -116,7 +116,8 @@ const CompanyPrep = () => {
           category: newCategory,
           year: newYear ? parseInt(newYear) : null
         });
-        setQuestions(questions.map(q => q.id === editingQuestionId ? data.question : q));
+        const updatedQuestion = data.question || data;
+        setQuestions(questions.map(q => (q && q.id === editingQuestionId) ? updatedQuestion : q).filter(Boolean));
         alert('Question updated successfully!');
       } else {
         // Create Question API
@@ -125,7 +126,10 @@ const CompanyPrep = () => {
           category: newCategory,
           year: newYear ? parseInt(newYear) : null
         });
-        setQuestions([res.data.question, ...questions]);
+        const newQuestion = res.data.question || res.data;
+        if (newQuestion) {
+          setQuestions([newQuestion, ...questions]);
+        }
         alert('Question shared to community prep board!');
       }
       setShowAddModal(false);
