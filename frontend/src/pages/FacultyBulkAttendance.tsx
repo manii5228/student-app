@@ -51,6 +51,12 @@ const FacultyBulkAttendance = () => {
   const [period, setPeriod] = useState(1);
   const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().split('T')[0]);
 
+  // Subjects state (dynamic)
+  const [subjectsList, setSubjectsList] = useState(CSE_SUBJECTS);
+  const [detectedSlot, setDetectedSlot] = useState<any>(null);
+  const [todaySlots, setTodaySlots] = useState<any[]>([]);
+  const [checkingSchedule, setCheckingSchedule] = useState(true);
+
   // Step 2: Student list & submission states
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,16 +88,128 @@ const FacultyBulkAttendance = () => {
     }
   }, [activeTab]);
 
-  const handleFetchStudents = async () => {
+  // Timetable and auto-detection on mount
+  useEffect(() => {
+    const loadTimetableAndDetect = async () => {
+      try {
+        setCheckingSchedule(true);
+        const { data } = await api.get('/timetable/faculty');
+        if (data && data.grid) {
+          const slots: any[] = [];
+          Object.keys(data.grid).forEach(day => {
+            if (Array.isArray(data.grid[day])) {
+              slots.push(...data.grid[day]);
+            }
+          });
+          
+          // Build updated subject list
+          setSubjectsList(prev => {
+            const updated = [...prev];
+            slots.forEach(slot => {
+              const exists = updated.some(sub => sub.code === slot.subject_code);
+              if (!exists && slot.subject_code) {
+                updated.push({ code: slot.subject_code, name: slot.subject_name || 'Subject' });
+              }
+            });
+            return updated;
+          });
+          
+          // Detect current class
+          const now = new Date();
+          const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          const currentDay = dayNames[now.getDay()];
+          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+          // Filter slots for today
+          const today = slots.filter(s => s.day.toLowerCase() === currentDay);
+          setTodaySlots(today);
+          
+          let matched: any = null;
+          today.forEach(slot => {
+            if (!slot.start_time || !slot.end_time) return;
+            const [sh, sm] = slot.start_time.split(':').map(Number);
+            const [eh, em] = slot.end_time.split(':').map(Number);
+            const startMin = sh * 60 + sm;
+            const endMin = eh * 60 + em;
+            
+            if (currentMinutes >= startMin - 15 && currentMinutes <= endMin + 15) {
+              matched = slot;
+            }
+          });
+
+          if (matched) {
+            setDetectedSlot(matched);
+            
+            // Auto-fill form values
+            setDepartment(matched.department || 'CSE');
+            setSemester(matched.semester || 4);
+            setSection(matched.section || 'A');
+            setPeriod(matched.period_number || 1);
+            
+            const existingIdx = CSE_SUBJECTS.findIndex(sub => sub.code === matched.subject_code);
+            if (existingIdx !== -1) {
+              setSubjectIndex(existingIdx);
+            } else {
+              setSubjectsList(prev => {
+                const updated = [...prev];
+                const exists = updated.some(sub => sub.code === matched.subject_code);
+                if (!exists) {
+                  updated.push({ code: matched.subject_code, name: matched.subject_name });
+                }
+                const idx = updated.findIndex(sub => sub.code === matched.subject_code);
+                setSubjectIndex(idx);
+                return updated;
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load timetable for auto-detection", err);
+      } finally {
+        setCheckingSchedule(false);
+      }
+    };
+
+    loadTimetableAndDetect();
+  }, []);
+
+  const handleSelectTodaySlot = (slot: any) => {
+    setDepartment(slot.department || 'CSE');
+    setSemester(slot.semester || 4);
+    setSection(slot.section || 'A');
+    setPeriod(slot.period_number || 1);
+    
+    const idx = subjectsList.findIndex(sub => sub.code === slot.subject_code);
+    if (idx !== -1) {
+      setSubjectIndex(idx);
+    } else {
+      setSubjectsList(prev => {
+        const updated = [...prev];
+        const exists = updated.some(sub => sub.code === slot.subject_code);
+        if (!exists) {
+          updated.push({ code: slot.subject_code, name: slot.subject_name });
+        }
+        const findIdx = updated.findIndex(sub => sub.code === slot.subject_code);
+        setSubjectIndex(findIdx);
+        return updated;
+      });
+    }
+  };
+
+  const handleFetchStudents = async (
+    targetDept = department,
+    targetSem = semester,
+    targetSec = section
+  ) => {
     try {
       setLoading(true);
       setErrorMsg(null);
       
       const { data } = await api.get('/attendance/students', {
         params: {
-          department,
-          semester,
-          section
+          department: targetDept,
+          semester: targetSem,
+          section: targetSec
         }
       });
 
@@ -105,7 +223,7 @@ const FacultyBulkAttendance = () => {
         })));
         setStep(2);
       } else {
-        setErrorMsg(`No students found enrolled in ${department} Sem ${semester} Section ${section}.`);
+        setErrorMsg(`No students found enrolled in ${targetDept} Sem ${targetSem} Section ${targetSec}.`);
       }
     } catch (err: any) {
       console.error(err);
@@ -113,6 +231,11 @@ const FacultyBulkAttendance = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleQuickMark = (slot: any) => {
+    handleSelectTodaySlot(slot);
+    handleFetchStudents(slot.department, slot.semester, slot.section || 'A');
   };
 
   const toggleStatus = (id: string) => {
@@ -130,7 +253,7 @@ const FacultyBulkAttendance = () => {
       setSubmitting(true);
       setErrorMsg(null);
       
-      const selectedSubject = CSE_SUBJECTS[subjectIndex];
+      const selectedSubject = subjectsList[subjectIndex];
       
       // 1. Create the attendance session
       const sessionRes = await api.post('/attendance/session', {
@@ -233,90 +356,189 @@ const FacultyBulkAttendance = () => {
           
           {/* STEP 1: FORM SETUP */}
           {step === 1 && (
-            <div className="bg-white rounded-[28px] p-6 shadow-sm border border-slate-100 space-y-4 animate-slide-up">
-              <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-indigo-500" /> Session Setup
-              </h2>
+            <div className="space-y-4 animate-slide-up">
+              
+              {/* Timetable Auto-Detection Header */}
+              {checkingSchedule ? (
+                <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex items-center justify-center gap-3">
+                  <span className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></span>
+                  <span className="text-xs font-semibold text-slate-500">Checking timetable schedule...</span>
+                </div>
+              ) : detectedSlot ? (
+                <div className="bg-gradient-to-br from-indigo-905 from-indigo-900 via-indigo-950 to-slate-900 text-white rounded-[32px] p-6 shadow-xl relative overflow-hidden border border-indigo-800/40">
+                  <div className="absolute -right-12 -top-12 w-32 h-32 bg-indigo-500/20 rounded-full blur-2xl pointer-events-none"></div>
+                  <div className="absolute -left-10 -bottom-10 w-24 h-24 bg-purple-500/10 rounded-full blur-xl pointer-events-none"></div>
+                  
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-1.5 bg-indigo-500/25 text-indigo-200 border border-indigo-500/30 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider">
+                      <Clock className="w-3.5 h-3.5 text-indigo-300" /> Class Detected
+                    </div>
+                    <span className="text-[10px] font-black text-indigo-250 uppercase tracking-widest bg-white/10 px-2.5 py-1 rounded-xl">
+                      {detectedSlot.start_time} - {detectedSlot.end_time}
+                    </span>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <span className="text-[9px] font-bold text-indigo-300 uppercase tracking-widest">
+                      {detectedSlot.department} • Sem {detectedSlot.semester} • Section {detectedSlot.section || 'A'} • Period {detectedSlot.period_number}
+                    </span>
+                    <h3 className="text-sm font-black text-white leading-tight mt-1">
+                      {detectedSlot.subject_name}
+                    </h3>
+                    <p className="text-[10px] text-indigo-200/80 font-bold uppercase tracking-wider mt-0.5">{detectedSlot.subject_code}</p>
+                  </div>
+                  
+                  <div className="mt-5 flex gap-2">
+                    <button 
+                      onClick={() => handleQuickMark(detectedSlot)}
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-550 hover:bg-indigo-500 text-white py-3.5 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 shadow-lg shadow-indigo-500/20"
+                    >
+                      <Check className="w-4 h-4" /> Quick Mark Attendance
+                    </button>
+                  </div>
+                </div>
+              ) : todaySlots.length > 0 ? (
+                <div className="bg-white rounded-[28px] p-5 shadow-sm border border-slate-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-indigo-500" /> Today's Scheduled Classes
+                    </h3>
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                      {todaySlots.length} classes
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-semibold leading-relaxed">
+                    Select a class scheduled for today to instantly pre-fill all settings:
+                  </p>
+                  <div className="flex flex-col gap-2 max-h-[160px] overflow-y-auto pr-1">
+                    {todaySlots.map((slot) => {
+                      const isSelected = department === slot.department && 
+                                         semester === slot.semester && 
+                                         section === (slot.section || 'A') && 
+                                         period === slot.period_number;
+                      return (
+                        <button
+                          key={slot.id}
+                          onClick={() => handleSelectTodaySlot(slot)}
+                          className={`p-3.5 rounded-2xl flex items-center justify-between text-left transition-all active:scale-[0.98] border text-xs font-bold ${
+                            isSelected 
+                              ? 'bg-indigo-50 border-indigo-200 text-indigo-900 shadow-sm' 
+                              : 'bg-slate-50 hover:bg-slate-100 border-slate-100 text-slate-700'
+                          }`}
+                        >
+                          <div className="flex-1 pr-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] font-black text-indigo-650 text-indigo-600 uppercase bg-indigo-50 px-1.5 py-0.5 rounded">
+                                {slot.department} Sem {slot.semester} ({slot.section || 'A'})
+                              </span>
+                              <span className="text-[9px] font-black text-slate-400">
+                                Period {slot.period_number}
+                              </span>
+                            </div>
+                            <h4 className="text-xs font-extrabold text-slate-800 mt-1 leading-tight">{slot.subject_name}</h4>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-500 shrink-0 bg-white border border-slate-100 px-2 py-0.5 rounded-lg shadow-sm">
+                            {slot.start_time}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-slate-50 border border-slate-205 border-slate-200 rounded-[28px] p-5 text-center shadow-sm">
+                  <Clock className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-xs font-black text-slate-700">No scheduled class detected right now</p>
+                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Please fill details manually below.</p>
+                </div>
+              )}
+              
+              {/* Session Setup */}
+              <div className="bg-white rounded-[28px] p-6 shadow-sm border border-slate-100 space-y-4">
+                <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-2 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-indigo-500" /> Manual Session Setup
+                </h2>
+                
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Subject</label>
+                  <select 
+                    value={subjectIndex}
+                    onChange={(e) => setSubjectIndex(parseInt(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
+                  >
+                    {subjectsList.map((sub, idx) => (
+                      <option key={sub.code} value={idx}>{sub.code} - {sub.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Subject</label>
-                <select 
-                  value={subjectIndex}
-                  onChange={(e) => setSubjectIndex(parseInt(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Dept</label>
+                    <select 
+                      value={department}
+                      onChange={(e) => setDepartment(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
+                    >
+                      {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Sem</label>
+                    <select 
+                      value={semester}
+                      onChange={(e) => setSemester(parseInt(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
+                    >
+                      {SEMESTERS.map(s => <option key={s} value={s}>Sem {s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Sec</label>
+                    <select 
+                      value={section}
+                      onChange={(e) => setSection(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
+                    >
+                      {SECTIONS.map(secOpt => <option key={secOpt} value={secOpt}>Sec {secOpt}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Date</label>
+                    <input 
+                      type="date"
+                      value={sessionDate}
+                      onChange={(e) => setSessionDate(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Period</label>
+                    <select 
+                      value={period}
+                      onChange={(e) => setPeriod(parseInt(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
+                    >
+                      {PERIODS.map(p => <option key={p} value={p}>Period {p}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => handleFetchStudents()}
+                  disabled={loading}
+                  className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl py-4 text-xs font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-md"
                 >
-                  {CSE_SUBJECTS.map((sub, idx) => (
-                    <option key={sub.code} value={idx}>{sub.code} - {sub.name}</option>
-                  ))}
-                </select>
+                  {loading ? (
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  ) : (
+                    'Retrieve Student Roster'
+                  )}
+                </button>
               </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Dept</label>
-                  <select 
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
-                  >
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Sem</label>
-                  <select 
-                    value={semester}
-                    onChange={(e) => setSemester(parseInt(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
-                  >
-                    {SEMESTERS.map(s => <option key={s} value={s}>Sem {s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Sec</label>
-                  <select 
-                    value={section}
-                    onChange={(e) => setSection(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
-                  >
-                    {SECTIONS.map(secOpt => <option key={secOpt} value={secOpt}>Sec {secOpt}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Date</label>
-                  <input 
-                    type="date"
-                    value={sessionDate}
-                    onChange={(e) => setSessionDate(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-400 tracking-wider mb-1">Period</label>
-                  <select 
-                    value={period}
-                    onChange={(e) => setPeriod(parseInt(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs font-semibold focus:outline-none"
-                  >
-                    {PERIODS.map(p => <option key={p} value={p}>Period {p}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <button
-                onClick={handleFetchStudents}
-                disabled={loading}
-                className="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl py-4 text-xs font-bold flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-md"
-              >
-                {loading ? (
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                ) : (
-                  'Retrieve Student Roster'
-                )}
-              </button>
             </div>
           )}
 
@@ -327,10 +549,10 @@ const FacultyBulkAttendance = () => {
               <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm flex items-center justify-between">
                 <div>
                   <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-                    {CSE_SUBJECTS[subjectIndex].code} • Period {period}
+                    {subjectsList[subjectIndex]?.code || ''} • Period {period}
                   </span>
                   <h3 className="text-sm font-bold text-slate-800 mt-1">
-                    {CSE_SUBJECTS[subjectIndex].name}
+                    {subjectsList[subjectIndex]?.name || ''}
                   </h3>
                   <p className="text-[10px] text-slate-400 font-semibold">{department} Sem {semester} Section {section} • {sessionDate}</p>
                 </div>

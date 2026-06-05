@@ -211,10 +211,14 @@ const seedComprehensiveMockDb = () => {
             room_number: "Lab-102", building: `${d} Block`, faculty_name: `Dr. Ramesh Kumar`
           });
         } else {
+          const p = slot_idx + 1;
+          const startHour = p >= 5 ? 9 + p : 9 + (p - 1);
+          const startStr = startHour < 10 ? `0${startHour}:00` : `${startHour}:00`;
+          const endStr = startHour < 10 ? `0${startHour}:50` : `${startHour}:50`;
           timetable.push({
             id: `slot_${d}_${yr}_${sub.code}`,
-            department: d, semester: sem, day: day, period_number: slot_idx + 1,
-            start_time: `09:00`, end_time: `09:50`, slot_type: "lecture",
+            department: d, semester: sem, day: day, period_number: p,
+            start_time: startStr, end_time: endStr, slot_type: "lecture",
             subject_code: sub.code, subject_name: sub.name,
             room_number: `LH-${100 + yr}`, building: "Main Block", faculty_name: `Dr. Ramesh Kumar`
           });
