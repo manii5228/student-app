@@ -852,7 +852,14 @@ const seedComprehensiveMockDb = () => {
       { id: "mc_3", front: "What is dynamic programming?", back: "An algorithmic technique that solves complex problems by breaking them down into simpler overlapping subproblems, solving each subproblem once, and caching their solutions (memoization).", category: "Algorithms", type: 'mock_test', created_by: 'fac_1', created_at: new Date().toISOString() },
       { id: "mc_4", front: "What is a deadlock and what are its four necessary conditions?", back: "A situation where set of processes are blocked because each holds a resource and waits for another. Conditions: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait.", category: "Operating Systems", type: 'mock_test', created_by: 'fac_1', created_at: new Date().toISOString() }
     ],
-    scanned_documents: []
+    scanned_documents: [],
+    assignmentSubmissions: [
+      { id: '1', student: 'Arun Kumar', roll: '21CSE101', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-15', status: 'pending', plagiarism: 12 },
+      { id: '2', student: 'Priya Sharma', roll: '21CSE102', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-15', status: 'pending', plagiarism: 78, matchWith: 'VTU26012' },
+      { id: '3', student: 'Rahul Verma', roll: '21CSE103', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-14', status: 'graded', marks: 8, comment: 'Good work!', plagiarism: 6 },
+      { id: '4', student: 'Sneha Patel', roll: '21CSE104', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-16', status: 'pending', plagiarism: 15 },
+      { id: '5', student: 'Vikram Singh', roll: '21CSE105', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-15', status: 'graded', marks: 9, comment: 'Excellent implementation.', plagiarism: 22 }
+    ]
   };
 
   localStorage.setItem('mock_db', JSON.stringify(completeDb));
@@ -867,6 +874,16 @@ const getMockDb = () => {
       if (parsedDb.is_comprehensive && parsedDb.version === 4) {
         if (!parsedDb.attendanceSessions) {
           parsedDb.attendanceSessions = [];
+        }
+        if (!parsedDb.assignmentSubmissions) {
+          parsedDb.assignmentSubmissions = [
+            { id: '1', student: 'Arun Kumar', roll: '21CSE101', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-15', status: 'pending', plagiarism: 12 },
+            { id: '2', student: 'Priya Sharma', roll: '21CSE102', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-15', status: 'pending', plagiarism: 78, matchWith: 'VTU26012' },
+            { id: '3', student: 'Rahul Verma', roll: '21CSE103', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-14', status: 'graded', marks: 8, comment: 'Good work!', plagiarism: 6 },
+            { id: '4', student: 'Sneha Patel', roll: '21CSE104', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-16', status: 'pending', plagiarism: 15 },
+            { id: '5', student: 'Vikram Singh', roll: '21CSE105', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-15', status: 'graded', marks: 9, comment: 'Excellent implementation.', plagiarism: 22 }
+          ];
+          localStorage.setItem('mock_db', JSON.stringify(parsedDb));
         }
         return parsedDb;
       }
@@ -1828,6 +1845,67 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     return {
       status: 200,
       data: { sessions }
+    };
+  }
+
+  if (cleanUrl === '/faculty/assignments/submissions' && method === 'get') {
+    if (!db.assignmentSubmissions) {
+      db.assignmentSubmissions = [
+        { id: '1', student: 'Arun Kumar', roll: '21CSE101', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-15', status: 'pending', plagiarism: 12 },
+        { id: '2', student: 'Priya Sharma', roll: '21CSE102', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-15', status: 'pending', plagiarism: 78, matchWith: 'VTU26012' },
+        { id: '3', student: 'Rahul Verma', roll: '21CSE103', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-14', status: 'graded', marks: 8, comment: 'Good work!', plagiarism: 6 },
+        { id: '4', student: 'Sneha Patel', roll: '21CSE104', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-16', status: 'pending', plagiarism: 15 },
+        { id: '5', student: 'Vikram Singh', roll: '21CSE105', title: 'Assignment 3 - Linked Lists', submitted_at: '2026-05-15', status: 'graded', marks: 9, comment: 'Excellent implementation.', plagiarism: 22 }
+      ];
+      saveMockDb(db);
+    }
+    return {
+      status: 200,
+      data: { submissions: db.assignmentSubmissions }
+    };
+  }
+
+  if (cleanUrl === '/faculty/assignments/submissions/grade-bulk' && method === 'post') {
+    const payload = getPayload(config.data);
+    const grades = payload.grades || [];
+    
+    if (!db.assignmentSubmissions) db.assignmentSubmissions = [];
+    
+    grades.forEach((g: any) => {
+      const sub = db.assignmentSubmissions.find((s: any) => s.id === g.id);
+      if (sub) {
+        sub.status = 'graded';
+        sub.marks = parseInt(g.marks);
+        sub.comment = g.comment || '';
+      }
+    });
+    
+    saveMockDb(db);
+    return {
+      status: 200,
+      data: { message: "Grades updated in bulk", submissions: db.assignmentSubmissions }
+    };
+  }
+
+  if (cleanUrl.startsWith('/faculty/assignments/submissions/') && cleanUrl.endsWith('/grade') && method === 'post') {
+    const subId = cleanUrl.split('/')[4];
+    const payload = getPayload(config.data);
+    
+    if (!db.assignmentSubmissions) db.assignmentSubmissions = [];
+    const sub = db.assignmentSubmissions.find((s: any) => s.id === subId);
+    if (sub) {
+      sub.status = 'graded';
+      sub.marks = parseInt(payload.marks);
+      sub.comment = payload.comment || '';
+      saveMockDb(db);
+      return {
+        status: 200,
+        data: { message: "Grade submitted", submission: sub }
+      };
+    }
+    return {
+      status: 404,
+      data: { error: "Submission not found" }
     };
   }
 

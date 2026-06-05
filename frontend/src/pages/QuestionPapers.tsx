@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { ChevronLeft, Search, Download, Filter, FileText, Calendar, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 // Mock PYQ data (production: /api/v1/academic/question-papers)
 const MOCK_PAPERS = [
@@ -49,16 +52,43 @@ const QuestionPapers = () => {
       const content = `%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << >> /Contents 4 0 R >>\nendobj\n4 0 obj\n<< /Length 200 >>\nstream\nBT\n/F1 12 Tf\n70 700 Td\n(VelTech University - PYQ Paper Repository) Tj\n0 -20 Td\n(Subject: ${paper.subject_name} (${paper.subject_code})) Tj\n0 -20 Td\n(Year: ${paper.year}  Exam Type: ${paper.exam_type.toUpperCase()}) Tj\n0 -40 Td\n(Download secure verified digital copy.) Tj\nET\nendstream\nendobj\nxref\n0 5\n0000000000 65535 f\n0000000009 00000 n\n0000000058 00000 n\n0000000115 00000 n\n0000000212 00000 n\ntrailer\n<< /Size 5 /Root 1 0 R >>\nstartxref\n382\n%%EOF`;
       
       const blob = new Blob([content], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `VTU_${paper.subject_code}_${paper.exam_type.toUpperCase()}_${paper.year}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
-      setDownloading(null);
+      const fileName = `VTU_${paper.subject_code}_${paper.exam_type.toUpperCase()}_${paper.year}.pdf`;
+
+      if (Capacitor.isNativePlatform()) {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const base64Data = (reader.result as string).split(',')[1];
+            const fileResult = await Filesystem.writeFile({
+              path: fileName,
+              data: base64Data,
+              directory: Directory.Cache
+            });
+            await Share.share({
+              title: fileName,
+              text: `VTU Question Paper: ${paper.subject_name}`,
+              url: fileResult.uri,
+              dialogTitle: 'Save or Share PDF'
+            });
+          } catch (err: any) {
+            console.error('Filesystem/Share error:', err);
+            alert("Failed to save or share PDF: " + err.message);
+          } finally {
+            setDownloading(null);
+          }
+        };
+        reader.readAsDataURL(blob);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        setDownloading(null);
+      }
     }, 1200);
   };
 
