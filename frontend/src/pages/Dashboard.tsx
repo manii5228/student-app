@@ -5,7 +5,7 @@ import {
   CalendarDays, QrCode, Bus, MapPin, Briefcase, GraduationCap,
   Activity, TrendingUp, CheckCircle, AlertTriangle, DollarSign,
   Calendar, Users, Coffee, Zap, Command, Award, Trophy, Star,
-  ThumbsUp, Plus, GripVertical, Sliders, Settings, Eye, EyeOff
+  ThumbsUp, Plus, GripVertical, Sliders, Settings, Eye, EyeOff, LogIn
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 import UpsellModal from '../components/UpsellModal';
@@ -630,7 +630,26 @@ const Dashboard = () => {
               <h1 className="dash-greeting">Welcome to<br/>Veltech Multitech</h1>
             </div>
             <div className="dash-top-actions">
-              <button className="guest-login-badge-btn" onClick={() => navigate('/login')} style={{ fontSize: '11px', fontWeight: 'bold', background: C.blue, color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '12px', cursor: 'pointer' }}>
+              <button
+                className="guest-login-badge-btn"
+                onClick={() => navigate('/login')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  background: C.blue,
+                  color: '#fff',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: `0 4px 10px rgba(0, 128, 199, 0.3)`
+                }}
+              >
+                <LogIn size={14} />
                 Sign In
               </button>
             </div>
@@ -2271,6 +2290,7 @@ const Dashboard = () => {
           min-width: 100%;
           height: 100%;
           position: relative;
+          flex-shrink: 0;
         }
         .guest-slide-image {
           width: 100%;

@@ -3,12 +3,62 @@ import { useNavigate } from 'react-router-dom';
 import { 
   CalendarDays, CheckCircle2, FileText, Award, 
   Compass, Users, BookOpen, GraduationCap, ClipboardList,
-  Sparkles, Calculator
+  Sparkles, Calculator, Lock, LogIn, ArrowLeft
 } from 'lucide-react';
 import BottomNav from '../components/BottomNav';
 
 const Academic = () => {
   const navigate = useNavigate();
+
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isGuest = user?.is_guest || user?.role === 'guest';
+
+  if (isGuest) {
+    return (
+      <div className="min-h-full bg-[#0b0f19] flex flex-col items-center justify-center p-6 text-center font-sans animate-fade-in relative pb-24">
+        {/* Decorative background shape */}
+        <div className="absolute top-0 right-0 w-48 h-48 bg-[#3b82f6]/5 rounded-bl-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-20 left-0 w-36 h-36 bg-[#4f46e5]/5 rounded-tr-[120px] pointer-events-none"></div>
+
+        <div className="bg-[#111827]/90 border border-slate-800 rounded-[32px] p-8 max-w-sm w-full shadow-2xl flex flex-col items-center justify-center backdrop-blur-md relative z-10">
+          {/* Lock Icon */}
+          <div className="w-16 h-16 rounded-2xl bg-[#1f2937] border border-slate-800 flex items-center justify-center mb-6 shadow-inner">
+            <Lock className="w-8 h-8 text-slate-400" />
+          </div>
+
+          {/* Heading */}
+          <h2 className="text-xl font-bold text-white mb-3 tracking-tight">
+            Account Authentication <span className="text-sky-400 font-extrabold">Required</span>
+          </h2>
+
+          {/* Subheading */}
+          <p className="text-xs text-slate-400 leading-relaxed mb-8">
+            This is a premium student portal featuring interactive databases and private college systems. Guests are restricted from this view.
+          </p>
+
+          {/* Buttons */}
+          <div className="w-full flex flex-col gap-3">
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full bg-[#2a3461] hover:bg-[#344075] text-white py-3.5 px-6 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md shadow-[#2a3461]/20"
+            >
+              <LogIn className="w-4 h-4 text-sky-300" />
+              Unlock Feature
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="w-full bg-[#1f2937] hover:bg-[#374151] text-slate-300 py-3.5 px-6 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 border border-slate-800 transition-all active:scale-95"
+            >
+              <ArrowLeft className="w-4 h-4 text-slate-400" />
+              Go to Dashboard
+            </button>
+          </div>
+        </div>
+        <BottomNav />
+      </div>
+    );
+  }
 
   const features = [
     { name: 'Timetable', icon: <CalendarDays className="w-6 h-6 text-indigo-500" />, color: 'bg-indigo-50', path: '/academic/timetable' },
