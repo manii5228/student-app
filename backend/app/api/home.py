@@ -481,3 +481,5 @@ def global_search():
         pass
 
     return jsonify({"results": results[:15], "query": q}), 200
+
+# end of file
