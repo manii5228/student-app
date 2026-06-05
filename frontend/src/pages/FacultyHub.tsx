@@ -56,6 +56,7 @@ const FacultyHub = () => {
 
   // ── Dashboard Section (Core Faculty Tools) ──
   const dashboardFeatures = [
+    { name: 'My Timetable', desc: 'View & cancel your classes', icon: <Calendar className="w-6 h-6"/>, color: 'from-blue-500 to-cyan-600', path: '/faculty/timetable' },
     { name: 'Bulk Attendance', desc: 'One-tap grid marker', icon: <Users className="w-6 h-6"/>, color: 'from-indigo-500 to-indigo-600', path: '/faculty/bulk-attendance' },
     { name: 'QR Attendance', desc: 'Dynamic QR code', icon: <QrCode className="w-6 h-6"/>, color: 'from-emerald-500 to-emerald-600', path: '/faculty/qr' },
     { name: 'Marks Entry', desc: 'Auto-save portal', icon: <PenTool className="w-6 h-6"/>, color: 'from-amber-500 to-amber-600', path: '/faculty/marks' },

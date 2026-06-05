@@ -1255,6 +1255,91 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     };
   }
 
+  if (cleanUrl === '/timetable/faculty' && method === 'get') {
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    if (!activeUser || (activeUser.role !== 'faculty' && activeUser.role !== 'admin')) {
+      return {
+        status: 403,
+        data: { error: "Access denied. Faculty only." }
+      };
+    }
+    
+    const facultyName = `${activeUser.first_name} ${activeUser.last_name}`;
+    const slots = db.timetable.filter((slot: any) => 
+      slot.faculty_id === activeUserId ||
+      (slot.faculty_name && slot.faculty_name.toLowerCase() === facultyName.toLowerCase()) ||
+      (activeUserId === 'fac_1' && slot.faculty_name === 'Dr. Ramesh Kumar')
+    );
+    
+    const grid: Record<string, any[]> = {
+      monday: [], tuesday: [], wednesday: [], thursday: [], friday: [], saturday: []
+    };
+    slots.forEach((slot: any) => {
+      if (grid[slot.day]) {
+        grid[slot.day].push(slot);
+      }
+    });
+
+    return {
+      status: 200,
+      data: { grid }
+    };
+  }
+
+  if (cleanUrl.startsWith('/timetable/slot/') && cleanUrl.endsWith('/cancel') && method === 'post') {
+    const slotId = cleanUrl.split('/')[3];
+    const slotIdx = db.timetable.findIndex((s: any) => s.id === slotId);
+    if (slotIdx === -1) {
+      return {
+        status: 404,
+        data: { error: "Slot not found" }
+      };
+    }
+    
+    const payload = getPayload(config.data);
+    const reason = payload?.reason || "";
+    
+    db.timetable[slotIdx].is_cancelled = true;
+    if (reason) {
+      db.timetable[slotIdx].remarks = `Cancelled: ${reason}`;
+    }
+    
+    // Create notice for students of the class
+    const slot = db.timetable[slotIdx];
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    const facultyName = activeUser ? `Prof. ${activeUser.last_name || activeUser.first_name}` : slot.faculty_name || "Faculty";
+    
+    const dayName = slot.day.charAt(0).toUpperCase() + slot.day.slice(1);
+    const noticeContent = `The class for ${slot.subject_name} (${slot.subject_code}) scheduled for ${dayName} (Period ${slot.period_number}, ${slot.start_time} - ${slot.end_time}) has been CANCELLED by ${facultyName}.${reason ? `\nReason: ${reason}` : ''}`;
+    
+    const newNotice = {
+      id: `notice_cancel_${slotId}_${Date.now()}`,
+      title: `CLASS CANCELLED: ${slot.subject_code} - ${slot.subject_name}`,
+      content: noticeContent,
+      author_id: activeUserId,
+      priority: "high",
+      target_audience: "class",
+      is_pinned: true,
+      branch: slot.department || "CSE",
+      year: slot.semester || 4,
+      section: slot.section || "A",
+      media_json: "[]",
+      files_json: "[]",
+      created_at: new Date().toISOString(),
+      reads: []
+    };
+    
+    if (!db.notices) db.notices = [];
+    db.notices.push(newNotice);
+    
+    saveMockDb(db);
+    
+    return {
+      status: 200,
+      data: { message: "Slot cancelled", slot: db.timetable[slotIdx] }
+    };
+  }
+
   // Academic results
   if (cleanUrl === '/academic/results' && method === 'get') {
     const activeUser = db.users.find((u: any) => u.id === activeUserId);

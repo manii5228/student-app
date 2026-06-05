@@ -13,6 +13,7 @@ import BunkOMeter from './pages/BunkOMeter';
 import Assignments from './pages/Assignments';
 import QuestionPapers from './pages/QuestionPapers';
 import FacultyHub from './pages/FacultyHub';
+import FacultyTimetable from './pages/FacultyTimetable';
 import FacultyBulkAttendance from './pages/FacultyBulkAttendance';
 import FacultyQRAttendance from './pages/FacultyQRAttendance';
 import FacultyMarksEntry from './pages/FacultyMarksEntry';
@@ -237,6 +238,7 @@ function App() {
 
             {/* Faculty Management Layer — Faculty only */}
             <Route path="/faculty" element={<FacultyRoute><FacultyHub /></FacultyRoute>} />
+            <Route path="/faculty/timetable" element={<FacultyRoute><FacultyTimetable /></FacultyRoute>} />
             <Route path="/faculty/hostel-passes" element={<FacultyRoute><MentorHostelPasses /></FacultyRoute>} />
             <Route path="/faculty/bulk-attendance" element={<FacultyRoute><FacultyBulkAttendance /></FacultyRoute>} />
             <Route path="/faculty/qr" element={<FacultyRoute><FacultyQRAttendance /></FacultyRoute>} />

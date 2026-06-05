@@ -147,12 +147,53 @@ def timetable_events():
 def cancel_slot(slot_id):
     """Mark a class slot as cancelled and broadcast the update."""
     from ..models.timetable import TimetableSlot
+    from ..models.user import User
+    from ..models.campus import Notice
+
     slot = db.session.get(TimetableSlot, slot_id)
     if not slot:
         return jsonify({"error": "Slot not found"}), 404
 
+    # Get optional cancel reason from request body
+    reason = ""
+    if request.is_json:
+        data = request.get_json(silent=True) or {}
+        reason = data.get("reason", "")
+
     slot.is_cancelled = True
+    if reason:
+        slot.remarks = f"Cancelled: {reason}"
     db.session.commit()
+
+    faculty_id = get_jwt_identity()
+    faculty = db.session.get(User, faculty_id)
+    faculty_name = f"Prof. {faculty.last_name}" if faculty else "Faculty"
+
+    # Get timetable info
+    from ..models.timetable import Timetable
+    timetable = db.session.get(Timetable, slot.timetable_id)
+    branch = None
+    year = None
+    section = None
+    target_audience = "all"
+    if timetable:
+        branch = timetable.department
+        year = timetable.semester
+        section = timetable.section
+        target_audience = "class"
+
+    day_str = slot.day.value.capitalize() if hasattr(slot.day, 'value') else str(slot.day).capitalize()
+    start_str = slot.start_time.strftime('%H:%M') if hasattr(slot.start_time, 'strftime') else str(slot.start_time)
+    end_str = slot.end_time.strftime('%H:%M') if hasattr(slot.end_time, 'strftime') else str(slot.end_time)
+
+    content = f"The class for {slot.subject_name} ({slot.subject_code}) scheduled for {day_str} (Period {slot.period_number}, {start_str} - {end_str}) has been CANCELLED by {faculty_name}."
+    if reason:
+        content += f"\nReason: {reason}"
+
+    # Create dynamic live banner message
+    banner_msg = f"Class {slot.subject_name} ({slot.subject_code}) has been CANCELLED today."
+    if reason:
+        banner_msg += f" Reason: {reason}"
 
     update_data = {
         "type": "cancel",
@@ -160,12 +201,32 @@ def cancel_slot(slot_id):
         "subject_code": slot.subject_code,
         "subject_name": slot.subject_name,
         "room_number": slot.room_number,
-        "message": f"Class {slot.subject_name} ({slot.subject_code}) has been CANCELLED today."
+        "message": banner_msg
     }
 
     try:
-        from ..models.timetable import Timetable
-        timetable = db.session.get(Timetable, slot.timetable_id)
+        # Save to Notice database
+        notice = Notice(
+            title=f"CLASS CANCELLED: {slot.subject_code} - {slot.subject_name}",
+            content=content,
+            author_id=faculty_id,
+            priority="high",
+            target_audience=target_audience,
+            is_pinned=True,
+            branch=branch,
+            year=year,
+            section=section,
+            media_json='[]',
+            files_json='[]'
+        )
+        db.session.add(notice)
+        db.session.commit()
+    except Exception as e:
+        # Don't fail the cancellation if notice insertion fails, but log it
+        print("Error saving notice on cancellation:", e)
+        db.session.rollback()
+
+    try:
         if timetable:
             cache_key = f"timetable:{timetable.department}:{timetable.semester}:{timetable.section}"
             redis_client.delete(cache_key)

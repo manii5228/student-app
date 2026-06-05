@@ -135,6 +135,17 @@ class TimetableSlot(db.Model):
     )
 
     def to_dict(self):
+        dept = None
+        sem = None
+        sec = None
+        try:
+            if self.timetable:
+                dept = self.timetable.department
+                sem = self.timetable.semester
+                sec = self.timetable.section
+        except Exception:
+            pass
+
         return {
             "id": self.id,
             "timetable_id": self.timetable_id,
@@ -151,6 +162,9 @@ class TimetableSlot(db.Model):
             "building": self.building,
             "is_cancelled": self.is_cancelled,
             "remarks": self.remarks,
+            "department": dept,
+            "semester": sem,
+            "section": sec,
         }
 
     def __repr__(self):
