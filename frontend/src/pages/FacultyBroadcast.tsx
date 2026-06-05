@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ChevronLeft, Send, Bell, CheckCircle, Users, Paperclip, FileText, X, File } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
@@ -8,17 +8,8 @@ interface AttachedFile {
   name: string;
   type: 'pdf' | 'word' | 'excel';
   size: string;
+  base64?: string;
 }
-
-const FILE_TEMPLATES: AttachedFile[] = [
-  { name: 'Assignment_Guidelines.pdf', type: 'pdf', size: '1.2 MB' },
-  { name: 'Lecture_Notes_Module4.pdf', type: 'pdf', size: '3.8 MB' },
-  { name: 'Lab_Manual_Experiment5.docx', type: 'word', size: '640 KB' },
-  { name: 'Student_Marks_Sheet.xlsx', type: 'excel', size: '280 KB' },
-  { name: 'Syllabus_Coverage_Report.pdf', type: 'pdf', size: '920 KB' },
-  { name: 'Project_Submission_Template.docx', type: 'word', size: '450 KB' },
-  { name: 'Attendance_Summary.xlsx', type: 'excel', size: '180 KB' },
-];
 
 const fileIcon = (type: string) => {
   if (type === 'pdf') return '📕';
@@ -43,15 +34,53 @@ const FacultyBroadcast = () => {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
-  const [showFilePicker, setShowFilePicker] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const classes = ['CSE-A Sem 4', 'CSE-B Sem 4', 'CSE-A Sem 6', 'ECE-A Sem 4', 'ECE-B Sem 6', 'MECH-A Sem 4', 'All Students'];
 
-  const addFile = (file: AttachedFile) => {
-    if (!attachedFiles.find(f => f.name === file.name)) {
-      setAttachedFiles(prev => [...prev, file]);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        
+        let fileType: 'pdf' | 'word' | 'excel' = 'pdf';
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (ext === 'doc' || ext === 'docx') {
+          fileType = 'word';
+        } else if (ext === 'xls' || ext === 'xlsx' || ext === 'csv') {
+          fileType = 'excel';
+        }
+
+        let sizeStr = '';
+        if (file.size < 1024 * 1024) {
+          sizeStr = `${Math.round(file.size / 1024)} KB`;
+        } else {
+          sizeStr = `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+        }
+
+        const newAttachedFile: AttachedFile = {
+          name: file.name,
+          type: fileType,
+          size: sizeStr,
+          base64: base64String
+        };
+
+        setAttachedFiles(prev => {
+          if (prev.some(f => f.name === file.name)) return prev;
+          return [...prev, newAttachedFile];
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
-    setShowFilePicker(false);
   };
 
   const removeFile = (name: string) => {
@@ -180,10 +209,20 @@ const FacultyBroadcast = () => {
               </div>
             )}
 
+            {/* Hidden native file input explorer */}
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              multiple 
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv" 
+              className="hidden" 
+            />
+
             {/* Add File Button */}
             <button
               type="button"
-              onClick={() => setShowFilePicker(true)}
+              onClick={() => fileInputRef.current?.click()}
               className="w-full py-3 rounded-2xl border-2 border-dashed border-slate-200 hover:border-rose-300 text-slate-500 hover:text-rose-600 text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95"
             >
               <Paperclip className="w-4 h-4" /> Add PDF, Word, or Excel Document
@@ -216,37 +255,6 @@ const FacultyBroadcast = () => {
           </button>
         </div>
       </div>
-
-      {/* File Picker Modal */}
-      {showFilePicker && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 backdrop-blur-sm p-4" onClick={() => setShowFilePicker(false)}>
-          <div className="bg-white w-full max-w-md rounded-[28px] shadow-2xl p-5 animate-slide-up" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-black text-slate-900">Select Document</h3>
-              <button onClick={() => setShowFilePicker(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200">
-                <X className="w-4 h-4 text-slate-500"/>
-              </button>
-            </div>
-            <p className="text-xs text-slate-400 font-bold mb-3">Choose a document to attach to this broadcast notice:</p>
-            <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto">
-              {FILE_TEMPLATES.filter(f => !attachedFiles.find(a => a.name === f.name)).map(f => (
-                <button
-                  key={f.name}
-                  onClick={() => addFile(f)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all hover:shadow-sm active:scale-[0.98] ${fileColor(f.type)}`}
-                >
-                  <span className="text-lg">{fileIcon(f.type)}</span>
-                  <div className="text-left min-w-0 flex-1">
-                    <p className="text-xs font-bold truncate">{f.name}</p>
-                    <p className="text-[10px] font-bold opacity-60">{f.size} • {f.type.toUpperCase()}</p>
-                  </div>
-                  <Paperclip className="w-4 h-4 opacity-40 shrink-0" />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       <BottomNav/>
     </div>

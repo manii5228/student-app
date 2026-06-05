@@ -345,6 +345,21 @@ def broadcast_message():
 
     # Save to Notice database so students see it!
     files = data.get("files", [])
+    
+    # Validate and log files uploaded from file explorer
+    import logging
+    logger = logging.getLogger(__name__)
+    allowed_extensions = {"pdf", "doc", "docx", "xls", "xlsx", "csv"}
+    for f in files:
+        name = f.get("name", "")
+        size = f.get("size", "")
+        file_type = f.get("type", "")
+        logger.info(f"Broadcast file uploaded - Name: {name}, Size: {size}, Type: {file_type}")
+        
+        ext = name.split(".")[-1].lower() if "." in name else ""
+        if ext not in allowed_extensions:
+            return jsonify({"error": f"File extension .{ext} is not allowed."}), 400
+
     files_json = json.dumps(files)
     priority = data.get("priority", "high")
     

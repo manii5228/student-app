@@ -11,6 +11,7 @@ interface NoticeFile {
   name: string;
   type: string;
   size: string;
+  base64?: string;
 }
 
 interface Notice {
@@ -93,7 +94,19 @@ const NoticeBoard = () => {
 
   const handleDownload = async (file: NoticeFile, noticeTitle = "Notice Board Document") => {
     try {
-      const pdfContent = `%PDF-1.4
+      let blob: Blob;
+      if (file.base64) {
+        const parts = file.base64.split(',');
+        const mime = parts[0].match(/:(.*?);/)?.[1] || 'application/octet-stream';
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        blob = new Blob([u8arr], { type: mime });
+      } else {
+        const pdfContent = `%PDF-1.4
 1 0 obj
 << /Type /Catalog /Pages 2 0 R >>
 endobj
@@ -133,8 +146,8 @@ trailer
 startxref
 482
 %%EOF`;
-
-      const blob = new Blob([pdfContent], { type: 'application/pdf' });
+        blob = new Blob([pdfContent], { type: 'application/pdf' });
+      }
       
       if (Capacitor.isNativePlatform()) {
         const reader = new FileReader();
