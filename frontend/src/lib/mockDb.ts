@@ -2307,18 +2307,10 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   }
 
   if (cleanUrl === '/attendance/session/active/reactivate' && method === 'post') {
-    const todayStr = new Date().toISOString().split('T')[0];
-    // Remove all student attendance records for the active session CS301 today, period 1
-    db.attendanceRecords = db.attendanceRecords.filter((r: any) => 
-      !(r.session?.subject_code === "CS301" &&
-        r.session?.session_date === todayStr &&
-        r.session?.period_number === 1)
-    );
-    saveMockDb(db);
     return {
       status: 200,
       data: {
-        message: "Mock attendance records cleared for active session",
+        message: "Mock session reactivated and records preserved",
         qr_token: `MOCK_REACTIVATED_${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
         expires_at: new Date(Date.now() + 60000).toISOString(),
         validity_seconds: 60

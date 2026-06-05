@@ -44,14 +44,20 @@ const FacultyQRAttendance = () => {
   };
 
   const resetSession = async () => {
-    setQrCodeStr(null);
-    setTimeLeft(60);
-    setScanCount(0);
-    setRecentScans([]);
     try {
-      await api.post('/attendance/session/active/reactivate');
+      const { data } = await api.post('/attendance/session/active/reactivate');
+      if (data && data.qr_token) {
+        setQrCodeStr(data.qr_token);
+        setTimeLeft(data.validity_seconds || 60);
+        if (data.session) {
+          setScanCount(data.session.total_present || 0);
+        }
+      }
     } catch (err) {
       console.warn("Reactivate API failed (expected in offline mock mode):", err);
+      // Fallback: keep existing scans/scancount and just refresh the code
+      setQrCodeStr(`MOCK_REACTIVATED_${Math.random().toString(36).substr(2, 9).toUpperCase()}`);
+      setTimeLeft(60);
     }
   };
 

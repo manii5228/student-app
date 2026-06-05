@@ -287,19 +287,14 @@ def reactivate_active_session():
         return jsonify({"error": "No active session found to reactivate"}), 404
 
     try:
-        # Delete all attendance records for this session
-        AttendanceRecord.query.filter_by(session_id=session.id).delete()
-        session.total_present = 0
-        session.total_absent = session.total_students or 0
-        db.session.commit()
-        
+        # Do not delete attendance records; preserve them so scanned students remain present
         # Generate new QR token (with defaults for fallback)
         result, error = attendance_service.generate_qr_token(session.id, faculty_id, 13.1818, 80.0401)
         if error:
             return jsonify({"error": error}), 400
             
         return jsonify({
-            "message": "Session reactivated and attendance records cleared",
+            "message": "Session reactivated (attendance records preserved)",
             "session": session.to_dict(),
             "qr_token": result.get("qr_token"),
             "expires_at": result.get("expires_at"),
