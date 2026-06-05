@@ -1,19 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Search, MapPin, Navigation, Map, List, HelpCircle, Compass, Star } from 'lucide-react';
+import { ChevronLeft, Search, Compass, HelpCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
-
-// Fix default marker icon issues in Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
 
 interface POI {
   id: string;
@@ -27,9 +16,9 @@ interface POI {
 }
 
 const STARTING_POINTS = [
-  { id: 'maingate', name: 'Main Security Gate', coords: [13.1810, 80.0390] as [number, number] },
-  { id: 'adminlobby', name: 'Admin Block Entrance Lobby', coords: [13.1818, 80.0401] as [number, number] },
-  { id: 'block24lobby', name: 'Block 24 Ground Floor Lobby', coords: [13.1825, 80.0385] as [number, number] }
+  { id: 'maingate', name: 'Main Security Gate' },
+  { id: 'adminlobby', name: 'Admin Block Entrance Lobby' },
+  { id: 'block24lobby', name: 'Block 24 Ground Floor Lobby' }
 ];
 
 const POI_STYLES: Record<string, { bg: string; border: string; text: string; emoji: string }> = {
@@ -40,39 +29,16 @@ const POI_STYLES: Record<string, { bg: string; border: string; text: string; emo
   restroom: { bg: '#fdf2f8', border: '#f472b6', text: '#db2777', emoji: '🚻' },
 };
 
-// Leaflet custom components
-const MapInvalidateSize = () => {
-  const map = useMap();
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      map.invalidateSize();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [map]);
-  return null;
-};
-
-const RecenterMap = ({ center, zoom = 17 }: { center: [number, number]; zoom?: number }) => {
-  const map = useMap();
-  useEffect(() => {
-    map.flyTo(center, zoom, { animate: true, duration: 1.2 });
-  }, [center, map, zoom]);
-  return null;
-};
-
 const IndoorMap = () => {
   const navigate = useNavigate();
   const [pois, setPois] = useState<POI[]>([]);
   const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list'); // List mode is default (vertical)
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('');
   
   // Navigation & expand states
   const [expandedPoiId, setExpandedPoiId] = useState<string | null>(null);
   const [startPointId, setStartPointId] = useState('maingate');
-  const [mapCenter, setMapCenter] = useState<[number, number]>([13.1818, 80.0401]);
-  const [zoom, setZoom] = useState(16);
 
   // Load POIs from Database
   const fetchPOIs = async () => {
@@ -80,10 +46,6 @@ const IndoorMap = () => {
     try {
       const { data } = await api.get('/indoor-pois');
       setPois(data.pois || []);
-      if (data.pois && data.pois.length > 0) {
-        // center on first POI
-        setMapCenter(data.pois[0].coords);
-      }
     } catch (err) {
       // Fallback seed POIs
       setPois([
@@ -210,16 +172,6 @@ const IndoorMap = () => {
     setExpandedPoiId(expandedPoiId === id ? null : id);
   };
 
-  const handleShowOnMap = (poi: POI, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setMapCenter(poi.coords);
-    setZoom(18);
-    setViewMode('map');
-  };
-
-  // Get start point details
-  const startPoint = STARTING_POINTS.find(s => s.id === startPointId) || STARTING_POINTS[0];
-
   // Helper to resolve custom directions or fallback
   const getDirectionsForPoi = (poi: POI, startId: string) => {
     if (poi.directions && poi.directions[startId] && poi.directions[startId].length > 0) {
@@ -245,30 +197,11 @@ const IndoorMap = () => {
       }
     }
     return [
-      `Depart from ${startPoint.name}.`,
+      `Depart from starting point.`,
       `Head towards the ${poi.building || 'destination block'}.`,
       `Find the ${poi.floor || 'appropriate'} floor.`,
       `Locate ${poi.name}.`
     ];
-  };
-
-  // Custom leaflet icon creator
-  const createCustomIcon = (poi: POI) => {
-    const style = POI_STYLES[poi.type] || POI_STYLES.academic;
-    const iconHtml = `
-      <div style="display:flex;flex-direction:column;align-items:center;">
-        <div style="width:36px;height:36px;background:${style.bg};border:2.5px solid ${style.border};border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(0,0,0,0.15);font-size:16px;">
-          ${style.emoji}
-        </div>
-      </div>
-    `;
-    return new L.DivIcon({
-      html: iconHtml,
-      className: 'bg-transparent border-none',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
-      popupAnchor: [0, -20]
-    });
   };
 
   return (
@@ -290,22 +223,6 @@ const IndoorMap = () => {
               <h1 className="text-lg font-bold text-white tracking-tight">Campus Map & Directions</h1>
               <p className="text-[10px] text-slate-400 font-medium">Vel Tech University Indoor Navigation</p>
             </div>
-          </div>
-
-          {/* Toggle View Mode */}
-          <div className="flex bg-white/10 rounded-xl p-1 border border-white/5 shadow-inner">
-            <button 
-              onClick={() => setViewMode('list')} 
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-300 hover:text-white'}`}
-            >
-              <List className="w-3.5 h-3.5" /> Directions List
-            </button>
-            <button 
-              onClick={() => setViewMode('map')} 
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'map' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-300 hover:text-white'}`}
-            >
-              <Map className="w-3.5 h-3.5" /> Map View
-            </button>
           </div>
         </div>
 
@@ -352,8 +269,7 @@ const IndoorMap = () => {
           <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
             <span className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
           </div>
-        ) : viewMode === 'list' ? (
-          /* VERTICAL LIST VIEW (DEFAULT) */
+        ) : (
           <div className="h-full overflow-y-auto p-4 flex flex-col gap-3.5 custom-scrollbar">
             {filteredPois.length > 0 ? (
               filteredPois.map(poi => {
@@ -393,15 +309,6 @@ const IndoorMap = () => {
                             )}
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button 
-                          onClick={(e) => handleShowOnMap(poi, e)}
-                          className="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition-colors"
-                          title="Show on Map"
-                        >
-                          <Navigation className="w-3.5 h-3.5 fill-indigo-600" />
-                        </button>
                       </div>
                     </div>
 
@@ -476,45 +383,6 @@ const IndoorMap = () => {
                 <p className="text-xs text-slate-500 mt-1 px-4">Try clearing filters or search to view other university blocks.</p>
               </div>
             )}
-          </div>
-        ) : (
-          /* MAP VIEW WITH Leaflet */
-          <div className="w-full h-full relative">
-            <MapContainer center={mapCenter} zoom={zoom} style={{ height: '100%', width: '100%' }} zoomControl={false}>
-              <MapInvalidateSize />
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <RecenterMap center={mapCenter} zoom={zoom} />
-
-              {/* Markers for all rooms */}
-              {filteredPois.map(poi => (
-                <Marker 
-                  key={poi.id} 
-                  position={poi.coords} 
-                  icon={createCustomIcon(poi)}
-                  eventHandlers={{
-                    click: () => {
-                      setMapCenter(poi.coords);
-                      setZoom(18);
-                      setExpandedPoiId(poi.id);
-                      setViewMode('list');
-                    }
-                  }}
-                >
-                  <Popup>
-                    <div style={{fontWeight:900,color:'#0f172a',fontSize:'12px'}}>{poi.name}</div>
-                    <div style={{fontSize:'10px',color:'#64748b',fontWeight:500,marginTop:'3px'}}>{poi.desc}</div>
-                  </Popup>
-                </Marker>
-              ))}
-            </MapContainer>
-
-            {/* Quick Map Instruction Banner */}
-            <div className="absolute top-3 left-3 right-3 bg-slate-900/90 backdrop-blur-md rounded-xl p-2.5 text-center z-[400] border border-white/10 shadow-lg">
-              <p className="text-[10px] text-white font-black">🗺️ Tap any location icon on the map to view detailed walk directions!</p>
-            </div>
           </div>
         )}
       </div>
