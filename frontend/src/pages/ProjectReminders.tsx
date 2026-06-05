@@ -35,6 +35,7 @@ const ProjectReminders = () => {
 
   // Collaboration indicators simulation
   const [collabNotification, setCollabNotification] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'kanban' | 'timeline'>('kanban');
 
   const currentProject = projects.find(p => p.id === activeProject);
   const teamMembers = currentProject?.team_members?.split(',').map(s=>s.trim()).filter(Boolean) || [];
@@ -384,88 +385,184 @@ const ProjectReminders = () => {
               </div>
             </div>
 
-            {/* Kanban columns area */}
-            <div className="flex-1 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 hide-scrollbar">
-              {COLUMNS.map(col => {
-                const tasks = currentProject.milestones.filter(m => m.column === col.key);
-                return (
-                  <div
-                    key={col.key}
-                    className={`min-w-[240px] flex-1 ${col.color} rounded-2xl p-3 border-2 border-dashed ${col.accent} snap-start transition-all ${dragItem ? 'border-solid' : ''}`}
-                    onDragOver={handleDragOver}
-                    onDrop={() => handleDrop(col.key)}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-1.5">
-                        {col.icon}
-                        <span className="text-xs font-bold text-slate-700">{col.label}</span>
-                      </div>
-                      <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${col.badge}`}>{tasks.length}</span>
-                    </div>
+            {/* View Mode Switcher */}
+            <div className="flex bg-slate-100 rounded-xl p-1 mb-4 shrink-0 max-w-[240px] border border-slate-200/50">
+              <button 
+                onClick={() => setViewMode('kanban')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Kanban Board
+              </button>
+              <button 
+                onClick={() => setViewMode('timeline')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-extrabold transition-all ${viewMode === 'timeline' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Timeline View
+              </button>
+            </div>
 
-                    <div className="flex flex-col gap-2">
-                      {tasks.map(ms => (
-                        <div
-                          key={ms.id}
-                          className={`bg-white rounded-xl p-3 shadow-sm border border-white/80 hover:shadow-md transition-all ${dragItem === ms.id ? 'opacity-50 scale-95' : ''}`}
-                        >
-                          <div className="flex items-start gap-2">
-                            {/* Sequential status ticking button */}
-                            <button
-                              onClick={() => handleCycleStatus(ms)}
-                              className="mt-0.5 shrink-0 text-slate-400 hover:text-cyan-600 transition-colors"
-                              title="Cycle Status"
-                            >
-                              {ms.proposed_column ? (
-                                <Clock className="w-4.5 h-4.5 text-amber-500 animate-pulse" />
-                              ) : (
-                                <>
-                                  {ms.column === 'todo' && <Circle className="w-4.5 h-4.5 text-slate-400" />}
-                                  {ms.column === 'in_progress' && <Clock className="w-4.5 h-4.5 text-amber-500" />}
-                                  {ms.column === 'done' && <CheckCircle className="w-4.5 h-4.5 text-emerald-500" />}
-                                </>
-                              )}
-                            </button>
-                            <GripVertical className="w-3.5 h-3.5 text-slate-300 mt-0.5 shrink-0"/>
-                            <div className="flex-1 min-w-0">
-                              <p className={`text-xs font-bold leading-tight ${ms.is_completed ? 'line-through text-slate-400' : 'text-slate-800'}`}>{ms.title}</p>
-                              {ms.proposed_column && (
-                                <div className="mt-1">
-                                  <span className="inline-flex items-center text-[9px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md animate-pulse">
-                                    Pending Move to: {ms.proposed_column === 'in_progress' ? 'In Progress' : 'Done'}
-                                  </span>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                {ms.due_date && (
-                                  <span className="text-[9px] font-bold text-slate-400 flex items-center gap-0.5">
-                                    <Calendar className="w-2.5 h-2.5"/>
-                                    {new Date(ms.due_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}
-                                  </span>
-                                )}
-                                {ms.assigned_to ? (
-                                  <span className="text-[9px] font-bold bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded-md">{ms.assigned_to}</span>
+            {viewMode === 'kanban' ? (
+              /* Kanban columns area */
+              <div className="flex-1 flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 hide-scrollbar">
+                {COLUMNS.map(col => {
+                  const tasks = currentProject.milestones.filter(m => m.column === col.key);
+                  return (
+                    <div
+                      key={col.key}
+                      className={`min-w-[240px] flex-1 ${col.color} rounded-2xl p-3 border-2 border-dashed ${col.accent} snap-start transition-all ${dragItem ? 'border-solid' : ''}`}
+                      onDragOver={handleDragOver}
+                      onDrop={() => handleDrop(col.key)}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-1.5">
+                          {col.icon}
+                          <span className="text-xs font-bold text-slate-700">{col.label}</span>
+                        </div>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${col.badge}`}>{tasks.length}</span>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        {tasks.map(ms => (
+                          <div
+                            key={ms.id}
+                            className={`bg-white rounded-xl p-3 shadow-sm border border-white/80 hover:shadow-md transition-all ${dragItem === ms.id ? 'opacity-50 scale-95' : ''}`}
+                          >
+                            <div className="flex items-start gap-2">
+                              {/* Sequential status ticking button */}
+                              <button
+                                onClick={() => handleCycleStatus(ms)}
+                                className="mt-0.5 shrink-0 text-slate-400 hover:text-cyan-600 transition-colors"
+                                title="Cycle Status"
+                              >
+                                {ms.proposed_column ? (
+                                  <Clock className="w-4.5 h-4.5 text-amber-500 animate-pulse" />
                                 ) : (
-                                  <button
-                                    onClick={() => setAssignModal({mid: ms.id, members: teamMembers})}
-                                    className="text-[9px] font-bold text-slate-300 hover:text-cyan-500 flex items-center gap-0.5 transition-colors"
-                                  >
-                                    <UserPlus className="w-2.5 h-2.5"/>Assign
-                                  </button>
+                                  <>
+                                    {ms.column === 'todo' && <Circle className="w-4.5 h-4.5 text-slate-400" />}
+                                    {ms.column === 'in_progress' && <Clock className="w-4.5 h-4.5 text-amber-500" />}
+                                    {ms.column === 'done' && <CheckCircle className="w-4.5 h-4.5 text-emerald-500" />}
+                                  </>
                                 )}
+                              </button>
+                              <GripVertical className="w-3.5 h-3.5 text-slate-300 mt-0.5 shrink-0"/>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-xs font-bold leading-tight ${ms.is_completed ? 'line-through text-slate-400' : 'text-slate-800'}`}>{ms.title}</p>
+                                {ms.proposed_column && (
+                                  <div className="mt-1">
+                                    <span className="inline-flex items-center text-[9px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-md animate-pulse">
+                                      Pending Move to: {ms.proposed_column === 'in_progress' ? 'In Progress' : 'Done'}
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                  {ms.due_date && (
+                                    <span className="text-[9px] font-bold text-slate-400 flex items-center gap-0.5">
+                                      <Calendar className="w-2.5 h-2.5"/>
+                                      {new Date(ms.due_date).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}
+                                    </span>
+                                  )}
+                                  {ms.assigned_to ? (
+                                    <span className="text-[9px] font-bold bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded-md">{ms.assigned_to}</span>
+                                  ) : (
+                                    <button
+                                      onClick={() => setAssignModal({mid: ms.id, members: teamMembers})}
+                                      className="text-[9px] font-bold text-slate-300 hover:text-cyan-500 flex items-center gap-0.5 transition-colors"
+                                    >
+                                      <UserPlus className="w-2.5 h-2.5"/>Assign
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {tasks.length === 0 && (
+                          <div className="text-center py-6 text-[10px] text-slate-400 font-medium">Drop tasks here</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Timeline View */
+              <div className="flex-1 overflow-y-auto pb-6">
+                <div className="relative border-l-2 border-slate-200 ml-4 pl-8 flex flex-col gap-6 font-sans">
+                  {(() => {
+                    const sortedMilestones = [...currentProject.milestones].sort((a, b) => {
+                      if (!a.due_date) return 1;
+                      if (!b.due_date) return -1;
+                      return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+                    });
+                    
+                    if (sortedMilestones.length === 0) {
+                      return <div className="text-center py-12 text-slate-400 text-xs font-medium">No milestones added yet. Add a task to build the timeline!</div>;
+                    }
+
+                    return sortedMilestones.map(ms => {
+                      const isProposed = !!ms.proposed_column;
+                      const isDone = ms.column === 'done';
+                      const isInProgress = ms.column === 'in_progress';
+                      
+                      let nodeColor = 'bg-slate-200 border-slate-300 text-slate-500';
+                      if (isProposed) {
+                        nodeColor = 'bg-amber-100 border-amber-300 text-amber-600 animate-pulse';
+                      } else if (isDone) {
+                        nodeColor = 'bg-emerald-100 border-emerald-300 text-emerald-600';
+                      } else if (isInProgress) {
+                        nodeColor = 'bg-cyan-100 border-cyan-300 text-cyan-600';
+                      }
+
+                      return (
+                        <div key={ms.id} className="relative group animate-fade-in">
+                          {/* Timeline Dot */}
+                          <div className={`absolute -left-[45px] top-1.5 w-6.5 h-6.5 rounded-full border-2 ${nodeColor} flex items-center justify-center shadow-sm z-10 transition-all group-hover:scale-110`}>
+                            {isDone ? <CheckCircle className="w-3.5 h-3.5" /> : isInProgress || (isProposed && ms.proposed_column === 'in_progress') ? <Clock className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
+                          </div>
+                          
+                          {/* Timeline Card */}
+                          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-all">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                  isProposed ? 'bg-amber-100 text-amber-850' :
+                                  isDone ? 'bg-emerald-100 text-emerald-850' :
+                                  isInProgress ? 'bg-cyan-100 text-cyan-850' : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {isProposed ? `Pending Approval (→ ${ms.proposed_column === 'done' ? 'Done' : 'In Progress'})` : ms.column.replace('_', ' ')}
+                                </span>
+                                <h4 className={`text-sm font-bold text-slate-800 mt-2 leading-tight ${isDone ? 'line-through text-slate-400' : ''}`}>
+                                  {ms.title}
+                                </h4>
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                  {ms.assigned_to && (
+                                    <span className="text-[9px] font-bold bg-cyan-50 text-cyan-700 px-1.5 py-0.5 rounded-md">Assignee: {ms.assigned_to}</span>
+                                  )}
+                                  <button 
+                                    onClick={() => handleCycleStatus(ms)}
+                                    className="text-[9px] font-black text-cyan-600 bg-cyan-50/50 hover:bg-cyan-50 px-2 py-0.5 rounded border border-cyan-100 transition-colors"
+                                  >
+                                    Cycle Status
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              {/* Due Date */}
+                              <div className="text-right shrink-0">
+                                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {ms.due_date ? new Date(ms.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'No Date'}
+                                </span>
                               </div>
                             </div>
                           </div>
                         </div>
-                      ))}
-                      {tasks.length === 0 && (
-                        <div className="text-center py-6 text-[10px] text-slate-400 font-medium">Drop tasks here</div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
         </div>
         ) : projects.length === 0 ? (

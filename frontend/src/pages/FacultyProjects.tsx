@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 
-interface MilestoneT { id: string; title: string; column: string; is_completed: boolean; proposed_column?: string | null; assigned_to?: string | null; }
+interface MilestoneT { id: string; title: string; column: string; is_completed: boolean; proposed_column?: string | null; assigned_to?: string | null; due_date?: string | null; }
 interface ProjectT { id: string; title: string; description: string|null; team_members: string|null; deadline: string|null; status: string; progress_pct: number; faculty_id: string|null; faculty_status: string|null; student_id: string; milestones: MilestoneT[]; }
 
 const FacultyProjects = () => {
@@ -13,6 +13,11 @@ const FacultyProjects = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'completed'>('pending');
   const [students, setStudents] = useState<any[]>([]);
+  const [expandedTimelineId, setExpandedTimelineId] = useState<string|null>(null);
+
+  const toggleProjectTimeline = (pid: string) => {
+    setExpandedTimelineId(prev => prev === pid ? null : pid);
+  };
 
   useEffect(() => {
     fetchData();
@@ -190,6 +195,72 @@ const FacultyProjects = () => {
                       Milestones: {doneMilestones}/{totalMilestones} done
                     </span>
                   </div>
+
+                  {/* Timeline Expansion Toggle */}
+                  {(p.faculty_status === 'approved' || p.status === 'completed') && (
+                    <div className="border-t border-slate-50 pt-3">
+                      <button 
+                        onClick={() => toggleProjectTimeline(p.id)}
+                        className="text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors flex items-center gap-1"
+                      >
+                        {expandedTimelineId === p.id ? 'Hide Timeline' : 'View Project Timeline'}
+                      </button>
+                      
+                      {expandedTimelineId === p.id && (
+                        <div className="mt-4 border-l-2 border-slate-200 ml-3 pl-6 flex flex-col gap-4 font-sans max-h-60 overflow-y-auto">
+                          {(() => {
+                            const sorted = [...(p.milestones || [])].sort((a, b) => {
+                              if (!a.due_date) return 1;
+                              if (!b.due_date) return -1;
+                              return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+                            });
+                            
+                            if (sorted.length === 0) {
+                              return <p className="text-[10px] text-slate-400 py-2">No milestones/tasks added for this project yet.</p>;
+                            }
+                            
+                            return sorted.map(ms => {
+                              const isProposed = !!ms.proposed_column;
+                              const isDone = ms.column === 'done';
+                              const isInProgress = ms.column === 'in_progress';
+                              
+                              let nodeColor = 'bg-slate-200 border-slate-300 text-slate-500';
+                              if (isProposed) {
+                                nodeColor = 'bg-amber-100 border-amber-300 text-amber-600 animate-pulse';
+                              } else if (isDone) {
+                                nodeColor = 'bg-emerald-100 border-emerald-300 text-emerald-600';
+                              } else if (isInProgress) {
+                                nodeColor = 'bg-cyan-100 border-cyan-300 text-cyan-600';
+                              }
+                              
+                              return (
+                                <div key={ms.id} className="relative pl-1">
+                                  {/* Small dot */}
+                                  <div className={`absolute -left-[30.5px] top-1 w-4 h-4 rounded-full border ${nodeColor} flex items-center justify-center shadow-xs z-10`}>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                                  </div>
+                                  <div>
+                                    <p className={`text-xs font-bold text-slate-805 text-slate-800 ${isDone ? 'line-through text-slate-400' : ''}`}>
+                                      {ms.title}
+                                    </p>
+                                    <p className="text-[9.5px] text-slate-450 text-slate-400 mt-0.5 font-semibold">
+                                      Status:{' '}
+                                      <span className={`font-bold uppercase ${
+                                        isProposed ? 'text-amber-600' : isDone ? 'text-emerald-650 text-emerald-600' : isInProgress ? 'text-cyan-600' : 'text-slate-500'
+                                      }`}>
+                                        {isProposed ? `Proposed: ${ms.proposed_column?.replace('_', ' ')} (Pending Approval)` : ms.column.replace('_', ' ')}
+                                      </span>
+                                      {ms.due_date && ` • Due: ${new Date(ms.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Pending Milestone Approvals */}
                   {(() => {
