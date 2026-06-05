@@ -7,3 +7,4 @@ syllabus tracker should be available for  all faculty
 the in acedemic in the report generator if i click on download pdf it should get downloaded to the phone 
 
 
+

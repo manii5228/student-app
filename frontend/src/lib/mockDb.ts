@@ -3744,6 +3744,82 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     return { status: 200, data: { portfolio } };
   }
 
+  // ==========================================
+  // Home Feed & Notifications Mock Routes
+  // ==========================================
+  if (cleanUrl === '/home/feed' && method === 'get') {
+    const user = db.users.find((u: any) => u.id === activeUserId) || { first_name: "Guest", role: "guest" };
+    const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening';
+    return {
+      status: 200,
+      data: {
+        greeting,
+        user: {
+          first_name: user.first_name,
+          last_name: user.last_name,
+          department: user.department || 'CSE',
+          semester: user.semester || 4,
+          role: user.role
+        },
+        next_action: { type: 'class', message: 'Data Structures class at Block A in 20 min', path: '/academic/timetable' },
+        today_classes: [
+          { id: '1', subject_name: 'Database Management Systems', start_time: '09:00', end_time: '10:00', room: 'A301', faculty_name: 'Dr. Ramesh Kumar' },
+          { id: '2', subject_name: 'Operating Systems', start_time: '10:15', end_time: '11:15', room: 'B202', faculty_name: 'Dr. Priya' },
+          { id: '3', subject_name: 'Computer Networks', start_time: '11:30', end_time: '12:30', room: 'A105', faculty_name: 'Dr. Raj' }
+        ],
+        upcoming_assignments: [
+          { id: '1', title: 'OS Lab Report #4', due_date: new Date(Date.now() + 86400000).toISOString(), subject: 'Operating Systems' },
+          { id: '2', title: 'CN Assignment 3', due_date: new Date(Date.now() + 3 * 86400000).toISOString(), subject: 'Computer Networks' }
+        ],
+        recent_notices: [
+          { id: 'n_1', title: 'CAT-1 Marks Released', content: 'Internal marks now available.', priority: 'high', created_at: new Date().toISOString() },
+          { id: 'n_2', title: 'Library Extended Hours', content: 'Open till 10 PM during exams.', priority: 'normal', created_at: new Date().toISOString() }
+        ],
+        attendance: { total_classes: 120, present: 102, percentage: 85.0 },
+        weekly_activity: [3, 4, 2, 4, 3, 1],
+        stats: { classes_today: 3, pending_assignments: 2, unread_notices: 2, attendance_pct: 85.0 }
+      }
+    };
+  }
+
+  if (cleanUrl === '/home/notifications' && method === 'get') {
+    if (!db.notifications) {
+      db.notifications = [
+        { id: "n1", category: "academic", urgency: "critical", title: "CAT-1 Marks Released", message: "Internal marks for Data Structures (CS304) are now available.", timestamp: new Date(Date.now() - 2 * 3600000).toISOString(), read: false, path: "/academic/internal-marks" },
+        { id: "n2", category: "academic", urgency: "normal", title: "Assignment Due Tomorrow", message: "Operating Systems Lab Report #4 is due by 11:59 PM.", timestamp: new Date(Date.now() - 5 * 3600000).toISOString(), read: false, path: "/academic/assignments" },
+        { id: "n3", category: "event", urgency: "normal", title: "HackGrid 36h Registration Open", message: "Register for the 36-hour hackathon at CSE Block Lab 4.", timestamp: new Date(Date.now() - 8 * 3600000).toISOString(), read: true, path: "/campus/events" },
+        { id: "n4", category: "finance", urgency: "critical", title: "Exam Fee Due in 3 Days", message: "Semester exam fee of ₹2,500 is due on June 1st.", timestamp: new Date(Date.now() - 12 * 3600000).toISOString(), read: false, path: "/profile" }
+      ];
+      saveMockDb(db);
+    }
+    const unread = db.notifications.filter((n: any) => !n.read).length;
+    return {
+      status: 200,
+      data: {
+        notifications: db.notifications,
+        unread_count: unread
+      }
+    };
+  }
+
+  if (cleanUrl.startsWith('/home/notifications/') && cleanUrl.endsWith('/read') && method === 'post') {
+    const parts = cleanUrl.split('/');
+    const id = parts[3];
+    if (db.notifications) {
+      db.notifications = db.notifications.map((n: any) => n.id === id ? { ...n, read: true } : n);
+      saveMockDb(db);
+    }
+    return { status: 200, data: { message: "Notification marked as read", id } };
+  }
+
+  if (cleanUrl === '/home/notifications/read-all' && method === 'post') {
+    if (db.notifications) {
+      db.notifications = db.notifications.map((n: any) => ({ ...n, read: true }));
+      saveMockDb(db);
+    }
+    return { status: 200, data: { message: "All notifications marked as read" } };
+  }
+
   // Default fallback for any unmocked GET request
   if (method === 'get') {
     return {
