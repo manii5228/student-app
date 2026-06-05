@@ -41,7 +41,7 @@ def list_jobs():
 
 @career_bp.route("/jobs", methods=["POST"])
 @jwt_required()
-@role_required("admin")
+@role_required("admin", "faculty")
 def create_job():
     """Admin posts a placement/internship opportunity."""
     data = request.get_json()
@@ -79,6 +79,35 @@ def cleanup_old_resumes():
         "message": f"Successfully checked and cleared {cleaned_count} ephemeral resumes older than 30 days.",
         "purged_count": cleaned_count
     }), 200
+
+
+@career_bp.route("/jobs/<jid>/applications", methods=["GET"])
+@jwt_required()
+@role_required("admin", "faculty")
+def get_job_applications(jid):
+    """Retrieve all student applications for a given job posting."""
+    job = db.session.get(JobPosting, jid)
+    if not job:
+        return jsonify({"error": "Job not found"}), 404
+        
+    apps = JobApplication.query.filter_by(posting_id=jid).all()
+    res = []
+    for a in apps:
+        student = db.session.get(User, a.student_id)
+        if student:
+            res.append({
+                "id": a.id,
+                "student_id": student.id,
+                "student_name": student.full_name,
+                "student_roll": student.roll_number,
+                "student_email": student.email,
+                "student_department": student.department,
+                "student_cgpa": student.cgpa,
+                "resume_url": a.resume_url,
+                "status": a.status,
+                "applied_at": a.applied_at.isoformat() if a.applied_at else None
+            })
+    return jsonify({"applications": res}), 200
 
 
 # ── Eligibility Check ─────────────────────────────────────────────
@@ -183,6 +212,58 @@ def my_interviews():
     schedules = InterviewSchedule.query.filter_by(student_id=get_jwt_identity())\
         .order_by(InterviewSchedule.scheduled_at).all()
     return jsonify({"interviews": [s.to_dict() for s in schedules]}), 200
+
+
+@career_bp.route("/interviews/all", methods=["GET"])
+@jwt_required()
+@role_required("admin", "faculty")
+def get_all_interviews():
+    """Get all scheduled interviews across all students."""
+    schedules = InterviewSchedule.query.order_by(InterviewSchedule.scheduled_at.desc()).all()
+    res = []
+    for s in schedules:
+        student = db.session.get(User, s.student_id)
+        job = db.session.get(JobPosting, s.posting_id)
+        d = s.to_dict()
+        d["student_name"] = student.full_name if student else "Unknown"
+        d["student_roll"] = student.roll_number if student else ""
+        d["company_name"] = job.company_name if job else "Unknown"
+        d["role_title"] = job.role_title if job else ""
+        res.append(d)
+    return jsonify({"interviews": res}), 200
+
+
+@career_bp.route("/interviews", methods=["POST"])
+@jwt_required()
+@role_required("admin", "faculty")
+def schedule_student_interview():
+    """Schedule a new interview round for a student."""
+    data = request.get_json() or {}
+    student_id = data.get("student_id")
+    posting_id = data.get("posting_id")
+    round_name = data.get("round_name", "Technical Round 1")
+    scheduled_at_str = data.get("scheduled_at")
+    venue = data.get("venue", "Placement Cell")
+    
+    if not student_id or not posting_id or not scheduled_at_str:
+        return jsonify({"error": "Missing student_id, posting_id, or scheduled_at"}), 400
+        
+    try:
+        scheduled_at = datetime.fromisoformat(scheduled_at_str.replace("Z", "").split(".")[0])
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Expected ISO-8601"}), 400
+        
+    sch = InterviewSchedule(
+        posting_id=posting_id,
+        student_id=student_id,
+        round_name=round_name,
+        scheduled_at=scheduled_at,
+        venue=venue,
+        status="scheduled"
+    )
+    db.session.add(sch)
+    db.session.commit()
+    return jsonify({"message": "Interview scheduled successfully", "schedule": sch.to_dict()}), 201
 
 
 @career_bp.route("/jobs/<jid>/interview-slots", methods=["GET"])
@@ -1383,6 +1464,45 @@ def my_internships():
     internships = Internship.query.filter_by(student_id=get_jwt_identity())\
         .order_by(Internship.start_date.desc()).all()
     return jsonify({"internships": [i.to_dict() for i in internships]}), 200
+
+
+@career_bp.route("/internships/all", methods=["GET"])
+@jwt_required()
+@role_required("admin", "faculty")
+def get_all_internships():
+    """Retrieve all student internship records."""
+    internships = Internship.query.order_by(Internship.created_at.desc()).all()
+    res = []
+    for i in internships:
+        student = db.session.get(User, i.student_id)
+        d = i.to_dict()
+        d["student_name"] = student.full_name if student else "Unknown"
+        d["student_roll"] = student.roll_number if student else ""
+        d["student_department"] = student.department if student else ""
+        res.append(d)
+    return jsonify({"internships": res}), 200
+
+
+@career_bp.route("/internships/<iid>/verify", methods=["POST"])
+@jwt_required()
+@role_required("admin", "faculty")
+def verify_internship(iid):
+    """Toggle verification status of a student's internship."""
+    internship = db.session.get(Internship, iid)
+    if not internship:
+        return jsonify({"error": "Internship not found"}), 404
+        
+    data = request.get_json() or {}
+    if "is_verified" in data:
+        internship.is_verified = bool(data["is_verified"])
+    else:
+        internship.is_verified = not internship.is_verified
+        
+    db.session.commit()
+    return jsonify({
+        "message": f"Internship {'verified' if internship.is_verified else 'unverified'} successfully",
+        "internship": internship.to_dict()
+    }), 200
 
 
 @career_bp.route("/internships", methods=["POST"])

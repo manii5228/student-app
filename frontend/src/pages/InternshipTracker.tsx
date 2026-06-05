@@ -38,7 +38,50 @@ const InternshipTracker = () => {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { fetch(); }, []);
+  // Faculty State
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isFaculty = user?.role === 'faculty';
+
+  const [allInternships, setAllInternships] = useState<any[]>([]);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (isFaculty) {
+      fetchAll();
+    } else {
+      fetch();
+    }
+  }, []);
+
+  const fetchAll = async () => { 
+    try { 
+      const { data } = await api.get('/career/internships/all'); 
+      setAllInternships(data.internships || []); 
+    } catch {
+      console.warn("Failed to fetch all internships, using fallback");
+      setAllInternships([
+        { id: 'i1', student_name: 'Mani Manjunath', student_roll: '22CSE101', student_department: 'CSE', company_name: 'Google', role_title: 'SDE Intern', mode: 'remote', status: 'ongoing', start_date: '2026-05-01', end_date: null, stipend: 50000, is_verified: true },
+        { id: 'i2', student_name: 'Arjun Reddy', student_roll: '22CSE102', student_department: 'CSE', company_name: 'Microsoft', role_title: 'SWE Intern', mode: 'onsite', status: 'completed', start_date: '2025-12-01', end_date: '2026-03-01', stipend: 45000, is_verified: false }
+      ]);
+    } 
+    setLoading(false); 
+  };
+
+  const handleVerifyToggle = async (id: string, currentStatus: boolean) => {
+    setVerifyingId(id);
+    try {
+      const { data } = await api.post(`/career/internships/${id}/verify`, {
+        is_verified: !currentStatus
+      });
+      setAllInternships(p => p.map(x => x.id === id ? { ...x, is_verified: data.internship.is_verified } : x));
+    } catch {
+      setAllInternships(p => p.map(x => x.id === id ? { ...x, is_verified: !currentStatus } : x));
+    } finally {
+      setVerifyingId(null);
+    }
+  };
 
   const fetch = async () => { 
     try { 
@@ -118,6 +161,151 @@ const InternshipTracker = () => {
       link.remove();
     } catch {}
   };
+
+  if (isFaculty) {
+    const filteredInternships = allInternships.filter(i => {
+      const q = searchQuery.toLowerCase();
+      return (
+        (i.student_name || '').toLowerCase().includes(q) ||
+        (i.student_roll || '').toLowerCase().includes(q) ||
+        (i.company_name || '').toLowerCase().includes(q) ||
+        (i.role_title || '').toLowerCase().includes(q)
+      );
+    });
+
+    const verifiedCount = allInternships.filter(x => x.is_verified).length;
+    const pendingCount = allInternships.length - verifiedCount;
+
+    return (
+      <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
+        {/* Header */}
+        <div className="bg-gradient-to-br from-teal-600 to-emerald-700 p-6 pt-12 shadow-md relative overflow-hidden shrink-0">
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-3">
+              <button onClick={() => nav('/faculty/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
+                <ChevronLeft className="w-5 h-5 text-white" />
+              </button>
+              <div>
+                <h1 className="text-xl font-bold text-white">Internship Tracker</h1>
+                <p className="text-xs text-teal-100">{allInternships.length} student records</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Stats */}
+          <div className="flex gap-3 relative z-10 mt-4">
+            <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center">
+              <p className="text-xl font-black text-white">{pendingCount}</p>
+              <p className="text-[9px] font-bold text-teal-200 uppercase">Pending</p>
+            </div>
+            <div className="flex-1 bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center">
+              <p className="text-xl font-black text-white">{verifiedCount}</p>
+              <p className="text-[9px] font-bold text-teal-200 uppercase">Verified</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="p-4 shrink-0">
+          <div className="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 flex items-center gap-3">
+            <input 
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)} 
+              placeholder="Search by student, roll no, or company..." 
+              className="bg-transparent text-slate-800 text-sm font-semibold placeholder:text-slate-400 flex-1 outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pt-0">
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <span className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></span>
+            </div>
+          ) : filteredInternships.length === 0 ? (
+            <div className="text-center py-20">
+              <Briefcase className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <h2 className="text-lg font-bold text-slate-900">No Records Found</h2>
+              <p className="text-sm text-slate-500 mt-1">Try modifying your search criteria.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 animate-slide-up pb-28">
+              {filteredInternships.map(i => (
+                <div key={i.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-slate-100 hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                        {i.student_name}
+                      </h3>
+                      <p className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase">
+                        {i.student_roll} · {i.student_department}
+                      </p>
+                      
+                      <div className="mt-3">
+                        <p className="text-xs font-black text-slate-800">{i.role_title}</p>
+                        <p className="text-[11px] font-bold text-slate-500">{i.company_name}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      <span className={`text-[9px] font-bold px-2 py-1 rounded-lg uppercase ${modeColors[i.mode] || 'bg-slate-100 text-slate-500'}`}>{i.mode}</span>
+                      <span className={`text-[9px] font-bold px-2 py-1 rounded-lg uppercase ${i.status === 'ongoing' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>{i.status}</span>
+                    </div>
+                  </div>
+                  
+                  {i.description && <p className="text-xs text-slate-500 mt-2 line-clamp-3 leading-relaxed">{i.description}</p>}
+                  
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-150">
+                    <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {i.start_date ? new Date(i.start_date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : ''}
+                      {i.end_date ? ` — ${new Date(i.end_date).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}` : ' — Present'}
+                    </span>
+                    
+                    {i.stipend && <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5"><DollarSign className="w-3 h-3" />₹{i.stipend.toLocaleString()}/mo</span>}
+                  </div>
+
+                  {i.skills_learned && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {i.skills_learned.split(',').map((s: string, idx: number) => (
+                        <span key={idx} className="text-[9px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">{s.trim()}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+                    <span className="text-[11px] font-bold text-slate-500">Verification Status</span>
+                    
+                    <button
+                      onClick={() => handleVerifyToggle(i.id, !!i.is_verified)}
+                      disabled={verifyingId === i.id}
+                      className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black shadow-sm transition-all ${
+                        i.is_verified
+                          ? 'bg-emerald-500 text-white shadow-emerald-500/10'
+                          : 'bg-amber-100 text-amber-800 border border-amber-200'
+                      }`}
+                    >
+                      {verifyingId === i.id ? (
+                        <span className="w-4 h-4 border-2 border-slate-600/30 border-t-slate-600 rounded-full animate-spin"></span>
+                      ) : i.is_verified ? (
+                        <>✓ Verified</>
+                      ) : (
+                        <>⚠ Pending Verify</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">

@@ -14,6 +14,7 @@ const FacultyCareer = () => {
     { name: 'Interview Schedule', icon: <Clock className="w-5 h-5 text-violet-600"/>, color: 'bg-violet-100', desc: 'Schedule & manage rounds', path: '/career/interviews' },
     { name: 'Company Prep', icon: <FileText className="w-5 h-5 text-blue-600"/>, color: 'bg-blue-100', desc: 'Add prep material & PYQs', path: '/career/prep' },
     { name: 'Internships', icon: <PenTool className="w-5 h-5 text-teal-600"/>, color: 'bg-teal-100', desc: 'Track student internships', path: '/career/internships' },
+    { name: 'Skill Badges', icon: <Target className="w-5 h-5 text-amber-600"/>, color: 'bg-amber-100', desc: 'Create & award skill badges', path: '/career/badges' },
   ];
 
   const stats = [

@@ -1,9 +1,10 @@
 
-if faculty reactivate it should remove already present students cause in 1 mintue all 60 studnets cant scan the QR
+if faculty reactivate it should remove already present students cause in 1 mintue all 60 studnets cant scan the QR (we could not check beacuse the qr scanner is not working).
 
 
 
- in faculty user role when carrer is clicked it is directing to ui of studnet,later pressing feature in it and the back coming backing it is showing acutal faculty ui for carerr.
+ in faculty user role when carrer is clicked it is directing to ui (placement management) of studnet,later pressing feature in it and the back coming backing it is showing acutal faculty ui for carerr
+ .
 
 
 syllabus tracker should be available for  all faculty 

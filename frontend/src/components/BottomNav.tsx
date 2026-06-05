@@ -107,11 +107,11 @@ const BottomNav = () => {
               </div>
             )}
           </NavLink>
-          <NavLink to="/faculty/resources">
+          <NavLink to="/faculty/career">
             {({ isActive }) => (
               <div {...getLinkProps(isActive, accentColor)}>
                 <Briefcase className={getIconClass(isActive, accentColor)} style={getIconStyle(isActive, accentColor)} />
-                <span className="text-[10px] font-bold">Notes</span>
+                <span className="text-[10px] font-bold">Career</span>
               </div>
             )}
           </NavLink>

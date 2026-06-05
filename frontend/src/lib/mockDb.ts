@@ -1085,6 +1085,15 @@ const getMockDb = () => {
           ];
           localStorage.setItem('mock_db', JSON.stringify(parsedDb));
         }
+        let updated = false;
+        if (!parsedDb.companyPrep) { parsedDb.companyPrep = []; updated = true; }
+        if (!parsedDb.interviews) { parsedDb.interviews = []; updated = true; }
+        if (!parsedDb.internships) { parsedDb.internships = []; updated = true; }
+        if (!parsedDb.badges) { parsedDb.badges = []; updated = true; }
+        if (!parsedDb.earnedBadges) { parsedDb.earnedBadges = []; updated = true; }
+        if (updated) {
+          localStorage.setItem('mock_db', JSON.stringify(parsedDb));
+        }
         return parsedDb;
       }
     } catch { /* fallback */ }
@@ -2529,7 +2538,8 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   if (cleanUrl.startsWith('/career/prep/') && method === 'get') {
     const compStr = cleanUrl.split('/').pop() || '';
     const q = decodeURIComponent(compStr).toLowerCase();
-    const list = db.companyPrep || [];
+    if (!db.companyPrep) db.companyPrep = [];
+    const list = db.companyPrep;
     const filtered = list.filter((p: any) => p.company_name.toLowerCase().includes(q) || p.question_text.toLowerCase().includes(q));
     return { status: 200, data: { questions: filtered } };
   }
@@ -2537,6 +2547,7 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     const compStr = cleanUrl.split('/')[3] || '';
     const company = decodeURIComponent(compStr);
     const payload = getPayload(config.data);
+    if (!db.companyPrep) db.companyPrep = [];
     const newQ = {
       id: `prep_${Date.now()}`,
       company_name: company,
@@ -2552,6 +2563,7 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   if (cleanUrl.startsWith('/career/prep/question/') && method === 'put') {
     const qid = cleanUrl.split('/').pop();
     const payload = getPayload(config.data);
+    if (!db.companyPrep) db.companyPrep = [];
     const qIdx = db.companyPrep.findIndex((p: any) => p.id === qid);
     if (qIdx !== -1) {
       db.companyPrep[qIdx] = { ...db.companyPrep[qIdx], ...payload };
@@ -2561,12 +2573,14 @@ export const handleMockRequest = async (config: any): Promise<any> => {
   }
   if (cleanUrl.startsWith('/career/prep/question/') && method === 'delete') {
     const qid = cleanUrl.split('/').pop();
+    if (!db.companyPrep) db.companyPrep = [];
     db.companyPrep = db.companyPrep.filter((p: any) => p.id !== qid);
     saveMockDb(db);
     return { status: 200, data: { success: true } };
   }
   if (cleanUrl.startsWith('/career/prep/question/') && cleanUrl.endsWith('/upvote') && method === 'post') {
     const qid = cleanUrl.split('/')[4];
+    if (!db.companyPrep) db.companyPrep = [];
     const q = db.companyPrep.find((p: any) => p.id === qid);
     if (q) {
       q.upvotes = (q.upvotes || 0) + 1;
@@ -3268,6 +3282,227 @@ export const handleMockRequest = async (config: any): Promise<any> => {
       return { status: 201, data: { message: "Volunteer Excellence Badge claimed successfully!", earned_badge: newEarned } };
     }
     return { status: 404, data: { error: "Volunteer Excellence badge template not found" } };
+  }
+
+  // ==========================================
+  // Additional Placements & Badges Mock Routes
+  // ==========================================
+  if (cleanUrl === '/faculty/class-students' && method === 'get') {
+    const activeUser = db.users.find((u: any) => u.id === activeUserId);
+    let students = db.users.filter((u: any) => u.role === 'student');
+    if (activeUser && activeUser.role === 'faculty') {
+      students = students.filter((s: any) => 
+        s.department === activeUser.department &&
+        s.semester === activeUser.semester &&
+        s.section === activeUser.section
+      );
+    }
+    return {
+      status: 200,
+      data: {
+        students: students.map((s: any) => ({
+          id: s.id,
+          name: `${s.first_name} ${s.last_name}`,
+          email: s.email,
+          roll_number: s.roll_number,
+          department: s.department,
+          semester: s.semester,
+          section: s.section
+        }))
+      }
+    };
+  }
+
+  if (cleanUrl === '/career/badges' && method === 'post') {
+    const payload = getPayload(config.data);
+    if (!db.badges) db.badges = [];
+    const newBadge = {
+      id: `badge_${Date.now()}`,
+      name: payload.name,
+      description: payload.description || "",
+      category: payload.category || "technical",
+      icon: payload.icon || "award",
+      color: payload.color || "#6366f1",
+      criteria: payload.criteria || "",
+      points: parseInt(payload.points) || 10,
+      is_active: true
+    };
+    db.badges.push(newBadge);
+    saveMockDb(db);
+    return { status: 201, data: { message: "Badge created", badge: newBadge } };
+  }
+
+  if (cleanUrl.startsWith('/career/badges/') && cleanUrl.endsWith('/award') && method === 'post') {
+    const bid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    const badge = (db.badges || []).find((b: any) => b.id === bid);
+    if (!db.earnedBadges) db.earnedBadges = [];
+    const newEarned = {
+      id: `eb_${Date.now()}`,
+      student_id: payload.student_id,
+      badge_id: bid,
+      badge: badge || null,
+      note: payload.note || "",
+      awarded_by: activeUserId,
+      status: "approved",
+      earned_at: new Date().toISOString()
+    };
+    db.earnedBadges.push(newEarned);
+    saveMockDb(db);
+    return { status: 201, data: { message: "Badge awarded", earned: newEarned } };
+  }
+
+  if (cleanUrl.startsWith('/career/badges/') && cleanUrl.endsWith('/holders') && method === 'get') {
+    const bid = cleanUrl.split('/')[3];
+    if (!db.earnedBadges) db.earnedBadges = [];
+    const earned = db.earnedBadges.filter((eb: any) => eb.badge_id === bid || eb.badge?.id === bid);
+    const holders = earned.map((eb: any) => {
+      const u = db.users.find((user: any) => user.id === eb.student_id);
+      return {
+        student_id: eb.student_id,
+        name: u ? `${u.first_name} ${u.last_name}` : "Unknown Student",
+        department: u ? u.department : "CSE",
+        earned_at: eb.earned_at
+      };
+    });
+    return { status: 200, data: { holders } };
+  }
+
+  if (cleanUrl === '/career/badges/claims/pending' && method === 'get') {
+    if (!db.earnedBadges) db.earnedBadges = [];
+    const pending = db.earnedBadges.filter((eb: any) => eb.status === 'pending');
+    const enriched = pending.map((eb: any) => {
+      const u = db.users.find((user: any) => user.id === eb.student_id);
+      return {
+        ...eb,
+        student_name: u ? `${u.first_name} ${u.last_name}` : "Unknown Student",
+        student_roll: u ? u.roll_number : "",
+        student_email: u ? u.email : "",
+        student_department: u ? u.department : "CSE"
+      };
+    });
+    return { status: 200, data: { claims: enriched } };
+  }
+
+  if (cleanUrl.startsWith('/career/badges/claims/') && method === 'put') {
+    const cid = cleanUrl.split('/').pop();
+    const payload = getPayload(config.data);
+    if (!db.earnedBadges) db.earnedBadges = [];
+    const eb = db.earnedBadges.find((x: any) => x.id === cid);
+    if (eb) {
+      eb.status = payload.status;
+      eb.awarded_by = activeUserId;
+      if (payload.note) eb.note = payload.note;
+      saveMockDb(db);
+      return { status: 200, data: { message: `Badge claim ${payload.status}`, earned: eb } };
+    }
+    return { status: 404, data: { error: "Claim not found" } };
+  }
+
+  if (cleanUrl === '/career/jobs' && method === 'post') {
+    const payload = getPayload(config.data);
+    if (!db.jobs) db.jobs = [];
+    const newJob = {
+      id: `job_${Date.now()}`,
+      company_name: payload.company_name,
+      role_title: payload.role_title,
+      description: payload.description || "",
+      location: payload.location || "Bangalore",
+      min_cgpa: parseFloat(payload.min_cgpa) || 0,
+      eligible_departments: payload.eligible_departments || "all",
+      package_lpa: parseFloat(payload.package_lpa) || 0,
+      salary: payload.package_lpa ? `${payload.package_lpa} LPA` : "Competitive",
+      is_active: true
+    };
+    db.jobs.push(newJob);
+    saveMockDb(db);
+    return { status: 201, data: { message: "Job posted", job: newJob } };
+  }
+
+  if (cleanUrl.startsWith('/career/jobs/') && cleanUrl.endsWith('/applications') && method === 'get') {
+    const jid = cleanUrl.split('/')[3];
+    if (!db.jobApplications) db.jobApplications = [];
+    const apps = db.jobApplications.filter((a: any) => a.job_id === jid || a.posting_id === jid);
+    const enriched = apps.map((a: any) => {
+      const u = db.users.find((user: any) => user.id === a.student_id);
+      return {
+        id: a.id,
+        student_id: a.student_id,
+        student_name: u ? `${u.first_name} ${u.last_name}` : "Unknown Student",
+        student_roll: u ? u.roll_number : "No Roll",
+        student_email: u ? u.email : "",
+        student_department: u ? u.department : "CSE",
+        student_cgpa: u ? u.cgpa : 0,
+        resume_url: a.resume_url,
+        status: a.status,
+        applied_at: a.applied_at
+      };
+    });
+    return { status: 200, data: { applications: enriched } };
+  }
+
+  if (cleanUrl === '/career/interviews' && method === 'post') {
+    const payload = getPayload(config.data);
+    if (!db.interviews) db.interviews = [];
+    const newIv = {
+      id: `iv_${Date.now()}`,
+      posting_id: payload.posting_id,
+      student_id: payload.student_id,
+      round_name: payload.round_name || "Technical Interview",
+      scheduled_at: payload.scheduled_at,
+      venue: payload.venue || "Placement Cell",
+      status: "scheduled"
+    };
+    db.interviews.push(newIv);
+    saveMockDb(db);
+    return { status: 201, data: { message: "Interview scheduled successfully", schedule: newIv } };
+  }
+
+  if (cleanUrl === '/career/interviews/all' && method === 'get') {
+    if (!db.interviews) db.interviews = [];
+    const enriched = db.interviews.map((iv: any) => {
+      const u = db.users.find((user: any) => user.id === iv.student_id);
+      const job = db.jobs.find((j: any) => j.id === iv.posting_id);
+      return {
+        ...iv,
+        student_name: u ? `${u.first_name} ${u.last_name}` : "Unknown Student",
+        student_roll: u ? u.roll_number : "",
+        company_name: job ? job.company_name : "Unknown Company",
+        role_title: job ? job.role_title : "Unknown Role"
+      };
+    });
+    return { status: 200, data: { interviews: enriched } };
+  }
+
+  if (cleanUrl === '/career/internships/all' && method === 'get') {
+    if (!db.internships) db.internships = [];
+    const enriched = db.internships.map((i: any) => {
+      const u = db.users.find((user: any) => user.id === i.student_id);
+      return {
+        ...i,
+        student_name: u ? `${u.first_name} ${u.last_name}` : "Unknown Student",
+        student_roll: u ? u.roll_number : "",
+        student_department: u ? u.department : "CSE"
+      };
+    });
+    return { status: 200, data: { internships: enriched } };
+  }
+
+  if (cleanUrl.startsWith('/career/internships/') && cleanUrl.endsWith('/verify') && method === 'post') {
+    const iid = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    if (!db.internships) db.internships = [];
+    const i = db.internships.find((item: any) => item.id === iid);
+    if (i) {
+      if (payload.is_verified !== undefined) {
+        i.is_verified = payload.is_verified;
+      } else {
+        i.is_verified = !i.is_verified;
+      }
+      saveMockDb(db);
+      return { status: 200, data: { message: `Internship verified`, internship: i } };
+    }
+    return { status: 404, data: { error: "Internship not found" } };
   }
 
   // ==========================================

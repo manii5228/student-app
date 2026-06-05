@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, CheckCircle, AlertCircle, Calendar, ExternalLink } from 'lucide-react';
+import { ChevronLeft, Calendar as CalendarIcon, Clock, MapPin, CheckCircle, AlertCircle, Calendar, ExternalLink, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
@@ -33,6 +33,93 @@ const InterviewScheduler = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Faculty State
+  const userStr = localStorage.getItem('user');
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isFaculty = user?.role === 'faculty';
+
+  const [allInterviews, setAllInterviews] = useState<any[]>([]);
+  const [classStudents, setClassStudents] = useState<any[]>([]);
+  const [jobsList, setJobsList] = useState<any[]>([]);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [newIvForm, setNewIvForm] = useState({
+    student_id: '',
+    posting_id: '',
+    round_name: 'Technical Round 1',
+    scheduled_at: '',
+    venue: 'Placement Cell'
+  });
+
+  const fetchFacultyData = async () => {
+    setLoading(true);
+    try {
+      const [ivRes, stdRes, jobsRes] = await Promise.all([
+        api.get('/career/interviews/all'),
+        api.get('/faculty/class-students'),
+        api.get('/career/jobs')
+      ]);
+      setAllInterviews(ivRes.data.interviews || []);
+      setClassStudents(stdRes.data.students || []);
+      setJobsList(jobsRes.data.jobs || []);
+      
+      if (stdRes.data.students?.length > 0 && jobsRes.data.jobs?.length > 0) {
+        setNewIvForm(prev => ({
+          ...prev,
+          student_id: stdRes.data.students[0].id,
+          posting_id: jobsRes.data.jobs[0].id
+        }));
+      }
+    } catch (err) {
+      console.warn("Failed to load faculty interviews data, using fallbacks", err);
+      setAllInterviews([
+        { id: 'iv_1', student_name: 'Mani Manjunath', student_roll: '22CSE101', company_name: 'Deloitte', role_title: 'Analyst', round_name: 'Technical Round 1', scheduled_at: new Date(Date.now() + 172800000).toISOString(), venue: 'Main Block Cabin 104', status: 'scheduled' },
+        { id: 'iv_2', student_name: 'Arjun Reddy', student_roll: '22CSE102', company_name: 'Amazon', role_title: 'SDE-1', round_name: 'Aptitude Screening', scheduled_at: new Date(Date.now() - 432000000).toISOString(), venue: 'Online Test Center', status: 'completed' }
+      ]);
+      setClassStudents([
+        { id: 'std_1', name: 'Mani Manjunath', roll_number: '22CSE101' },
+        { id: 'std_2', name: 'Arjun Reddy', roll_number: '22CSE102' },
+        { id: 'std_3', name: 'Neha Sharma', roll_number: '22CSE103' }
+      ]);
+      setJobsList([
+        { id: '1', company_name: 'Google', role_title: 'Software Engineer' },
+        { id: '2', company_name: 'Amazon', role_title: 'SDE-1' },
+        { id: '3', company_name: 'Deloitte', role_title: 'Analyst' }
+      ]);
+      setNewIvForm(prev => ({
+        ...prev,
+        student_id: 'std_1',
+        posting_id: '3'
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleScheduleInterview = async () => {
+    if (!newIvForm.student_id || !newIvForm.posting_id || !newIvForm.scheduled_at) {
+      alert('Please fill out all required fields.');
+      return;
+    }
+    setScheduling(true);
+    try {
+      await api.post('/career/interviews', {
+        student_id: newIvForm.student_id,
+        posting_id: newIvForm.posting_id,
+        round_name: newIvForm.round_name,
+        scheduled_at: new Date(newIvForm.scheduled_at).toISOString(),
+        venue: newIvForm.venue
+      });
+      alert('Interview scheduled successfully!');
+      setShowScheduleModal(false);
+      fetchFacultyData();
+    } catch (err) {
+      alert('Failed to schedule interview.');
+    } finally {
+      setScheduling(false);
+    }
+  };
+
   // Hardcoded target companies that student applied for (for booking simulation)
   const appliedJobsToBook = [
     { id: '3', company_name: 'Deloitte', role: 'Analyst' },
@@ -63,7 +150,11 @@ const InterviewScheduler = () => {
   };
 
   useEffect(() => {
-    fetchInterviews();
+    if (isFaculty) {
+      fetchFacultyData();
+    } else {
+      fetchInterviews();
+    }
   }, []);
 
   const fetchSlots = async (jobId: string) => {
@@ -145,6 +236,172 @@ const InterviewScheduler = () => {
       : venue;
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   };
+
+  if (isFaculty) {
+    return (
+      <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">
+        {/* Header */}
+        <div className="bg-gradient-to-br from-violet-600 to-purple-700 p-6 pt-12 shadow-md relative overflow-hidden shrink-0">
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-3">
+              <button onClick={() => navigate('/faculty/career')} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
+                <ChevronLeft className="w-5 h-5 text-white" />
+              </button>
+              <div>
+                <h1 className="text-xl font-bold text-white">Interview Scheduler</h1>
+                <p className="text-xs text-violet-200">{allInterviews.filter(i => i.status === 'scheduled').length} active rounds</p>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => setShowScheduleModal(true)}
+              className="bg-white text-violet-700 px-4 py-2.5 rounded-2xl text-xs font-black shadow-lg hover:bg-violet-50 transition-all active:scale-95 flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" /> Schedule Round
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          {loading ? (
+            <div className="flex justify-center py-16">
+              <span className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></span>
+            </div>
+          ) : allInterviews.length === 0 ? (
+            <div className="text-center py-20 animate-fade-in">
+              <CalendarIcon className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <h2 className="text-sm font-bold text-slate-900">No Interviews Scheduled</h2>
+              <p className="text-xs text-slate-500 mt-1">Click the "Schedule Round" button to create one.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 animate-slide-up pb-28">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider pl-1">Scheduled Interview Rounds</h3>
+              {allInterviews.map(iv => {
+                const isUpcoming = iv.status === 'scheduled';
+                return (
+                  <div key={iv.id} className="bg-white rounded-[24px] p-5 shadow-sm border border-violet-100 relative">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <div className="flex gap-2 items-center flex-wrap">
+                          <span className="text-[10px] bg-violet-100 text-violet-700 font-bold px-2 py-0.5 rounded uppercase">
+                            {iv.company_name}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-bold">
+                            {iv.role_title}
+                          </span>
+                        </div>
+                        <h3 className="text-sm font-black text-slate-800 mt-2 leading-tight">
+                          {iv.student_name} ({iv.student_roll})
+                        </h3>
+                        <p className="text-xs text-slate-500 font-bold mt-1">
+                          {iv.round_name}
+                        </p>
+                      </div>
+                      <span className={`text-[9px] font-black px-2 py-1 rounded-lg uppercase shrink-0 ${
+                        isUpcoming ? 'bg-violet-50 text-violet-700 border border-violet-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                      }`}>
+                        {iv.status}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-2 mt-4 pt-3 border-t border-slate-50">
+                      <div className="flex items-center gap-4 text-xs font-bold text-slate-600">
+                        <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-slate-400" />{formatDate(iv.scheduled_at)} · {formatTime(iv.scheduled_at)}</span>
+                        {iv.venue && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-slate-400" />{iv.venue}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Schedule Interview Modal */}
+        {showScheduleModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-fade-in">
+            <div className="bg-white w-full max-w-md rounded-[32px] p-6 shadow-2xl animate-slide-up flex flex-col max-h-[85vh]">
+              <div className="flex justify-between items-center mb-4 shrink-0">
+                <h3 className="text-base font-black text-slate-900">Schedule Interview Round</h3>
+                <button onClick={() => setShowScheduleModal(false)} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors">✕</button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Select Student *</label>
+                  <select
+                    value={newIvForm.student_id}
+                    onChange={e => setNewIvForm({...newIvForm, student_id: e.target.value})}
+                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                  >
+                    {classStudents.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.roll_number})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Select Job Drive *</label>
+                  <select
+                    value={newIvForm.posting_id}
+                    onChange={e => setNewIvForm({...newIvForm, posting_id: e.target.value})}
+                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                  >
+                    {jobsList.map(j => (
+                      <option key={j.id} value={j.id}>{j.company_name} - {j.role_title}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Round Name *</label>
+                  <input
+                    value={newIvForm.round_name}
+                    onChange={e => setNewIvForm({...newIvForm, round_name: e.target.value})}
+                    placeholder="e.g. Technical Round 1"
+                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Scheduled Date & Time *</label>
+                  <input
+                    type="datetime-local"
+                    value={newIvForm.scheduled_at}
+                    onChange={e => setNewIvForm({...newIvForm, scheduled_at: e.target.value})}
+                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Venue *</label>
+                  <input
+                    value={newIvForm.venue}
+                    onChange={e => setNewIvForm({...newIvForm, venue: e.target.value})}
+                    placeholder="e.g. Placement Cell, Lab 3"
+                    className="w-full bg-slate-50 rounded-xl px-3 py-2.5 text-xs font-bold border border-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6 shrink-0 border-t border-slate-100 pt-4">
+                <button
+                  onClick={handleScheduleInterview}
+                  disabled={scheduling || !newIvForm.student_id || !newIvForm.posting_id || !newIvForm.scheduled_at}
+                  className="w-full bg-violet-600 text-white py-4 rounded-2xl font-black text-xs hover:bg-violet-700 transition-all disabled:opacity-40 shadow-xl"
+                >
+                  {scheduling ? 'Scheduling...' : 'Confirm & Publish'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <BottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full bg-slate-50 flex flex-col font-sans animate-fade-in relative pb-24">

@@ -183,7 +183,13 @@ const FacultyHub = () => {
           .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         `}</style>
         {tabs.map(t => (
-          <button key={t.key} onClick={() => setActiveTab(t.key as any)}
+          <button key={t.key} onClick={() => {
+            if (t.key === 'career') {
+              navigate('/faculty/career');
+            } else {
+              setActiveTab(t.key as any);
+            }
+          }}
             className={`flex-1 min-w-[85px] flex items-center justify-center gap-2 py-2.5 px-3.5 rounded-xl text-[11px] font-bold transition-all shrink-0 ${activeTab === t.key ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
             {t.icon}
             <span>{t.label}</span>
