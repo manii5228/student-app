@@ -536,6 +536,12 @@ const ExamSchedule = () => {
             <h3 className="text-xl font-black text-slate-950 pr-8 leading-tight">{selectedExam.subject_name}</h3>
             <p className="text-xs text-slate-500 font-bold mt-1.5">{selectedExam.subject_code} · {examTypeLabel(selectedExam.exam_type)}</p>
 
+            {/* Countdown timer for selected exam */}
+            <div className="mt-5">
+              <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2">Time Remaining</p>
+              <ExamTimer targetDate={selectedExam.exam_date} startTime={selectedExam.start_time} />
+            </div>
+
             {/* Exam info summary */}
             <div className="bg-slate-50 rounded-3xl p-5 border border-slate-100 flex flex-col gap-3.5 mt-5">
               <div className="flex justify-between items-center text-xs font-bold">
