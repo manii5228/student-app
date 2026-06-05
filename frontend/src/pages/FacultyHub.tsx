@@ -50,8 +50,8 @@ const FacultyHub = () => {
   const tabs = [
     { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4"/> },
     { key: 'academic', label: 'Academic', icon: <GraduationCap className="w-4 h-4"/> },
-    { key: 'campus', label: 'Campus', icon: <MapPin className="w-4 h-4"/> },
-    { key: 'career', label: 'Career', icon: <Briefcase className="w-4 h-4"/> },
+    { key: 'campus', label: 'Campus' },
+    { key: 'career', label: 'Career' },
   ];
 
   // ── Dashboard Section (Core Faculty Tools) ──
