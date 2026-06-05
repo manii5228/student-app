@@ -241,12 +241,12 @@ def schedule_student_interview():
     data = request.get_json() or {}
     student_id = data.get("student_id")
     posting_id = data.get("posting_id")
-    round_name = data.get("round_name", "Technical Round 1")
+    round_name = data.get("round_name")
     scheduled_at_str = data.get("scheduled_at")
-    venue = data.get("venue", "Placement Cell")
+    venue = data.get("venue")
     
-    if not student_id or not posting_id or not scheduled_at_str:
-        return jsonify({"error": "Missing student_id, posting_id, or scheduled_at"}), 400
+    if not student_id or not posting_id or not round_name or not scheduled_at_str or not venue:
+        return jsonify({"error": "student_id, posting_id, round_name, scheduled_at, and venue are compulsory"}), 400
         
     try:
         scheduled_at = datetime.fromisoformat(scheduled_at_str.replace("Z", "").split(".")[0])
@@ -264,6 +264,56 @@ def schedule_student_interview():
     db.session.add(sch)
     db.session.commit()
     return jsonify({"message": "Interview scheduled successfully", "schedule": sch.to_dict()}), 201
+
+
+@career_bp.route("/interviews/<ivid>", methods=["PUT"])
+@jwt_required()
+@role_required("admin", "faculty")
+def update_student_interview(ivid):
+    """Update a scheduled interview round."""
+    sch = db.session.get(InterviewSchedule, ivid)
+    if not sch:
+        return jsonify({"error": "Interview not found"}), 404
+        
+    data = request.get_json() or {}
+    student_id = data.get("student_id")
+    posting_id = data.get("posting_id")
+    round_name = data.get("round_name")
+    scheduled_at_str = data.get("scheduled_at")
+    venue = data.get("venue")
+    
+    if not student_id or not posting_id or not round_name or not scheduled_at_str or not venue:
+        return jsonify({"error": "student_id, posting_id, round_name, scheduled_at, and venue are compulsory"}), 400
+        
+    try:
+        scheduled_at = datetime.fromisoformat(scheduled_at_str.replace("Z", "").split(".")[0])
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Expected ISO-8601"}), 400
+        
+    sch.student_id = student_id
+    sch.posting_id = posting_id
+    sch.round_name = round_name
+    sch.scheduled_at = scheduled_at
+    sch.venue = venue
+    if "status" in data:
+        sch.status = data["status"]
+        
+    db.session.commit()
+    return jsonify({"message": "Interview updated successfully", "schedule": sch.to_dict()}), 200
+
+
+@career_bp.route("/interviews/<ivid>", methods=["DELETE"])
+@jwt_required()
+@role_required("admin", "faculty")
+def delete_student_interview(ivid):
+    """Delete a scheduled interview round."""
+    sch = db.session.get(InterviewSchedule, ivid)
+    if not sch:
+        return jsonify({"error": "Interview not found"}), 404
+        
+    db.session.delete(sch)
+    db.session.commit()
+    return jsonify({"message": "Interview deleted successfully"}), 200
 
 
 @career_bp.route("/jobs/<jid>/interview-slots", methods=["GET"])
@@ -913,12 +963,22 @@ def my_badges():
 @role_required("admin", "faculty")
 def create_badge():
     """Create a new badge template."""
-    data = request.get_json()
+    data = request.get_json() or {}
+    name = data.get("name")
+    description = data.get("description")
+    category = data.get("category", "technical")
+    icon = data.get("icon", "award")
+    color = data.get("color", "#6366f1")
+    criteria = data.get("criteria")
+    points = data.get("points")
+    
+    if not name or not description or not criteria or points is None:
+        return jsonify({"error": "name, description, criteria, and points are compulsory"}), 400
+        
     b = SkillBadge(
-        name=data["name"], description=data.get("description"),
-        category=data.get("category", "technical"),
-        icon=data.get("icon", "award"), color=data.get("color", "#6366f1"),
-        criteria=data.get("criteria"), points=data.get("points", 10),
+        name=name, description=description,
+        category=category, icon=icon, color=color,
+        criteria=criteria, points=int(points),
     )
     db.session.add(b)
     db.session.commit()
@@ -934,21 +994,28 @@ def edit_badge(bid):
     if not badge:
         return jsonify({"error": "Badge template not found"}), 404
         
-    data = request.get_json()
-    if "name" in data:
-        badge.name = data["name"]
-    if "description" in data:
-        badge.description = data["description"]
-    if "category" in data:
-        badge.category = data["category"]
-    if "icon" in data:
-        badge.icon = data["icon"]
-    if "color" in data:
-        badge.color = data["color"]
-    if "criteria" in data:
-        badge.criteria = data["criteria"]
-    if "points" in data:
-        badge.points = int(data["points"])
+    data = request.get_json() or {}
+    name = data.get("name")
+    description = data.get("description")
+    category = data.get("category")
+    icon = data.get("icon")
+    color = data.get("color")
+    criteria = data.get("criteria")
+    points = data.get("points")
+    
+    if not name or not description or not criteria or points is None:
+        return jsonify({"error": "name, description, criteria, and points are compulsory"}), 400
+        
+    badge.name = name
+    badge.description = description
+    badge.criteria = criteria
+    badge.points = int(points)
+    if category:
+        badge.category = category
+    if icon:
+        badge.icon = icon
+    if color:
+        badge.color = color
         
     db.session.commit()
     return jsonify({"message": "Badge updated successfully", "badge": badge.to_dict()}), 200
@@ -963,6 +1030,8 @@ def delete_badge(bid):
     if not badge:
         return jsonify({"error": "Badge template not found"}), 404
         
+    # Delete associated earned badges first to avoid foreign key violations
+    EarnedBadge.query.filter_by(badge_id=bid).delete()
     db.session.delete(badge)
     db.session.commit()
     return jsonify({"message": "Badge template deleted successfully"}), 200
@@ -1563,6 +1632,9 @@ def update_internship(iid):
     i.skills_learned = data["skills_learned"]
     i.start_date = dt_date.fromisoformat(data["start_date"].split("T")[0])
     i.end_date = dt_date.fromisoformat(data["end_date"].split("T")[0])
+    
+    if caller_role in ("faculty", "admin") and "student_id" in data and data["student_id"]:
+        i.student_id = data["student_id"]
     
     db.session.commit()
     return jsonify({"internship": i.to_dict()}), 200

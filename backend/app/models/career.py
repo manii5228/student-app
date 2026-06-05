@@ -403,7 +403,8 @@ class InterviewSchedule(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     def to_dict(self):
-        return {"id": self.id, "posting_id": self.posting_id, "round_name": self.round_name,
+        return {"id": self.id, "posting_id": self.posting_id, "student_id": self.student_id,
+                "round_name": self.round_name,
                 "scheduled_at": self.scheduled_at.isoformat() if self.scheduled_at else None,
                 "venue": self.venue, "status": self.status}
 
