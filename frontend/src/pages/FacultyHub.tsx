@@ -66,6 +66,7 @@ const FacultyHub = () => {
     { name: 'Mentees', desc: 'Your 25-30 students', icon: <UserCheck className="w-6 h-6"/>, color: 'from-violet-500 to-violet-600', path: '/faculty/mentees' },
     { name: 'Office Hours', desc: 'Set meeting slots', icon: <Clock className="w-6 h-6"/>, color: 'from-cyan-500 to-cyan-600', path: '/faculty/meetings' },
     { name: 'Resources', desc: 'Upload notes/PPTs', icon: <Upload className="w-6 h-6"/>, color: 'from-orange-500 to-orange-600', path: '/faculty/resources' },
+    { name: 'Supervised Projects', desc: 'Accept, decline & complete student projects', icon: <FolderKanban className="w-6 h-6"/>, color: 'from-cyan-500 to-teal-650', path: '/faculty/projects' },
   ];
 
   // ── Academic Management ──
