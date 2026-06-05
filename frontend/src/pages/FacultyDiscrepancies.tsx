@@ -267,8 +267,17 @@ const FacultyDiscrepancies = () => {
 
       {/* Resolution Dialog Modal */}
       {selectedDispute && actionType && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-end justify-center sm:items-center">
-          <div className="bg-white w-full max-w-md rounded-t-[32px] sm:rounded-3xl p-6 shadow-2xl border border-slate-100 animate-slide-up text-slate-800">
+        <div 
+          className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => {
+            setSelectedDispute(null);
+            setActionType(null);
+          }}
+        >
+          <div 
+            className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-100 animate-scale-in text-slate-800 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold text-slate-900 capitalize">
                 {actionType === 'resolved' ? 'Approve Dispute' : 'Reject Dispute'}

@@ -375,10 +375,10 @@ def report_discrepancy():
     data = request.get_json() or {}
     student_id = get_jwt_identity()
     record_id = data.get("record_id")
-    reason = data.get("reason")
+    reason = data.get("reason", "").strip()
 
     if not record_id or not reason:
-        return jsonify({"error": "record_id and reason are required"}), 400
+        return jsonify({"error": "record_id and non-empty reason are required"}), 400
 
     result, error = attendance_service.report_discrepancy(student_id, record_id, reason)
     if error:

@@ -763,8 +763,17 @@ const BunkOMeter = () => {
 
       {/* Discrepancy Reporting Modal */}
       {discrepancyModalOpen && selectedRecord && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl border border-slate-100 animate-slide-up text-slate-800 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto pb-12 mb-2 sm:mb-0">
+        <div 
+          className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => {
+            setDiscrepancyModalOpen(false);
+            setSelectedRecord(null);
+          }}
+        >
+          <div 
+            className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-slate-100 animate-scale-in text-slate-800 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-black text-slate-900">Report Attendance Discrepancy</h3>
               <button 
