@@ -11,7 +11,6 @@ import BottomNav from '../components/BottomNav';
 import { api } from '../lib/api';
 
 const featureKeys: Record<string, string> = {
-  'Syllabus Tracker': 'syllabus_tracker',
   'Clubs & Societies': 'clubs'
 };
 
