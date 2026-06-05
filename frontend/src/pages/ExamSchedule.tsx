@@ -523,8 +523,8 @@ const ExamSchedule = () => {
 
       {/* Selected Exam Timetable Sheet */}
       {selectedExam && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white w-full max-w-md rounded-t-[40px] p-6 pb-12 shadow-2xl animate-slide-up relative border-t border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in p-4" onClick={() => setSelectedExam(null)}>
+          <div className="bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl animate-scale-in relative border border-slate-100" onClick={e => e.stopPropagation()}>
             <button 
               onClick={() => setSelectedExam(null)} 
               className="absolute top-6 right-6 w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold hover:bg-slate-200 transition-colors"

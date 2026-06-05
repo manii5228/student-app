@@ -1,3 +1,17 @@
+import { jsPDF } from 'jspdf';
+import veltechCircleLogo from '../assets/veltech_circle_logo.png';
+
+async function getBase64ImageFromUrl(imageUrl: string): Promise<string> {
+  const res = await fetch(imageUrl);
+  const blob = await res.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 // Centralized Offline Database layer for standalone mobile operation
 // Seeded with the exact same records as the Flask server
 
