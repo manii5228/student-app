@@ -1598,6 +1598,21 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     }
   }
 
+  if (cleanUrl.startsWith('/career/badges/') && cleanUrl.endsWith('/holders') && method === 'get') {
+    const bid = cleanUrl.split('/')[3];
+    const earned = (db.earnedBadges || []).filter((eb: any) => eb.badge_id === bid || eb.badge?.id === bid);
+    const holders = earned.map((eb: any) => {
+      const u = (db.users || []).find((user: any) => user.id === eb.student_id);
+      return {
+        student_id: eb.student_id,
+        name: u ? `${u.first_name} ${u.last_name}` : "Unknown Student",
+        department: u ? u.department : "CSE",
+        earned_at: eb.earned_at || new Date().toISOString()
+      };
+    });
+    return { status: 200, data: { holders } };
+  }
+
   // Notices
   if (cleanUrl === '/campus/notices' && method === 'get') {
     return {

@@ -822,6 +822,24 @@ def award_badge(bid):
     return jsonify({"message": "Badge awarded", "earned": earned.to_dict()}), 201
 
 
+@career_bp.route("/badges/<bid>/holders", methods=["GET"])
+@jwt_required()
+def badge_holders(bid):
+    """List students who have earned this badge."""
+    earned = EarnedBadge.query.filter_by(badge_id=bid).all()
+    holders = []
+    for e in earned:
+        u = db.session.get(User, e.student_id)
+        if u:
+            holders.append({
+                "student_id": u.id,
+                "name": u.full_name,
+                "department": u.department,
+                "earned_at": e.earned_at.isoformat() if e.earned_at else None
+            })
+    return jsonify({"holders": holders}), 200
+
+
 @career_bp.route("/badges/auto-award", methods=["POST"])
 @jwt_required()
 @role_required("admin", "faculty")
