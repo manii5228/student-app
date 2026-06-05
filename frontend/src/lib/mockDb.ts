@@ -768,6 +768,7 @@ const seedComprehensiveMockDb = () => {
       { id: 'hp_7', reason: 'Passport collection from regional office', destination: 'Passport Office Chennai', from_date: new Date(Date.now() + 86400000).toISOString(), to_date: new Date(Date.now() + 86400000 + 28800000).toISOString(), status: 'rejected', mentor_status: 'rejected', student_id: 'std_5', student_name: 'Riya Sen', student_reg: '22CSE105', created_at: new Date(Date.now() - 2*86400000).toISOString() }
     ],
     canteenOrders: [],
+    attendanceSessions: [],
     notifications: [],
     attendanceSubjects: [
       { student_id: "std_1", subject_code: "CS301", subject_name: "Database Management Systems", total_classes: 25, present: 22, absent: 3, late: 0, on_duty: 0, leave: 0, percentage: 88.0 },
@@ -860,6 +861,9 @@ const getMockDb = () => {
     try {
       const parsedDb = JSON.parse(data);
       if (parsedDb.is_comprehensive && parsedDb.version === 4) {
+        if (!parsedDb.attendanceSessions) {
+          parsedDb.attendanceSessions = [];
+        }
         return parsedDb;
       }
     } catch { /* fallback */ }
@@ -1799,6 +1803,125 @@ export const handleMockRequest = async (config: any): Promise<any> => {
     return {
       status: 200,
       data: { success: true }
+    };
+  }
+
+  if (cleanUrl === '/attendance/students' && method === 'get') {
+    const dept = urlParams.get('department') || 'CSE';
+    const sem = parseInt(urlParams.get('semester') || '4');
+    const sec = urlParams.get('section') || 'A';
+    
+    const students = db.users.filter((u: any) => 
+      u.role === 'student' &&
+      u.department === dept &&
+      u.semester === sem &&
+      u.section === sec
+    );
+    
+    return {
+      status: 200,
+      data: {
+        students: students.map((s: any) => ({
+          id: s.id,
+          name: `${s.first_name} ${s.last_name}`,
+          roll_number: s.roll_number,
+          email: s.email,
+          department: s.department,
+          semester: s.semester,
+          section: s.section,
+          avatar_url: s.avatar_url || null
+        })),
+        total: students.length
+      }
+    };
+  }
+
+  if (cleanUrl === '/attendance/session' && method === 'post') {
+    const payload = getPayload(config.data);
+    const newSession = {
+      id: `sess_${Date.now()}`,
+      faculty_id: activeUserId,
+      subject_code: payload.subject_code,
+      subject_name: payload.subject_name,
+      department: payload.department,
+      semester: parseInt(payload.semester || '4'),
+      section: payload.section,
+      period_number: parseInt(payload.period_number || '1'),
+      session_date: payload.session_date || new Date().toISOString().split('T')[0],
+      created_at: new Date().toISOString(),
+      total_present: 0,
+      total_absent: 0
+    };
+    
+    if (!db.attendanceSessions) db.attendanceSessions = [];
+    db.attendanceSessions.push(newSession);
+    saveMockDb(db);
+    
+    return {
+      status: 201,
+      data: {
+        message: "Session created",
+        session: newSession
+      }
+    };
+  }
+
+  if (cleanUrl.startsWith('/attendance/session/') && cleanUrl.endsWith('/bulk') && method === 'post') {
+    const sessionId = cleanUrl.split('/')[3];
+    const payload = getPayload(config.data);
+    const records = payload.records || [];
+    
+    if (!db.attendanceSessions) db.attendanceSessions = [];
+    const session = db.attendanceSessions.find((s: any) => s.id === sessionId);
+    
+    let present = 0;
+    let absent = 0;
+    records.forEach((rec: any) => {
+      if (rec.status === 'present') present++;
+      else absent++;
+      
+      const newRecord = {
+        id: `rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        session_id: sessionId,
+        student_id: rec.student_id,
+        status: rec.status,
+        marked_at: new Date().toISOString(),
+        remarks: null,
+        discrepancy_reported: false,
+        discrepancy: null,
+        session: {
+          subject_code: session?.subject_code || "CS301",
+          subject_name: session?.subject_name || "Database Management Systems",
+          session_date: session?.session_date || new Date().toISOString().split('T')[0],
+          period_number: session?.period_number || 1
+        }
+      };
+      
+      if (!db.attendanceRecords) db.attendanceRecords = [];
+      db.attendanceRecords.push(newRecord);
+    });
+    
+    if (session) {
+      session.total_present = present;
+      session.total_absent = absent;
+    }
+    
+    saveMockDb(db);
+    
+    return {
+      status: 200,
+      data: {
+        message: "Attendance marked successfully"
+      }
+    };
+  }
+
+  if (cleanUrl === '/attendance/my-sessions' && method === 'get') {
+    if (!db.attendanceSessions) db.attendanceSessions = [];
+    const sessions = db.attendanceSessions.filter((s: any) => s.faculty_id === activeUserId);
+    return {
+      status: 200,
+      data: { sessions }
     };
   }
 

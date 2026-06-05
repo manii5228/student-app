@@ -430,7 +430,7 @@ const Profile = () => {
     }
   }, [cameraStream]);
 
-  const triggerAutoCheckIn = useCallback(async () => {
+  const triggerAutoCheckIn = useCallback(async (token?: string) => {
     if (navigator.vibrate) {
       navigator.vibrate(200);
     }
@@ -442,12 +442,13 @@ const Profile = () => {
 
     setAttendanceMsg(null);
     try {
+      const qr_token = token || 'valid_mock_token_CS301_period1';
       await api.post('/attendance/scan-qr', {
-        qr_token: 'valid_mock_token_CS301_period1',
+        qr_token: qr_token,
         latitude: 13.1818,
         longitude: 80.0401
       });
-      setAttendanceMsg({ type: 'success', text: 'Class attendance marked successfully via live WebRTC QR scan!' });
+      setAttendanceMsg({ type: 'success', text: `Class attendance marked successfully via QR scan!` });
       fetchProfile();
       setTimeout(() => {
         setShowQRScanner(false);
@@ -475,9 +476,11 @@ const Profile = () => {
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(err => console.log("Video play error:", err));
       }
+      
+      // Fallback auto check-in if no QR code is scanned in 5 seconds
       scanTimeoutRef.current = setTimeout(() => {
         triggerAutoCheckIn();
-      }, 2500);
+      }, 5000);
     } catch (err: any) {
       console.error("Error accessing camera:", err);
       setCameraError("Camera access denied or unavailable. Please check permissions.");
@@ -496,6 +499,64 @@ const Profile = () => {
       }
     };
   }, [showQRScanner, startCamera, stopCamera]);
+
+  // Frame processing loop for dynamic QR code scanning
+  useEffect(() => {
+    let active = true;
+    let frameId: number;
+
+    const scanFrame = () => {
+      if (!active) return;
+      if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+        const video = videoRef.current;
+        
+        let canvas = document.getElementById('qr-canvas') as HTMLCanvasElement;
+        if (!canvas) {
+          canvas = document.createElement('canvas');
+          canvas.id = 'qr-canvas';
+          canvas.style.display = 'none';
+          document.body.appendChild(canvas);
+        }
+
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          const jsQR = (window as any).jsQR;
+          if (jsQR) {
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: "dontInvert",
+            });
+            if (code && code.data) {
+              console.log("Decoded QR Code data:", code.data);
+              triggerAutoCheckIn(code.data);
+              active = false;
+              return;
+            }
+          }
+        }
+      }
+
+      if (active) {
+        setTimeout(() => {
+          frameId = requestAnimationFrame(scanFrame);
+        }, 300);
+      }
+    };
+
+    if (showQRScanner && cameraStream) {
+      frameId = requestAnimationFrame(scanFrame);
+    }
+
+    return () => {
+      active = false;
+      cancelAnimationFrame(frameId);
+    };
+  }, [showQRScanner, cameraStream, triggerAutoCheckIn]);
 
   // Handle unmount cleanup for camera stream specifically
   useEffect(() => {
