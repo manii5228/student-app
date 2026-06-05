@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ChevronLeft, FileText, Download, Printer, BarChart3, Users, Clock, Mail, CheckCircle, X, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 
 const FacultyReportGenerator = () => {
   const nav = useNavigate();
@@ -9,6 +13,96 @@ const FacultyReportGenerator = () => {
   const [generating, setGenerating] = useState(false);
   const [generated, setGenerated] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPDF = async () => {
+    setIsDownloading(true);
+    // Ensure preview is visible so it can be captured
+    setShowPreview(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const element = reportRef.current;
+    if (!element) {
+      alert('Could not capture report. Please try again.');
+      setIsDownloading(false);
+      return;
+    }
+
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // First page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Add more pages if content is longer than one page
+      while (heightLeft > 0) {
+        position = position - pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const fileName = `${reportType}_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      if (Capacitor.isNativePlatform()) {
+        const pdfBase64 = pdf.output('datauristring').split(',')[1];
+        try {
+          const result = await Filesystem.writeFile({
+            path: fileName,
+            data: pdfBase64,
+            directory: Directory.Documents,
+          });
+          alert(`Report PDF saved to Documents/${fileName}`);
+          console.log('File saved at:', result.uri);
+        } catch (fsError) {
+          console.warn('Filesystem save failed, trying blob download:', fsError);
+          const blob = pdf.output('blob');
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
+      } else {
+        const blob = pdf.output('blob');
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      setShowPreview(false);
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      alert('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // Scheduler states
   const [isScheduled, setIsScheduled] = useState(false);
@@ -165,7 +259,13 @@ const FacultyReportGenerator = () => {
                   </button>
                 </div>
                 <div className="flex gap-2 border-t border-emerald-200/50 pt-3">
-                  <button className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/10"><Download className="w-3.5 h-3.5"/>Download</button>
+                  <button 
+                    onClick={handleDownloadPDF} 
+                    disabled={isDownloading} 
+                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/10 disabled:opacity-50"
+                  >
+                    {isDownloading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> : <><Download className="w-3.5 h-3.5"/>Download</>}
+                  </button>
                   <button className="flex-1 py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-black border border-slate-200 flex items-center justify-center gap-1.5"><Printer className="w-3.5 h-3.5"/>Print</button>
                 </div>
               </div>
@@ -193,7 +293,7 @@ const FacultyReportGenerator = () => {
             </div>
 
             {/* University Letterhead Document Body */}
-            <div className="flex-1 overflow-y-auto min-h-0 bg-slate-50 border border-slate-200 rounded-2xl p-6 text-slate-800 text-[10px] relative select-none">
+            <div ref={reportRef} className="flex-1 overflow-y-auto min-h-0 bg-slate-50 border border-slate-200 rounded-2xl p-6 text-slate-800 text-[10px] relative select-none">
               
               {/* Header Letterhead */}
               <div className="text-center border-b-2 border-slate-900 pb-3 mb-4">
@@ -265,10 +365,11 @@ const FacultyReportGenerator = () => {
 
             <div className="flex gap-2.5 mt-4">
               <button 
-                onClick={() => { alert("Consolidated PDF file downloaded successfully!"); setShowPreview(false); }}
-                className="flex-1 py-3 bg-[#0080c7] hover:bg-[#006ca8] text-white rounded-xl text-xs font-black flex items-center justify-center gap-1 shadow-lg"
+                onClick={handleDownloadPDF}
+                disabled={isDownloading}
+                className="flex-1 py-3 bg-[#0080c7] hover:bg-[#006ca8] text-white rounded-xl text-xs font-black flex items-center justify-center gap-1 shadow-lg disabled:opacity-50"
               >
-                <Download className="w-3.5 h-3.5" /> Download PDF
+                {isDownloading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span> : <><Download className="w-3.5 h-3.5" /> Download PDF</>}
               </button>
               <button 
                 onClick={() => { window.print(); }}
